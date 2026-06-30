@@ -1,0 +1,694 @@
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: 'fbfe0aaa-1395-4f1a-813e-5d1890c0b16b'
+quantity_required: 2
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '15e504d9-0b1e-41dc-840c-c598431e7db0'
+movement_type: 'Sale'
+Found active batches count: 5
+  Batch 1: B-1043-fbfe (qty: 162, reserved: 0, status: Active, expiry: 2026-08-31)
+  Batch 2: B-1007-fbfe (qty: 65, reserved: 0, status: Active, expiry: 2027-07-18)
+  Batch 3: B-1059-fbfe (qty: 64, reserved: 0, status: Active, expiry: 2027-09-09)
+  Batch 4: B-1083-fbfe (qty: 106, reserved: 0, status: Active, expiry: 2028-02-03)
+  Batch 5: B-1023-fbfe (qty: 45, reserved: 0, status: Active, expiry: 2028-03-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '246bf56a-153c-4eb5-bb84-4f8c80b1978d'
+quantity_required: 1
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'a848fc5d-8270-4646-8b5c-bf9dacdb18e2'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1086-246b (qty: 126, reserved: 0, status: Active, expiry: 2028-05-06)
+  Batch 2: B-1099-246b (qty: 155, reserved: 0, status: Active, expiry: 2028-05-14)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '5ba94330-ed30-4929-9f6d-4424d664c596'
+quantity_required: 10
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '934b3919-002d-4ea3-9e8f-94f3ce74870b'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B1-2027 (qty: 100, reserved: 0, status: Active, expiry: 2027-02-22)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '404c416b-4b57-43b7-985a-0d4c8be498c7'
+quantity_required: 2
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'ef22a72f-a961-45a2-9fa7-3f0045bc922e'
+movement_type: 'Sale'
+Found active batches count: 6
+  Batch 1: B-1033-404c (qty: 128, reserved: 0, status: Active, expiry: 2026-07-28)
+  Batch 2: B-1088-404c (qty: 71, reserved: 0, status: Active, expiry: 2027-02-25)
+  Batch 3: B-1091-404c (qty: 57, reserved: 0, status: Active, expiry: 2027-09-03)
+  Batch 4: B-1085-404c (qty: 130, reserved: 0, status: Active, expiry: 2028-04-01)
+  Batch 5: B-1000-404c (qty: 77, reserved: 0, status: Active, expiry: 2028-04-29)
+  Batch 6: B-1066-404c (qty: 76, reserved: 0, status: Active, expiry: 2028-05-21)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '5ba94330-ed30-4929-9f6d-4424d664c596'
+quantity_required: 10
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '9ee6375b-a9d4-4a4e-936a-8a5e47bce2a5'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B1-2027 (qty: 90, reserved: 0, status: Active, expiry: 2027-02-22)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '3101b22b-e522-4912-a0cf-4d140a7d0a10'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: 'fbfe0aaa-1395-4f1a-813e-5d1890c0b16b'
+quantity_required: 2
+user_id: 'ce6fb677-efa5-4fda-8875-11c8bb8f7cb3'
+reference_id: '6db266a8-1f9e-4bdf-bf55-a175901baf9a'
+movement_type: 'Sale'
+Found active batches count: 5
+  Batch 1: B-1043-fbfe (qty: 161, reserved: 0, status: Active, expiry: 2026-08-31)
+  Batch 2: B-1007-fbfe (qty: 65, reserved: 0, status: Active, expiry: 2027-07-18)
+  Batch 3: B-1059-fbfe (qty: 64, reserved: 0, status: Active, expiry: 2027-09-09)
+  Batch 4: B-1083-fbfe (qty: 106, reserved: 0, status: Active, expiry: 2028-02-03)
+  Batch 5: B-1023-fbfe (qty: 45, reserved: 0, status: Active, expiry: 2028-03-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 4
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'e365b176-2c37-4b2b-a073-c5d603334cd6'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 4
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 4
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'e365b176-2c37-4b2b-a073-c5d603334cd6'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 4
+
+--- FEFO ALLOCATION START ---
+tenant_id: '3101b22b-e522-4912-a0cf-4d140a7d0a10'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: 'fbfe0aaa-1395-4f1a-813e-5d1890c0b16b'
+quantity_required: 1
+user_id: 'ce6fb677-efa5-4fda-8875-11c8bb8f7cb3'
+reference_id: '85af3ef0-5c78-4271-8d85-a153d276b1a3'
+movement_type: 'Sale'
+Found active batches count: 5
+  Batch 1: B-1043-fbfe (qty: 159, reserved: 0, status: Active, expiry: 2026-08-31)
+  Batch 2: B-1007-fbfe (qty: 65, reserved: 0, status: Active, expiry: 2027-07-18)
+  Batch 3: B-1059-fbfe (qty: 64, reserved: 0, status: Active, expiry: 2027-09-09)
+  Batch 4: B-1083-fbfe (qty: 106, reserved: 0, status: Active, expiry: 2028-02-03)
+  Batch 5: B-1023-fbfe (qty: 45, reserved: 0, status: Active, expiry: 2028-03-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '3101b22b-e522-4912-a0cf-4d140a7d0a10'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: 'fbfe0aaa-1395-4f1a-813e-5d1890c0b16b'
+quantity_required: 1
+user_id: 'ce6fb677-efa5-4fda-8875-11c8bb8f7cb3'
+reference_id: '5f6f0788-4bbf-4431-9f95-d4ffaae9ab02'
+movement_type: 'Sale'
+Found active batches count: 5
+  Batch 1: B-1043-fbfe (qty: 158, reserved: 0, status: Active, expiry: 2026-08-31)
+  Batch 2: B-1007-fbfe (qty: 65, reserved: 0, status: Active, expiry: 2027-07-18)
+  Batch 3: B-1059-fbfe (qty: 64, reserved: 0, status: Active, expiry: 2027-09-09)
+  Batch 4: B-1083-fbfe (qty: 106, reserved: 0, status: Active, expiry: 2028-02-03)
+  Batch 5: B-1023-fbfe (qty: 45, reserved: 0, status: Active, expiry: 2028-03-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '3101b22b-e522-4912-a0cf-4d140a7d0a10'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '9251abd9-aed5-4652-a1b6-b0600f7cd5cc'
+quantity_required: 10
+user_id: 'ce6fb677-efa5-4fda-8875-11c8bb8f7cb3'
+reference_id: '4a812b04-90ba-42d8-84c8-bc3a0a5116ed'
+movement_type: 'Sale'
+Found active batches count: 6
+  Batch 1: bn (qty: 89, reserved: 0, status: Active, expiry: 2026-06-30)
+  Batch 2: gghf (qty: 50, reserved: 0, status: Active, expiry: 2026-07-01)
+  Batch 3: B-1043-9251 (qty: 93, reserved: 0, status: Active, expiry: 2026-07-25)
+  Batch 4: B-1013-9251 (qty: 160, reserved: 0, status: Active, expiry: 2027-05-16)
+  Batch 5: B-VERIFY-100 (qty: 100, reserved: 0, status: Active, expiry: 2028-01-01)
+  Batch 6: B-1050-9251 (qty: 107, reserved: 0, status: Active, expiry: 2028-01-15)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '3101b22b-e522-4912-a0cf-4d140a7d0a10'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: 'fbfe0aaa-1395-4f1a-813e-5d1890c0b16b'
+quantity_required: 1
+user_id: 'ce6fb677-efa5-4fda-8875-11c8bb8f7cb3'
+reference_id: '394def7b-9472-4f27-8ec6-20a817771812'
+movement_type: 'Sale'
+Found active batches count: 5
+  Batch 1: B-1043-fbfe (qty: 157, reserved: 0, status: Active, expiry: 2026-08-31)
+  Batch 2: B-1007-fbfe (qty: 65, reserved: 0, status: Active, expiry: 2027-07-18)
+  Batch 3: B-1059-fbfe (qty: 64, reserved: 0, status: Active, expiry: 2027-09-09)
+  Batch 4: B-1083-fbfe (qty: 106, reserved: 0, status: Active, expiry: 2028-02-03)
+  Batch 5: B-1023-fbfe (qty: 45, reserved: 0, status: Active, expiry: 2028-03-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 4
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'e365b176-2c37-4b2b-a073-c5d603334cd6'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 4
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 4
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'e365b176-2c37-4b2b-a073-c5d603334cd6'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 4
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 4
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'e365b176-2c37-4b2b-a073-c5d603334cd6'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 4
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 2
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '90710091-9b75-4b3c-9204-82ac462fac1d'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 2
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 2
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '90710091-9b75-4b3c-9204-82ac462fac1d'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 2
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 2
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '90710091-9b75-4b3c-9204-82ac462fac1d'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 2
+
+--- FEFO ALLOCATION START ---
+tenant_id: '3101b22b-e522-4912-a0cf-4d140a7d0a10'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '9251abd9-aed5-4652-a1b6-b0600f7cd5cc'
+quantity_required: 10
+user_id: '98205090-f6c6-46aa-b9fd-026e4e344efa'
+reference_id: '8a8b0e34-bba0-4583-86e3-62fe92246644'
+movement_type: 'Sale'
+Found active batches count: 6
+  Batch 1: bn (qty: 79, reserved: 0, status: Active, expiry: 2026-06-30)
+  Batch 2: gghf (qty: 50, reserved: 0, status: Active, expiry: 2026-07-01)
+  Batch 3: B-1043-9251 (qty: 93, reserved: 0, status: Active, expiry: 2026-07-25)
+  Batch 4: B-1013-9251 (qty: 160, reserved: 0, status: Active, expiry: 2027-05-16)
+  Batch 5: B-VERIFY-100 (qty: 100, reserved: 0, status: Active, expiry: 2028-01-01)
+  Batch 6: B-1050-9251 (qty: 107, reserved: 0, status: Active, expiry: 2028-01-15)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '3101b22b-e522-4912-a0cf-4d140a7d0a10'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: 'fbfe0aaa-1395-4f1a-813e-5d1890c0b16b'
+quantity_required: 2
+user_id: '98205090-f6c6-46aa-b9fd-026e4e344efa'
+reference_id: '5bed410f-2670-4893-b079-98c9b933d6a4'
+movement_type: 'Sale'
+Found active batches count: 5
+  Batch 1: B-1043-fbfe (qty: 156, reserved: 0, status: Active, expiry: 2026-08-31)
+  Batch 2: B-1007-fbfe (qty: 65, reserved: 0, status: Active, expiry: 2027-07-18)
+  Batch 3: B-1059-fbfe (qty: 64, reserved: 0, status: Active, expiry: 2027-09-09)
+  Batch 4: B-1083-fbfe (qty: 106, reserved: 0, status: Active, expiry: 2028-02-03)
+  Batch 5: B-1023-fbfe (qty: 45, reserved: 0, status: Active, expiry: 2028-03-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '5ba94330-ed30-4929-9f6d-4424d664c596'
+quantity_required: 10
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '99a355e3-bdbc-4646-a3fe-6a22852b8cf6'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B1-2027 (qty: 80, reserved: 0, status: Active, expiry: 2027-02-22)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '3101b22b-e522-4912-a0cf-4d140a7d0a10'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '9251abd9-aed5-4652-a1b6-b0600f7cd5cc'
+quantity_required: 10
+user_id: '98205090-f6c6-46aa-b9fd-026e4e344efa'
+reference_id: '51e20935-0844-4790-989e-7a7540a02553'
+movement_type: 'Sale'
+Found active batches count: 6
+  Batch 1: bn (qty: 69, reserved: 0, status: Active, expiry: 2026-06-30)
+  Batch 2: gghf (qty: 50, reserved: 0, status: Active, expiry: 2026-07-01)
+  Batch 3: B-1043-9251 (qty: 93, reserved: 0, status: Active, expiry: 2026-07-25)
+  Batch 4: B-1013-9251 (qty: 160, reserved: 0, status: Active, expiry: 2027-05-16)
+  Batch 5: B-VERIFY-100 (qty: 100, reserved: 0, status: Active, expiry: 2028-01-01)
+  Batch 6: B-1050-9251 (qty: 107, reserved: 0, status: Active, expiry: 2028-01-15)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: 'fbfe0aaa-1395-4f1a-813e-5d1890c0b16b'
+quantity_required: 5
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '9614d1d5-21d5-4d28-a45a-096cdeb33d35'
+movement_type: 'Sale'
+Found active batches count: 5
+  Batch 1: B-1043-fbfe (qty: 154, reserved: 0, status: Active, expiry: 2026-08-31)
+  Batch 2: B-1007-fbfe (qty: 65, reserved: 0, status: Active, expiry: 2027-07-18)
+  Batch 3: B-1059-fbfe (qty: 64, reserved: 0, status: Active, expiry: 2027-09-09)
+  Batch 4: B-1083-fbfe (qty: 106, reserved: 0, status: Active, expiry: 2028-02-03)
+  Batch 5: B-1023-fbfe (qty: 45, reserved: 0, status: Active, expiry: 2028-03-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '5ba94330-ed30-4929-9f6d-4424d664c596'
+quantity_required: 10
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '61f15175-296b-4347-bbf0-f3eaaaaafa70'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B1-2027 (qty: 70, reserved: 0, status: Active, expiry: 2027-02-22)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 2
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '90710091-9b75-4b3c-9204-82ac462fac1d'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 2
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '5ba94330-ed30-4929-9f6d-4424d664c596'
+quantity_required: 10
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '1fc3a2f6-a829-4e11-b894-a80ceccbb67f'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B1-2027 (qty: 60, reserved: 0, status: Active, expiry: 2027-02-22)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 4
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'e365b176-2c37-4b2b-a073-c5d603334cd6'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 4
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 5
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: '3ed20d4b-680f-443c-9767-7450ce9dab23'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 5
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '61ce9283-f702-4287-8855-73db4da95d1a'
+quantity_required: 3
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'a6d8ec36-0dea-4818-8c3c-ee20d034c93b'
+movement_type: 'Sale'
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 3
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'b3cb6ae5-d31e-45d1-a38e-ba98397960ff'
+branch_id: 'd2f2aadd-d08f-4097-a714-089329e6aa78'
+medicine_id: '5ba94330-ed30-4929-9f6d-4424d664c596'
+quantity_required: 1
+user_id: 'c7cf4c39-cedf-4a89-9e58-3c79da11b393'
+reference_id: 'e7c84da1-1242-4321-8c54-b599464bfc48'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B1-2027 (qty: 50, reserved: 0, status: Active, expiry: 2027-02-22)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '11999a8b-6a9d-414e-873e-ad6c9a6be5c1'
+branch_id: '9ad7962e-c22c-4ef4-96d0-192a5130ef48'
+medicine_id: '36537c96-abee-450d-964f-31d8adca911e'
+quantity_required: 5
+user_id: 'd97f307b-7351-44f2-b8b4-e4fc9608f1b5'
+reference_id: '380cd4c7-66fb-411e-88ef-144a068c39f1'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1050-3653 (qty: 68, reserved: 0, status: Active, expiry: 2026-08-04)
+  Batch 2: B-1056-3653 (qty: 49, reserved: 0, status: Active, expiry: 2027-07-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f3dab440-3f65-47e1-abfc-eba828b38fa5'
+quantity_required: 5
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: 'bf7b6b6a-debf-4cfb-a17b-ed6116405b08'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B-1001-f3da (qty: 43, reserved: 0, status: Active, expiry: 2027-05-26)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'bfe9520e-92b6-493a-a5fe-a1d0eecce182'
+quantity_required: 1
+user_id: '0c13d404-78ae-4c89-a4df-8a296f09e772'
+reference_id: 'b30ee916-cb7e-4e5a-9d9b-f9e9d076441d'
+movement_type: 'Sale'
+Found active batches count: 3
+  Batch 1: B-1003-bfe9 (qty: 41, reserved: 0, status: Active, expiry: 2026-09-08)
+  Batch 2: B-1039-bfe9 (qty: 67, reserved: 0, status: Active, expiry: 2027-03-04)
+  Batch 3: B-1099-bfe9 (qty: 146, reserved: 0, status: Active, expiry: 2027-11-25)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'bfe9520e-92b6-493a-a5fe-a1d0eecce182'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: 'dd1fc3c9-cca3-4c0b-a92d-0c6745b269c9'
+movement_type: 'Sale'
+Found active batches count: 3
+  Batch 1: B-1003-bfe9 (qty: 40, reserved: 0, status: Active, expiry: 2026-09-08)
+  Batch 2: B-1039-bfe9 (qty: 67, reserved: 0, status: Active, expiry: 2027-03-04)
+  Batch 3: B-1099-bfe9 (qty: 146, reserved: 0, status: Active, expiry: 2027-11-25)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 2
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '2ef4a8cf-2652-45c0-bc01-2c96c3a54223'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 90, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: 'c4700d78-a227-4842-b91b-f0c4eff398c0'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 88, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 2
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: 'ef0e5246-e6a8-4939-9858-697ca31e7fce'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 87, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '83a9c8e1-e9f2-47d3-a909-c8bad0eb497d'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 85, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '41f7ad38-9c4f-495f-adc3-bcdc35f2d488'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 84, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: 'b69fc012-2da4-49a5-84e9-31b79b3cead4'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 83, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 2
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '4c93efa8-dbee-4b0e-bb47-86a2f46c16a1'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 83, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 10
+user_id: '0c13d404-78ae-4c89-a4df-8a296f09e772'
+reference_id: '49c7f98d-7f61-4768-9520-b483b0c65367'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 81, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 1
+user_id: '0c13d404-78ae-4c89-a4df-8a296f09e772'
+reference_id: '7d01f35a-5f34-4635-84dd-2978253b22cc'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 71, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'a78e2ca8-a7aa-47c2-a67e-95a5d63aacce'
+quantity_required: 1
+user_id: '0c13d404-78ae-4c89-a4df-8a296f09e772'
+reference_id: '7d01f35a-5f34-4635-84dd-2978253b22cc'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1098-a78e (qty: 44, reserved: 0, status: Active, expiry: 2026-07-20)
+  Batch 2: B-1048-a78e (qty: 103, reserved: 0, status: Active, expiry: 2028-02-05)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: '3c960a64-b940-431a-bb7b-1e6cd4695c3a'
+quantity_required: 1
+user_id: '0c13d404-78ae-4c89-a4df-8a296f09e772'
+reference_id: '7d01f35a-5f34-4635-84dd-2978253b22cc'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1017-3c96 (qty: 130, reserved: 0, status: Active, expiry: 2027-08-26)
+  Batch 2: B-1089-3c96 (qty: 101, reserved: 0, status: Active, expiry: 2028-04-30)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'dba9f06e-6915-4547-9920-0e553ae3592d'
+quantity_required: 1
+user_id: '0c13d404-78ae-4c89-a4df-8a296f09e772'
+reference_id: '7d01f35a-5f34-4635-84dd-2978253b22cc'
+movement_type: 'Sale'
+Found active batches count: 4
+  Batch 1: B-1062-dba9 (qty: 52, reserved: 0, status: Active, expiry: 2027-07-02)
+  Batch 2: B-1019-dba9 (qty: 61, reserved: 0, status: Active, expiry: 2028-01-09)
+  Batch 3: B-1037-dba9 (qty: 55, reserved: 0, status: Active, expiry: 2028-02-22)
+  Batch 4: B-1026-dba9 (qty: 165, reserved: 0, status: Active, expiry: 2028-04-23)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 10
+user_id: '0c13d404-78ae-4c89-a4df-8a296f09e772'
+reference_id: '6f8750b1-d18c-4c05-acca-370fd2cb5397'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 70, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'b7fb87a1-a80a-4fc9-acbf-361c9d2b1dde'
+quantity_required: 1
+user_id: '0c13d404-78ae-4c89-a4df-8a296f09e772'
+reference_id: '6f8750b1-d18c-4c05-acca-370fd2cb5397'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B-1008-b7fb (qty: 48, reserved: 0, status: Active, expiry: 2027-09-10)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f272fbc6-31a2-4a8e-8594-bff7032dc29f'
+quantity_required: 4
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '7ae56be5-9616-42cb-a21e-b6d460adbbc4'
+movement_type: 'Sale'
+Found active batches count: 3
+  Batch 1: B-1063-f272 (qty: 158, reserved: 0, status: Active, expiry: 2027-06-04)
+  Batch 2: B-1093-f272 (qty: 27, reserved: 0, status: Active, expiry: 2027-11-15)
+  Batch 3: B-1039-f272 (qty: 175, reserved: 0, status: Active, expiry: 2028-05-18)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f272fbc6-31a2-4a8e-8594-bff7032dc29f'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: 'd1f65c0b-c2f2-4f03-8e36-1472b4a6a78b'
+movement_type: 'Sale'
+Found active batches count: 3
+  Batch 1: B-1063-f272 (qty: 154, reserved: 0, status: Active, expiry: 2027-06-04)
+  Batch 2: B-1093-f272 (qty: 27, reserved: 0, status: Active, expiry: 2027-11-15)
+  Batch 3: B-1039-f272 (qty: 175, reserved: 0, status: Active, expiry: 2028-05-18)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'b7fb87a1-a80a-4fc9-acbf-361c9d2b1dde'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '302c34b1-b469-42d5-aa75-7bf3fc56c2e0'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B-1008-b7fb (qty: 47, reserved: 0, status: Active, expiry: 2027-09-10)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'b7ddeca3-ae0a-4e05-9ee9-2e8028da67d5'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '307b6d76-6b6b-4a74-b302-3a6f6fcdcab3'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B-1069-b7dd (qty: 67, reserved: 0, status: Active, expiry: 2028-02-04)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f5b161e8-ef9c-4d2c-b141-5212f8468200'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '81de2989-50e9-442a-b4a7-4be0f0db53e3'
+movement_type: 'Sale'
+Found active batches count: 2
+  Batch 1: B-1095-f5b1 (qty: 60, reserved: 0, status: Active, expiry: 2027-03-11)
+  Batch 2: B-1081-f5b1 (qty: 163, reserved: 0, status: Active, expiry: 2028-01-27)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f272fbc6-31a2-4a8e-8594-bff7032dc29f'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: 'fe111a3c-fa15-4745-9aa2-6fcb9423901e'
+movement_type: 'Sale'
+Found active batches count: 3
+  Batch 1: B-1063-f272 (qty: 153, reserved: 0, status: Active, expiry: 2027-06-04)
+  Batch 2: B-1093-f272 (qty: 27, reserved: 0, status: Active, expiry: 2027-11-15)
+  Batch 3: B-1039-f272 (qty: 175, reserved: 0, status: Active, expiry: 2028-05-18)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: 'f272fbc6-31a2-4a8e-8594-bff7032dc29f'
+quantity_required: 1
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: 'd8dcd4f7-06d8-4173-9bf0-7e3d6535a1eb'
+movement_type: 'Sale'
+Found active batches count: 3
+  Batch 1: B-1063-f272 (qty: 152, reserved: 0, status: Active, expiry: 2027-06-04)
+  Batch 2: B-1093-f272 (qty: 27, reserved: 0, status: Active, expiry: 2027-11-15)
+  Batch 3: B-1039-f272 (qty: 175, reserved: 0, status: Active, expiry: 2028-05-18)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'de06b52b-d81a-42e2-9d42-17fed7b54c72'
+branch_id: 'aacce1ce-026b-4f88-894e-5b9603d1356a'
+medicine_id: '34e1a595-42f3-49a1-99ec-26a065afb869'
+quantity_required: 10
+user_id: 'fab336b2-b1bd-419c-9147-fc897827f11e'
+reference_id: '2efee36f-d658-46e5-bbd3-c7695da6c836'
+movement_type: 'Sale'
+Found active batches count: 1
+  Batch 1: B-465dfff5 (qty: 100, reserved: 0, status: Active, expiry: 2027-02-16)

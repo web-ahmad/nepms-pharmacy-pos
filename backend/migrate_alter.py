@@ -1,0 +1,1 @@
+from database import engine, Base; import models.settings; Base.metadata.drop_all(bind=engine, tables=[models.settings.InvoiceSettings.__table__]); Base.metadata.create_all(bind=engine, tables=[models.settings.InvoiceSettings.__table__])

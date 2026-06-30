@@ -1,0 +1,70 @@
+{
+  "info": {
+    "name": "NEPMS_API",
+    "description": "Postman Collection for Next-Generation Enterprise Pharmacy Management System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": {"raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"]},
+            "body": {"mode": "raw", "raw": "{\"username\": \"admin\", \"password\": \"secret\"}"}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Search Medicines",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}],
+            "url": {"raw": "{{base_url}}/api/v1/inventory/medicines/search?search_term=Panadol", "host": ["{{base_url}}"], "path": ["api", "v1", "inventory", "medicines", "search"], "query": [{"key": "search_term", "value": "Panadol"}]}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Purchase",
+      "item": [
+        {
+          "name": "Create GRN",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "url": {"raw": "{{base_url}}/api/v1/purchase/grn", "host": ["{{base_url}}"], "path": ["api", "v1", "purchase", "grn"]},
+            "body": {"mode": "raw", "raw": "{\"po_id\": \"uuid\", \"supplier_id\": \"uuid\", \"items\": []}"}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sales",
+      "item": [
+        {
+          "name": "Checkout POS",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Authorization", "value": "Bearer {{access_token}}"}, {"key": "Content-Type", "value": "application/json"}],
+            "url": {"raw": "{{base_url}}/api/v1/sales/checkout", "host": ["{{base_url}}"], "path": ["api", "v1", "sales", "checkout"]},
+            "body": {"mode": "raw", "raw": "{\"items\": [], \"amount_paid\": 100, \"payment_method\": \"Cash\"}"}
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "access_token", "value": "" },
+    { "key": "tenant_id", "value": "" },
+    { "key": "branch_id", "value": "" }
+  ]
+}
