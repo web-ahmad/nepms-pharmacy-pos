@@ -65,6 +65,22 @@ def update_supplier(
         raise HTTPException(status_code=404, detail="Supplier not found")
     return supplier_repo.update(db, db_obj=supplier, obj_in=supplier_in)
 
+@router.delete("/suppliers/{id}")
+def delete_supplier(
+    id: str,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_tenant_context),
+    token_payload: dict = Depends(requires_permission("purchase:manage"))
+):
+    supplier = supplier_repo.get(db, id=id, tenant_id=tenant.tenant_id)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    
+    # Soft delete
+    supplier.is_deleted = True
+    db.commit()
+    return {"message": "Supplier deleted successfully"}
+
 from schemas.purchase import SupplierMedicinePriceCreate, SupplierMedicinePriceResponse
 
 @router.post("/suppliers/{id}/medicines", response_model=List[SupplierMedicinePriceResponse])
@@ -102,7 +118,30 @@ def get_supplier_medicines(
     tenant: TenantContext = Depends(get_tenant_context)
 ):
     from models.purchase import SupplierMedicinePrice
-    return db.query(SupplierMedicinePrice).filter(SupplierMedicinePrice.supplier_id == id).all()
+    from models.inventory import Medicine
+    
+    results = db.query(
+        SupplierMedicinePrice, 
+        Medicine.name.label("medicine_name")
+    ).join(
+        Medicine, SupplierMedicinePrice.medicine_id == Medicine.id
+    ).filter(
+        SupplierMedicinePrice.supplier_id == id
+    ).all()
+    
+    response = []
+    for mapping, medicine_name in results:
+        # Pydantic will pick up from_attributes, but we need to inject medicine_name
+        # Since it's an object, we can construct a dict or just set it
+        # Actually, using a dict is safer
+        mapping_dict = {
+            column.name: getattr(mapping, column.name)
+            for column in mapping.__table__.columns
+        }
+        mapping_dict["medicine_name"] = medicine_name
+        response.append(mapping_dict)
+        
+    return response
 
 @router.get("/suppliers/{id}/ledger", response_model=List[SupplierLedgerResponse])
 def get_supplier_ledger(

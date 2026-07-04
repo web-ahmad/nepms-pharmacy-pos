@@ -1,16 +1,24 @@
 import { useState } from 'react';
-import { useSuppliers } from '../services/purchase.api';
-import { Edit, Book, Download, MoreVertical } from 'lucide-react';
+import { useSuppliers, useDeleteSupplier } from '../services/purchase.api';
+import { Edit, Book, Download, MoreVertical, Eye, Trash2 } from 'lucide-react';
 
 interface SupplierTableProps {
   onEdit: (id: string) => void;
   onViewLedger: (id: string) => void;
+  onView?: (id: string) => void;
   canEdit: boolean;
 }
 
-export default function SupplierTable({ onEdit, onViewLedger, canEdit }: SupplierTableProps) {
+export default function SupplierTable({ onEdit, onViewLedger, onView, canEdit }: SupplierTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const { data: suppliers, isLoading, isError } = useSuppliers();
+  const deleteMutation = useDeleteSupplier();
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this supplier?')) {
+      await deleteMutation.mutateAsync(id);
+    }
+  };
 
   if (isLoading) return <div className="h-64 flex items-center justify-center animate-pulse bg-zinc-50 dark:bg-zinc-900 rounded-lg">Loading...</div>;
   if (isError) return <div className="text-red-500 p-4">Failed to load suppliers</div>;
@@ -75,6 +83,15 @@ export default function SupplierTable({ onEdit, onViewLedger, canEdit }: Supplie
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      {onView && (
+                        <button
+                          onClick={() => onView(supplier.id)}
+                          className="p-2 text-zinc-400 hover:text-indigo-600 transition-colors flex items-center gap-1"
+                          title="View Details"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      )}
                       <button
                         onClick={() => onViewLedger(supplier.id)}
                         className="p-2 text-zinc-400 hover:text-blue-600 transition-colors flex items-center gap-1"
@@ -83,13 +100,22 @@ export default function SupplierTable({ onEdit, onViewLedger, canEdit }: Supplie
                         <Book size={16} />
                       </button>
                       {canEdit && (
-                        <button
-                          onClick={() => onEdit(supplier.id)}
-                          className="p-2 text-zinc-400 hover:text-blue-600 transition-colors"
-                          title="Edit Supplier"
-                        >
-                          <Edit size={16} />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => onEdit(supplier.id)}
+                            className="p-2 text-zinc-400 hover:text-blue-600 transition-colors"
+                            title="Edit Supplier"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(supplier.id)}
+                            className="p-2 text-zinc-400 hover:text-red-600 transition-colors"
+                            title="Delete Supplier"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>

@@ -173,7 +173,7 @@ class PurchaseService:
                 is_fallback = False
                 
                 if not trade_price or trade_price <= 0:
-                    trade_price = med.purchase_price or 0.0
+                    trade_price = med.cost_per_base_unit or 0.0
                     is_fallback = True
                     
                 supplier_options.append({
@@ -310,6 +310,7 @@ class PurchaseService:
                 expiry_date=item.expiry_date,
                 purchase_price=item.purchase_price,
                 current_quantity=item.quantity_received,
+                initial_quantity=item.quantity_received,
                 status="Active"
             )
             db.add(batch)
@@ -340,9 +341,9 @@ class PurchaseService:
             # Update Medicine pricing
             medicine = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
             if medicine:
-                medicine.purchase_price = item.purchase_price
+                medicine.cost_per_base_unit = item.purchase_price
                 if getattr(item, 'apply_to_old_stock', False):
-                    medicine.sale_price = item.selling_price
+                    medicine.unit_retail_price = item.selling_price
                     db.query(Batch).filter(
                         Batch.medicine_id == item.medicine_id,
                         Batch.tenant_id == tenant_id,

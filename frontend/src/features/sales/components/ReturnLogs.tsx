@@ -4,6 +4,8 @@ import React, { useState } from 'react';
 import { useReturnLogs } from '../services/sales.api';
 import { ReturnLog } from '../types/sales';
 import { Search, Calendar, User, RefreshCw, FileText, ArrowRightLeft, Filter, Printer, Eye, X, Receipt } from 'lucide-react';
+import { useInvoiceSettings } from '@/features/settings/services/settings.api';
+import { generateReceiptHtml } from '@/utils/receiptGenerator';
 
 export default function ReturnLogs() {
   const [filters, setFilters] = useState({
@@ -13,6 +15,7 @@ export default function ReturnLogs() {
   });
 
   const { data, isLoading, isFetching, refetch } = useReturnLogs(filters);
+  const { data: invoiceSettings } = useInvoiceSettings();
   const [selectedReturn, setSelectedReturn] = useState<ReturnLog | null>(null);
 
   const handleFilterChange = (key: string, value: any) => {
@@ -26,86 +29,13 @@ export default function ReturnLogs() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const itemsRows = log.items?.map((item: any) => `
-      <tr>
-        <td style="padding: 4px 0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          ${item.medicine_name || 'Medicine'}
-        </td>
-        <td style="padding: 4px 0; text-align: center;">${item.quantity_returned}</td>
-        <td style="padding: 4px 0; text-align: right;">Rs ${item.unit_price.toFixed(2)}</td>
-        <td style="padding: 4px 0; text-align: right;">Rs ${item.total_refund.toFixed(2)}</td>
-      </tr>
-    `).join('') || '';
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Return Invoice - ${log.return_number}</title>
-          <style>
-            @media print {
-              @page { size: 80mm auto; margin: 0; }
-              body { margin: 0; padding: 10px; font-family: monospace; font-size: 11px; }
-            }
-            body { font-family: monospace; font-size: 11px; color: #000; width: 80mm; padding: 10px; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
-            table { width: 100%; border-collapse: collapse; }
-          </style>
-        </head>
-        <body onload="window.print(); window.close();">
-          <div class="text-center">
-            <h3 style="margin: 0 0 4px 0;">RETURN INVOICE</h3>
-            <p style="margin: 0;">NEPMS PHARMACY</p>
-            <div class="divider"></div>
-          </div>
-
-          <div style="line-height: 1.4; margin-bottom: 8px;">
-            <div>Return No: <b>${log.return_number}</b></div>
-            <div>Ref Invoice: <b>${log.invoice_number}</b></div>
-            <div>Date: ${new Date(log.return_date).toLocaleString()}</div>
-            <div>Cashier: ${log.cashier_name || 'Operator'}</div>
-            <div class="divider"></div>
-          </div>
-
-          <table>
-            <thead>
-              <tr style="border-bottom: 1px dashed #000;">
-                <th style="text-align: left; padding-bottom: 4px;">Item</th>
-                <th style="padding-bottom: 4px;">Qty</th>
-                <th style="text-align: right; padding-bottom: 4px;">Price</th>
-                <th style="text-align: right; padding-bottom: 4px;">Refund</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsRows}
-            </tbody>
-          </table>
-          <div class="divider"></div>
-
-          <div style="line-height: 1.4; text-align: right; margin-bottom: 8px;">
-            <div style="display: flex; justify-content: space-between; font-weight: bold;">
-              <span>Total Refund:</span>
-              <span>Rs ${log.total_amount.toFixed(2)}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span>Refund Method:</span>
-              <span>${log.payment_mode}</span>
-            </div>
-            ${log.notes ? `
-            <div style="text-align: left; font-size: 10px; margin-top: 5px;">
-              <span>Notes: ${log.notes}</span>
-            </div>` : ''}
-          </div>
-
-          <div class="divider"></div>
-          <div class="text-center" style="margin-top: 10px; font-size: 10px;">
-            <p style="margin: 0;">Stock processed successfully</p>
-            <p style="margin: 4px 0 0 0;">Software Powered by NEPMS</p>
-          </div>
-        </body>
-      </html>
-    `);
+    const html = generateReceiptHtml({
+      ...log,
+      subtotal: log.total_amount, // For returns, total is just total
+      amount_paid: log.total_amount,
+    }, invoiceSettings, 'return');
+    
+    printWindow.document.write(html);
     printWindow.document.close();
   };
 

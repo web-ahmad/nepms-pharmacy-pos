@@ -2,12 +2,19 @@ export interface POSMedicine {
   id: string;
   name: string;
   generic_name?: string;
-  sale_price: number;
+  sale_price?: number; // kept for backwards compat or older references
+  unit_retail_price?: number;
   available_quantity: number;
   total_quantity?: number;
   units_per_pack?: number;
   strips_per_box?: number;
   units_per_strip?: number;
+  packaging_levels?: {
+    id: string;
+    level_name: string;
+    conversion_qty: number;
+    sale_price: number;
+  }[];
   batches?: {
     id: string;
     batch_number: string;

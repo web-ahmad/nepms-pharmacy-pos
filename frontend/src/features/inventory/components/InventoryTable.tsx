@@ -34,16 +34,6 @@ export default function InventoryTable() {
             Manage your medicines, stock levels, and track valuations.
           </p>
         </div>
-        
-        {canCreate && (
-          <Link
-            href="/inventory/medicines/add"
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-          >
-            <Plus size={16} />
-            Add Medicine
-          </Link>
-        )}
       </div>
 
       <InventoryAlerts variant="inventory" />
@@ -110,10 +100,10 @@ export default function InventoryTable() {
                       </span>
                     </td>
                     <td className="p-4 text-right text-zinc-600 dark:text-zinc-400 font-mono">
-                      Rs {med.sale_price.toFixed(2)}
+                      Rs {(med.unit_retail_price || 0).toFixed(2)}
                     </td>
                     <td className="p-4 text-right text-blue-600 dark:text-blue-400 font-mono font-medium">
-                      Rs {(med.total_quantity * med.purchase_price).toFixed(2)}
+                      Rs {(med.stock_value || 0).toFixed(2)}
                     </td>
                     <td className="p-4 text-center">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -128,7 +118,7 @@ export default function InventoryTable() {
                       <div className="flex items-center justify-end gap-2 relative">
                         {canEdit && (
                           <Link
-                            href={`/inventory/medicines/${med.id}`}
+                            href={`/inventory/medicines/${med.id}/edit`}
                             className="p-2 text-zinc-400 hover:text-blue-600 transition-colors"
                             title="Edit Details"
                           >

@@ -30,4 +30,8 @@ export interface AnalyticsKPIs {
   near_expiry_count: number;
   active_customers: number;
   active_prescriptions: number;
+  profit_margin_percent: number;
+  expiry_risk_90_days_value: number;
+  dead_stock_capital: number;
+  todays_cash_drawer: number;
 }

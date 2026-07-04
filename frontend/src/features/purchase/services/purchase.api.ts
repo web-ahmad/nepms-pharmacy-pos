@@ -55,6 +55,19 @@ export const useUpdateSupplier = (id: string) => {
   });
 };
 
+export const useDeleteSupplier = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/api/v1/purchase/suppliers/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+    }
+  });
+};
+
 export const useSupplierLedger = (supplierId: string) => {
   return useQuery({
     queryKey: ['supplier_ledger', supplierId],

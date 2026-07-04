@@ -5,6 +5,8 @@ import { useSalesHistory, useSaleDetail } from '../services/sales.api';
 import { Sale } from '../types/sales';
 import SaleReturnModal from './SaleReturnModal';
 import { Printer, Eye, RotateCcw, Calendar, User, Search, RefreshCw, X, ChevronLeft, ChevronRight, FileText, Filter, Receipt } from 'lucide-react';
+import { useInvoiceSettings } from '@/features/settings/services/settings.api';
+import { generateReceiptHtml } from '@/utils/receiptGenerator';
 
 export default function SalesHistory() {
   const [filters, setFilters] = useState({
@@ -57,6 +59,7 @@ export default function SalesHistory() {
   };
 
   const { data, isLoading, isFetching, refetch } = useSalesHistory(filters);
+  const { data: invoiceSettings } = useInvoiceSettings();
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
   const [returnSaleId, setReturnSaleId] = useState<string | null>(null);
 
@@ -138,110 +141,8 @@ export default function SalesHistory() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const itemsRows = sale.items?.map((item: any, idx: number) => `
-      <tr>
-        <td style="padding: 4px 0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          ${item.medicine_name || 'Medicine'}
-        </td>
-        <td style="padding: 4px 0; text-align: center;">${item.quantity}</td>
-        <td style="padding: 4px 0; text-align: right;">Rs ${item.unit_price.toFixed(2)}</td>
-        <td style="padding: 4px 0; text-align: right;">Rs ${item.total.toFixed(2)}</td>
-      </tr>
-    `).join('') || '';
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Receipt - ${sale.invoice_number}</title>
-          <style>
-            @media print {
-              @page { size: 80mm auto; margin: 0; }
-              body { margin: 0; padding: 10px; font-family: monospace; font-size: 11px; }
-            }
-            body { font-family: monospace; font-size: 11px; color: #000; width: 80mm; padding: 10px; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
-            table { width: 100%; border-collapse: collapse; }
-          </style>
-        </head>
-        <body onload="window.print(); window.close();">
-          <div class="text-center">
-            <h3 style="margin: 0 0 4px 0;">NEPMS PHARMACY</h3>
-            <p style="margin: 0;">Plot 12-C, Commercial Area, Sector G-10</p>
-            <p style="margin: 0;">Ph: +92-51-1234567</p>
-            <div class="divider"></div>
-          </div>
-
-          <div style="line-height: 1.4; margin-bottom: 8px;">
-            <div>Invoice: <b>${sale.invoice_number}</b></div>
-            <div>Date: ${new Date(sale.sale_date.endsWith('Z') ? sale.sale_date : sale.sale_date + 'Z').toLocaleString('en-PK', { timeZone: 'Asia/Karachi', dateStyle: 'medium', timeStyle: 'short' })}</div>
-            <div>Cashier: ${sale.cashier_name || 'Operator'}</div>
-            <div class="divider"></div>
-          </div>
-
-          <table>
-            <thead>
-              <tr style="border-b: 1px dashed #000;">
-                <th style="text-align: left; padding-bottom: 4px;">Item</th>
-                <th style="padding-bottom: 4px;">Qty</th>
-                <th style="text-align: right; padding-bottom: 4px;">Price</th>
-                <th style="text-align: right; padding-bottom: 4px;">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsRows}
-            </tbody>
-          </table>
-          <div class="divider"></div>
-
-          <div style="line-height: 1.4; text-align: right; margin-bottom: 8px;">
-            <div style="display: flex; justify-content: space-between;">
-              <span>Subtotal:</span>
-              <span>Rs ${sale.subtotal.toFixed(2)}</span>
-            </div>
-            ${sale.discount_amount > 0 ? `
-            <div style="display: flex; justify-content: space-between; color: green;">
-              <span>Discount:</span>
-              <span>-Rs ${sale.discount_amount.toFixed(2)}</span>
-            </div>` : ''}
-            <div style="display: flex; justify-content: space-between; font-weight: bold;">
-              <span>Grand Total:</span>
-              <span>Rs ${sale.total_amount.toFixed(2)}</span>
-            </div>
-            <div class="divider"></div>
-          </div>
-
-          <div style="line-height: 1.4; margin-bottom: 8px;">
-            <div style="display: flex; justify-content: space-between;">
-              <span>Method:</span>
-              <span>{sale.payment_method}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span>Paid:</span>
-              <span>Rs ${sale.amount_paid.toFixed(2)}</span>
-            </div>
-            ${sale.amount_paid < sale.total_amount ? `
-            <div style="display: flex; justify-content: space-between; font-weight: bold; color: #991b1b;">
-              <span>Balance Owed:</span>
-              <span>Rs ${(sale.total_amount - sale.amount_paid).toFixed(2)}</span>
-            </div>
-            ` : `
-            <div style="display: flex; justify-content: space-between; font-weight: bold;">
-              <span>Change:</span>
-              <span>Rs ${sale.change_due.toFixed(2)}</span>
-            </div>
-            `}
-          </div>
-
-          <div class="divider"></div>
-          <div class="text-center" style="margin-top: 10px; font-size: 10px;">
-            <p style="margin: 0;">Thank you for your visit!</p>
-            <p style="margin: 4px 0 0 0;">Software Powered by NEPMS</p>
-          </div>
-        </body>
-      </html>
-    `);
+    const html = generateReceiptHtml(sale, invoiceSettings, 'sale');
+    printWindow.document.write(html);
     printWindow.document.close();
   };
 

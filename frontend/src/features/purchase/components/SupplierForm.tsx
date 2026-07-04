@@ -44,8 +44,9 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }: Suppl
   const { data: existingMedicines, isLoading: isLoadingPrices } = useSupplierMedicines(initialData?.id || 'new');
   const { data: medicinesData } = useMedicines('', 1, 1000);
   const inventoryMedicines = medicinesData?.items || [];
+  console.log('SupplierForm debug - medicinesData:', medicinesData, 'inventoryMedicines:', inventoryMedicines);
 
-  const { register, control, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<SupplierFormData>({
+  const { register, control, handleSubmit, formState: { errors, isSubmitting }, reset, setValue } = useForm<SupplierFormData>({
     resolver: zodResolver(supplierSchema) as any,
     defaultValues: {
       name: '',
@@ -71,7 +72,6 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }: Suppl
     const rows = [];
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
-      // Basic CSV parsing splitting by comma
       const values = lines[i].split(',');
       const row: any = {};
       headers.forEach((h, index) => {
@@ -98,28 +98,33 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }: Suppl
         return {
           medicine_id: match ? match.id : '',
           _unmatched_name: match ? undefined : rawName,
-          trade_price: parseFloat(row['tradeprice'] || row['trade_price'] || '0') || 0,
-          exclusive_discount_percentage: parseFloat(row['discountpercent'] || row['discount_percent'] || '0') || 0,
-          bonus_scheme_threshold: parseInt(row['bonusthreshold'] || row['bonus_threshold'] || '0', 10) || 0,
-          delivery_lead_time_days: parseInt(row['leadtimedays'] || row['lead_time_days'] || '1', 10) || 1,
+          trade_price: parseFloat(row['tradeprice']) || (match ? match.cost_per_base_unit : 0),
+          exclusive_discount_percentage: parseFloat(row['discount']) || 0,
+          bonus_scheme_threshold: parseInt(row['bonusthreshold']) || 0,
+          delivery_lead_time_days: parseInt(row['leadtime']) || 1
         };
       });
 
-      append(newItems);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      const currentItems = fields;
+      reset({
+        ...control._formValues,
+        medicine_prices: [...currentItems, ...newItems]
+      });
     };
     reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const downloadTemplate = () => {
-    const headers = "SKU/MedicineName,TradePrice,DiscountPercent,BonusThreshold,LeadTimeDays\n";
-    const example = "Panadol Extra 50mg,10.50,5,10,2\n";
-    const blob = new Blob([headers + example], { type: 'text/csv' });
+    const header = "SKU/MedicineName,TradePrice,Discount,BonusThreshold,LeadTime\n";
+    const sample = "Paracetamol 500mg,2.50,10,100,2\n";
+    const blob = new Blob([header + sample], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'supplier_mapping_template.csv';
+    a.download = "contract_pricing_template.csv";
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const { fields, append, remove } = useFieldArray({
@@ -181,35 +186,55 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }: Suppl
     }
   };
 
+  if (isLoadingPrices) {
+    return <div className="h-64 flex items-center justify-center">Loading contract pricing...</div>;
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8 font-['Inter']">
-      {/* Profile Section */}
-      <div className="bg-surface-container-lowest border border-outline-variant p-6 rounded-2xl shadow-sm space-y-6">
-        <h3 className="text-lg font-bold text-zinc-900 border-b border-zinc-100 pb-3">Supplier Profile</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Supplier Name <span className="text-red-500">*</span></label>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <div className="bg-white dark:bg-zinc-950 p-6 rounded-2xl border border-zinc-100 dark:border-zinc-800 shadow-sm space-y-6">
+        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50 border-b border-zinc-100 dark:border-zinc-800 pb-2">Supplier Overview</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Company / Supplier Name *</label>
             <input
+              type="text"
               {...register('name')}
               className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
-            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Region <span className="text-red-500">*</span></label>
-            <input
-              {...register('region_name')}
-              placeholder="e.g. Lahore, Karachi"
-              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            />
-            {errors.region_name && <p className="mt-1 text-sm text-red-500">{errors.region_name.message}</p>}
+            {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Contact Person</label>
             <input
+              type="text"
               {...register('contact_person')}
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Region *</label>
+            <select
+              {...register('region_name')}
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="">Select Region</option>
+              <option value="Lahore">Lahore</option>
+              <option value="Islamabad">Islamabad</option>
+              <option value="Karachi">Karachi</option>
+              <option value="National">National</option>
+            </select>
+            {errors.region_name && <p className="mt-1 text-xs text-red-500">{errors.region_name.message}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Phone</label>
+            <input
+              type="text"
+              {...register('phone')}
               className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
@@ -221,30 +246,23 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }: Suppl
               {...register('email')}
               className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
-            {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}
+            {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Phone</label>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Physical Address</label>
             <input
-              {...register('phone')}
-              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Tax Number (VAT/GST)</label>
-            <input
-              {...register('tax_number')}
-              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-
-          <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Address</label>
-            <textarea
+              type="text"
               {...register('address')}
-              rows={2}
+              className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Tax Number (NTN/GST)</label>
+            <input
+              type="text"
+              {...register('tax_number')}
               className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
             />
           </div>
@@ -327,11 +345,23 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }: Suppl
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-50">
-              {fields.map((field, index) => (
+              {fields.map((field, index) => {
+                return (
                 <tr key={field.id} className="hover:bg-zinc-50/50">
                   <td className="py-2 px-2">
                     <select
                       {...register(`medicine_prices.${index}.medicine_id` as const)}
+                      onChange={(e) => {
+                        register(`medicine_prices.${index}.medicine_id`).onChange(e); // Trigger RHF validation
+                        const medId = e.target.value;
+                        if (medId) {
+                          const match = inventoryMedicines.find((m: any) => m.id === medId);
+                          if (match) {
+                            const basePrice = match.cost_per_base_unit || 0;
+                            setValue(`medicine_prices.${index}.trade_price` as const, basePrice);
+                          }
+                        }
+                      }}
                       className="w-full rounded-lg border border-zinc-200 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
                     >
                       <option value="">-- Select Medicine --</option>
@@ -393,7 +423,8 @@ export default function SupplierForm({ initialData, onSuccess, onCancel }: Suppl
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {fields.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-zinc-400">

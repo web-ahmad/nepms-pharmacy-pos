@@ -1,56 +1,64 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from models.audit import AuditLog
+from models.users import User
 from schemas.reports import DateRangeParams, ReportResponse
-from services.export_service import ExportService
+from schemas.audit import SystemAuditLogResponse
+from typing import List, Optional
+
+from datetime import datetime
 
 class AuditService:
     def __init__(self, db: Session):
         self.db = db
 
-    def _handle_response(self, title: str, headers: list, rows: list, export_format: str = None) -> any:
-        if export_format:
-            return ExportService.dispatch_export(export_format, title, headers, rows)
+    def get_audit_logs(
+        self, 
+        tenant_id: str, 
+        params: DateRangeParams, 
+        entity_types: Optional[List[str]] = None,
+        severity: Optional[str] = None,
+        user_id: Optional[str] = None
+    ) -> List[SystemAuditLogResponse]:
         
-        return ReportResponse(
-            title=title,
-            headers=headers,
-            rows=rows,
-            total_records=len(rows)
-        )
-
-    def get_audit_logs(self, tenant_id: str, params: DateRangeParams, entity_type: str = None):
-        query = self.db.query(AuditLog).filter(AuditLog.tenant_id == tenant_id)
+        query = self.db.query(AuditLog, User).outerjoin(User, AuditLog.user_id == User.id).filter(AuditLog.tenant_id == tenant_id)
         
-        # We assume start_date and end_date are dates, timestamp is datetime
         query = query.filter(
-            AuditLog.timestamp >= params.start_date,
-            # using less than strictly the next day could be safer, but this works for basic filtering
-            AuditLog.timestamp <= params.end_date
+            AuditLog.created_at >= datetime.combine(params.start_date, datetime.min.time()),
+            AuditLog.created_at <= datetime.combine(params.end_date, datetime.max.time())
         )
         
-        if entity_type:
-            query = query.filter(AuditLog.entity_type == entity_type)
+        if entity_types:
+            query = query.filter(AuditLog.entity_type.in_(entity_types))
             
-        logs = query.order_by(desc(AuditLog.timestamp)).limit(1000).all() # Limit to 1000 for safety
+        if severity:
+            query = query.filter(AuditLog.severity == severity)
+            
+        if user_id:
+            query = query.filter(AuditLog.user_id == user_id)
+            
+        results = query.order_by(desc(AuditLog.created_at)).limit(1000).all()
         
-        rows = []
-        for log in logs:
-            rows.append({
-                "timestamp": log.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                "user_id": log.user_id,
-                "action": log.action,
-                "entity_type": log.entity_type,
-                "entity_id": log.entity_id,
-                "details": log.details
-            })
+        responses = []
+        for log, user in results:
+            responses.append(SystemAuditLogResponse(
+                id=log.id,
+                tenant_id=log.tenant_id,
+                branch_id=log.branch_id,
+                user_id=log.user_id,
+                user_name=user.name if user else "System",
+                created_at=log.created_at,
+                action=log.action,
+                entity_type=log.entity_type,
+                entity_id=log.entity_id,
+                previous_value=log.previous_value,
+                new_value=log.new_value,
+                ip_address=log.ip_address,
+                user_agent=log.user_agent,
+                reason_code=log.reason_code,
+                batch_audit_id=log.batch_audit_id,
+                severity=log.severity,
+                details=None
+            ))
             
-        headers = ["timestamp", "user_id", "action", "entity_type", "entity_id", "details"]
-        title = f"Audit Log ({entity_type})" if entity_type else "Full Audit Log"
-        return self._handle_response(title, headers, rows, params.export_format)
-
-    def get_security_audit(self, tenant_id: str, params: DateRangeParams):
-        return self.get_audit_logs(tenant_id, params, entity_type="User")
-
-    def get_inventory_audit(self, tenant_id: str, params: DateRangeParams):
-        return self.get_audit_logs(tenant_id, params, entity_type="Inventory")
+        return responses

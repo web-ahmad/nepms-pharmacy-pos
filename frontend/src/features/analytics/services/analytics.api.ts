@@ -12,3 +12,13 @@ export const useAnalyticsKPIs = () => {
     refetchInterval: 60000 // refresh every minute
   });
 };
+
+export const useDashboardCharts = (params: { start_date: string, end_date: string }) => {
+  return useQuery({
+    queryKey: ['dashboard', 'charts', params],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/dashboard/charts', { params: { from_date: params.start_date, to_date: params.end_date } });
+      return res.data;
+    }
+  });
+};

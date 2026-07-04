@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from api.v1.endpoints import (
-    auth, inventory, purchase, sales, crm, prescription, dashboard, reports, audit, analytics, accounts, hr,
-    settings, admin, compliance, notifications, system, cashier, print
+    auth, inventory, purchase, sales, crm, prescription, dashboard, reports, audit, inventory_audit, analytics, accounts, hr,
+    settings, admin, compliance, notifications, system, cashier, print, master_data, medicine_master
 )
 
 api_router = APIRouter()
@@ -15,6 +15,7 @@ api_router.include_router(prescription.router, prefix="/prescriptions", tags=["p
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
+api_router.include_router(inventory_audit.router, prefix="/inventory-audit", tags=["inventory-audit"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(accounts.router, prefix="/accounts", tags=["accounts"])
 api_router.include_router(hr.router, prefix="/hr", tags=["hr"])
@@ -29,3 +30,8 @@ api_router.include_router(system.router, prefix="/system", tags=["system"])
 # Cash Register / Cashier Portal
 api_router.include_router(cashier.router, prefix="/cashier", tags=["cashier"])
 api_router.include_router(print.router, prefix="/print", tags=["print"])
+
+# Master Data & Medicine
+api_router.include_router(master_data.router)
+api_router.include_router(medicine_master.router)
+

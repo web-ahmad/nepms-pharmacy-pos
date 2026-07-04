@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import SupplierTable from '@/features/purchase/components/SupplierTable';
 import SupplierForm from '@/features/purchase/components/SupplierForm';
+import SupplierViewModal from '@/features/purchase/components/SupplierViewModal';
 import { useAuthStore } from '@/stores/auth-store';
 import { useSupplierDetails } from '@/features/purchase/services/purchase.api';
 import { Plus, X } from 'lucide-react';
@@ -12,16 +13,22 @@ export default function SuppliersPage() {
   const { user } = useAuthStore();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
   const router = useRouter();
 
   const canEdit = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Branch Manager';
 
-  // Fetch details if editing
-  const { data: editingSupplier } = useSupplierDetails(editingId || 'new');
+  // Fetch details if editing or viewing
+  const activeId = editingId || viewingId;
+  const { data: activeSupplier } = useSupplierDetails(activeId || 'new');
 
   const handleEdit = (id: string) => {
     setEditingId(id);
     setIsFormOpen(true);
+  };
+
+  const handleView = (id: string) => {
+    setViewingId(id);
   };
 
   const handleCreate = () => {
@@ -32,6 +39,10 @@ export default function SuppliersPage() {
   const closeForm = () => {
     setIsFormOpen(false);
     setEditingId(null);
+  };
+
+  const closeView = () => {
+    setViewingId(null);
   };
 
   return (
@@ -57,7 +68,7 @@ export default function SuppliersPage() {
         )}
       </div>
 
-      <SupplierTable onEdit={handleEdit} onViewLedger={(id) => router.push(`/purchase/suppliers/${id}/ledger`)} canEdit={canEdit} />
+      <SupplierTable onEdit={handleEdit} onView={handleView} onViewLedger={(id) => router.push(`/purchase/suppliers/${id}/ledger`)} canEdit={canEdit} />
 
       {/* Supplier Form Modal/Drawer */}
       {isFormOpen && (
@@ -74,11 +85,11 @@ export default function SuppliersPage() {
             
             <div className="p-6 overflow-y-auto">
               {/* If editing, wait for data to load to prevent empty form flashes */}
-              {editingId && !editingSupplier ? (
+              {editingId && !activeSupplier ? (
                 <div className="p-12 text-center text-zinc-500 font-medium">Loading supplier details...</div>
               ) : (
                 <SupplierForm 
-                  initialData={editingSupplier || undefined} 
+                  initialData={activeSupplier || undefined} 
                   onSuccess={closeForm} 
                   onCancel={closeForm} 
                 />
@@ -86,6 +97,20 @@ export default function SuppliersPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Supplier View Modal */}
+      {viewingId && (
+        !activeSupplier ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+             <div className="bg-white p-8 rounded-xl shadow-xl">Loading supplier details...</div>
+          </div>
+        ) : (
+          <SupplierViewModal 
+            supplier={activeSupplier} 
+            onClose={closeView} 
+          />
+        )
       )}
     </div>
   );

@@ -30,6 +30,10 @@ class AnalyticsKPIs(BaseModel):
     near_expiry_count: int
     active_customers: int
     active_prescriptions: int
+    profit_margin_percent: float = 0.0
+    expiry_risk_90_days_value: float = 0.0
+    dead_stock_capital: float = 0.0
+    todays_cash_drawer: float = 0.0
 
 class BranchPerformance(BaseModel):
     branch_name: str

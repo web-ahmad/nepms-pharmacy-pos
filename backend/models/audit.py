@@ -18,3 +18,7 @@ class AuditLog(BaseModel):
     
     ip_address = Column(String(50))
     user_agent = Column(Text)
+    
+    reason_code = Column(String(100), nullable=True)
+    batch_audit_id = Column(String(36), nullable=True, index=True)
+    severity = Column(String(20), default="Info") # Info, Warning, Critical

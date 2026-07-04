@@ -44,8 +44,13 @@ export default function CartPanel({ onHoldSale }: { onHoldSale?: () => void }) {
             </thead>
             <tbody className="divide-y divide-outline-variant bg-surface-container-lowest">
               {cartItems.map((item) => {
-                const stripSize = item.medicine.units_per_strip || 0;
-                const packSize = item.medicine.units_per_pack || 0;
+                const pkgLevels = item.medicine.packaging_levels || [];
+                const stripLevel = pkgLevels.find(p => p.level_name?.toLowerCase() === 'strip');
+                const boxLevel = pkgLevels.find(p => p.level_name?.toLowerCase() === 'box' || p.level_name?.toLowerCase() === 'pack');
+                
+                const stripSize = item.medicine.units_per_strip || stripLevel?.conversion_qty || 0;
+                const packSize = item.medicine.units_per_pack || boxLevel?.conversion_qty || 0;
+                
                 const hasStrip = stripSize > 1;
                 const hasBox = packSize > stripSize && packSize > 1;
 

@@ -117,9 +117,10 @@ export const usePOSStore = create<POSState>((set) => ({
     if (existingIndex >= 0) {
       newItems[existingIndex].quantity += quantity;
     } else {
+      const fallbackPrice = medicine.unit_retail_price || medicine.sale_price || 0;
       const price = batch 
-        ? (batch.selling_price !== undefined && batch.selling_price !== null ? batch.selling_price : 0) 
-        : (medicine.sale_price || 0);
+        ? (batch.selling_price || fallbackPrice) 
+        : fallbackPrice;
       newItems.push({
         cart_id: crypto.randomUUID(),
         medicine,

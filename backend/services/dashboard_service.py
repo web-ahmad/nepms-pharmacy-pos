@@ -5,11 +5,12 @@ import zoneinfo
 from models.sales import Sale, SaleItem
 from models.inventory import Medicine, Batch
 from models.purchase import PurchaseOrder, GRN
-from models.users import Tenant
+from models.users import Tenant, User
 from schemas.dashboard import (
     SalesOverviewSchema, InventoryOverviewSchema, ExpiryAlertSchema,
     LowStockAlertSchema, PurchaseSummarySchema, DashboardChartsSchema,
-    ChartDataPoint, TopMedicinePoint, CategorySalesPoint
+    ChartDataPoint, TopMedicinePoint, CategorySalesPoint,
+    PaymentMethodPoint, HourlySalesPoint, SalesmanLeaderboardPoint
 )
 
 def get_utc_bounds(date_str: str, tz_name: str, is_end_of_day: bool = False):
@@ -58,12 +59,74 @@ def get_sales_overview(db: Session, tenant_id: str, branch_id: str = None, cashi
     invoice_count = result.invoice_count or 0
     avg_basket = (net_sales / invoice_count) if invoice_count > 0 else 0.0
 
+    # Calculate COGS (Cost of Goods Sold)
+    cogs_query = db.query(
+        func.sum(SaleItem.quantity * Batch.purchase_price)
+    ).select_from(SaleItem).join(Sale).join(Batch, SaleItem.batch_id == Batch.id).filter(
+        Sale.status == "Completed"
+    )
+    if branch_id:
+        cogs_query = cogs_query.filter(Sale.branch_id == branch_id)
+    if cashier_id:
+        cogs_query = cogs_query.filter(Sale.cashier_id == cashier_id)
+    if from_date:
+        utc_from = get_utc_bounds(from_date, tz_name, is_end_of_day=False)
+        cogs_query = cogs_query.filter(Sale.sale_date >= utc_from)
+    if to_date:
+        utc_to = get_utc_bounds(to_date, tz_name, is_end_of_day=True)
+        cogs_query = cogs_query.filter(Sale.sale_date <= utc_to)
+        
+    cogs = cogs_query.scalar() or 0.0
+    net_profit = net_sales - cogs
+    profit_margin_percent = (net_profit / net_sales * 100) if net_sales > 0 else 0.0
+
+    # Expiry Risk 90 Days Value
+    now = datetime.utcnow()
+    near_expiry_threshold = now + timedelta(days=90)
+    expiry_val_query = db.query(func.sum(Batch.current_quantity * Batch.purchase_price)).select_from(Batch).join(Medicine).filter(
+        Medicine.tenant_id == tenant_id,
+        Batch.expiry_date >= now.date(),
+        Batch.expiry_date <= near_expiry_threshold.date(),
+        Batch.current_quantity > 0
+    )
+    if branch_id:
+        expiry_val_query = expiry_val_query.filter(Batch.branch_id == branch_id)
+    expiry_risk_90_days_value = expiry_val_query.scalar() or 0.0
+
+    # Dead Stock Capital (no sales in last 60 days)
+    sixty_days_ago = now - timedelta(days=60)
+    active_meds = db.query(SaleItem.medicine_id).join(Sale).filter(Sale.sale_date >= sixty_days_ago).distinct()
+    dead_stock_query = db.query(func.sum(Batch.current_quantity * Batch.purchase_price)).select_from(Batch).join(Medicine).filter(
+        Medicine.tenant_id == tenant_id,
+        Batch.current_quantity > 0,
+        ~Medicine.id.in_(active_meds)
+    )
+    if branch_id:
+        dead_stock_query = dead_stock_query.filter(Batch.branch_id == branch_id)
+    dead_stock_capital = dead_stock_query.scalar() or 0.0
+
+    # Today's Cash Drawer (only Cash payment method)
+    today_utc_from = get_utc_bounds(now.strftime("%Y-%m-%d"), tz_name, is_end_of_day=False)
+    cash_drawer_query = db.query(func.sum(Sale.amount_paid - Sale.change_due)).filter(
+        Sale.status == "Completed",
+        Sale.payment_method == "Cash",
+        Sale.sale_date >= today_utc_from
+    )
+    if branch_id:
+        cash_drawer_query = cash_drawer_query.filter(Sale.branch_id == branch_id)
+    todays_cash_drawer = cash_drawer_query.scalar() or 0.0
+
     return SalesOverviewSchema(
         gross_sales=gross_sales,
         discounts_given=discounts,
         net_sales=net_sales,
         number_of_invoices=invoice_count,
-        average_basket_size=avg_basket
+        average_basket_size=avg_basket,
+        net_profit=net_profit,
+        profit_margin_percent=profit_margin_percent,
+        expiry_risk_90_days_value=expiry_risk_90_days_value,
+        dead_stock_capital=dead_stock_capital,
+        todays_cash_drawer=todays_cash_drawer
     )
 
 def get_inventory_overview(db: Session, tenant_id: str, branch_id: str = None) -> InventoryOverviewSchema:
@@ -227,18 +290,54 @@ def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_
         
     sales = sale_query.all()
     
-    # 1. Sales Trend
+    # Pre-fetch COGS for all relevant sales to calculate profit trend
+    cogs_query = db.query(
+        Sale.id,
+        func.sum(SaleItem.quantity * Batch.purchase_price).label('cogs')
+    ).select_from(SaleItem).join(Sale).join(Batch, SaleItem.batch_id == Batch.id).filter(
+        Sale.status == "Completed"
+    )
+    if branch_id:
+        cogs_query = cogs_query.filter(Sale.branch_id == branch_id)
+    if cashier_id:
+        cogs_query = cogs_query.filter(Sale.cashier_id == cashier_id)
+    if from_date:
+        utc_from_chart = get_utc_bounds(from_date, tz_name, is_end_of_day=False)
+        cogs_query = cogs_query.filter(Sale.sale_date >= utc_from_chart)
+    if to_date:
+        utc_to_chart = get_utc_bounds(to_date, tz_name, is_end_of_day=True)
+        cogs_query = cogs_query.filter(Sale.sale_date <= utc_to_chart)
+    cogs_query = cogs_query.group_by(Sale.id)
+    cogs_map = {r.id: (r.cogs or 0.0) for r in cogs_query.all()}
+    
+    # 1. Sales & Profit Trend, and Hourly Sales
     trend_dict = {}
+    hourly_dict = {}
+    payment_dict = {}
+    
     for s in sales:
-        # Convert sale_date back to tenant local time to group by date
         local_dt = s.sale_date.replace(tzinfo=zoneinfo.ZoneInfo("UTC")).astimezone(zoneinfo.ZoneInfo(tz_name))
         date_str = local_dt.strftime("%Y-%m-%d")
-        trend_dict[date_str] = trend_dict.get(date_str, 0.0) + s.total_amount
+        hour_str = local_dt.strftime("%H:00")
         
-    sales_trend = [ChartDataPoint(date=k, sales=v) for k, v in sorted(trend_dict.items())]
+        # Trend
+        if date_str not in trend_dict:
+            trend_dict[date_str] = {"sales": 0.0, "profit": 0.0}
+        trend_dict[date_str]["sales"] += s.total_amount
+        trend_dict[date_str]["profit"] += (s.total_amount - cogs_map.get(s.id, 0.0))
+        
+        # Hourly
+        hourly_dict[hour_str] = hourly_dict.get(hour_str, 0.0) + s.total_amount
+        
+        # Payment Methods
+        pm = s.payment_method or "Unknown"
+        payment_dict[pm] = payment_dict.get(pm, 0.0) + s.total_amount
+        
+    sales_trend = [ChartDataPoint(date=k, sales=v["sales"], profit=v["profit"]) for k, v in sorted(trend_dict.items())]
+    hourly_sales = [HourlySalesPoint(hour=k, sales=v) for k, v in sorted(hourly_dict.items())]
+    payment_methods = [PaymentMethodPoint(method=k, amount=v) for k, v in sorted(payment_dict.items(), key=lambda x: x[1], reverse=True)]
     
     # 2. Top Medicines
-    # We need SaleItem joined with Sale
     item_query = db.query(
         Medicine.name,
         func.sum(SaleItem.quantity).label('qty'),
@@ -251,21 +350,45 @@ def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_
         item_query = item_query.filter(Sale.cashier_id == cashier_id)
         
     if from_date:
-        item_query = item_query.filter(Sale.sale_date >= utc_from)
+        item_query = item_query.filter(Sale.sale_date >= get_utc_bounds(from_date, tz_name, is_end_of_day=False))
     if to_date:
-        item_query = item_query.filter(Sale.sale_date <= utc_to)
+        item_query = item_query.filter(Sale.sale_date <= get_utc_bounds(to_date, tz_name, is_end_of_day=True))
         
-    item_query = item_query.group_by(Medicine.name).order_by(desc('qty')).limit(10)
+    item_query = item_query.group_by(Medicine.name).order_by(desc('rev')).limit(5)
     top_items = item_query.all()
     top_medicines = [TopMedicinePoint(name=r.name, quantity=r.qty, revenue=r.rev) for r in top_items]
     
     # 3. Category Distribution
-    # Assuming Medicine has category_id. We'll group by category name if available.
-    # For now, let's just create a dummy or simplified version if category isn't directly easily joinable in one go.
-    category_sales = [] # Left blank or implement later if category model is present
+    category_sales = []
+    
+    # 4. Salesman Leaderboard
+    leaderboard_query = db.query(
+        User.full_name.label("cashier_name"),
+        func.sum(Sale.total_amount).label('total_rev')
+    ).join(User, Sale.cashier_id == User.id).filter(Sale.status == "Completed", Sale.tenant_id == tenant_id)
+    if branch_id:
+        leaderboard_query = leaderboard_query.filter(Sale.branch_id == branch_id)
+    if from_date:
+        leaderboard_query = leaderboard_query.filter(Sale.sale_date >= get_utc_bounds(from_date, tz_name, is_end_of_day=False))
+    if to_date:
+        leaderboard_query = leaderboard_query.filter(Sale.sale_date <= get_utc_bounds(to_date, tz_name, is_end_of_day=True))
+    
+    leaderboard_query = leaderboard_query.group_by(User.full_name).order_by(desc('total_rev')).limit(10)
+    leaderboard_results = leaderboard_query.all()
+    
+    salesman_leaderboard = [
+        SalesmanLeaderboardPoint(
+            cashier_name=r.cashier_name or "Unknown",
+            total_revenue=r.total_rev,
+            commissionable_sales=r.total_rev * 0.8  # Dummy approximation for commissionable sales
+        ) for r in leaderboard_results
+    ]
     
     return DashboardChartsSchema(
         sales_trend=sales_trend,
         top_medicines=top_medicines,
-        category_sales=category_sales
+        category_sales=category_sales,
+        payment_methods=payment_methods,
+        hourly_sales=hourly_sales,
+        salesman_leaderboard=salesman_leaderboard
     )

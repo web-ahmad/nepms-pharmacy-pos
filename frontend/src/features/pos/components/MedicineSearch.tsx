@@ -152,7 +152,7 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
             >
               <div className="flex justify-between items-start mb-1">
                 <h3 className="font-title-md text-body-md font-bold text-on-surface line-clamp-1 flex-1 pr-2">{med.name}</h3>
-                <span className="text-primary font-bold whitespace-nowrap">Rs {med.sale_price?.toFixed(2) || '0.00'}</span>
+                <span className="text-primary font-bold whitespace-nowrap">Rs {(med.unit_retail_price ?? med.sale_price ?? 0).toFixed(2)}</span>
               </div>
               
               <div className="flex items-center justify-between mb-2">
@@ -226,7 +226,7 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-sm text-primary">Rs {batch.selling_price || selectedMedForBatch.sale_price}</div>
+                    <div className="font-bold text-sm text-primary">Rs {batch.selling_price || selectedMedForBatch.unit_retail_price || selectedMedForBatch.sale_price}</div>
                   </div>
                 </button>
               ))}

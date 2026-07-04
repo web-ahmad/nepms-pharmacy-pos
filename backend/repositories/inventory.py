@@ -86,7 +86,10 @@ class CRUDMedicine(CRUDBase[Medicine, MedicineCreate, MedicineUpdate]):
     def search(
         self, db: Session, tenant_id: str, search_term: str, skip: int = 0, limit: int = 100
     ) -> Tuple[int, List[Medicine]]:
-        query = db.query(Medicine).options(joinedload(Medicine.batches)).filter(
+        query = db.query(Medicine).options(
+            joinedload(Medicine.batches),
+            joinedload(Medicine.packaging_levels)
+        ).filter(
             or_(Medicine.tenant_id == tenant_id, Medicine.tenant_id == None),
             Medicine.is_deleted == False,
             or_(

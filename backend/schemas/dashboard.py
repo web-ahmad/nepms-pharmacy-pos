@@ -8,6 +8,12 @@ class SalesOverviewSchema(BaseModel):
     net_sales: float
     number_of_invoices: int
     average_basket_size: float
+    # New Executive Metrics
+    net_profit: float
+    profit_margin_percent: float
+    expiry_risk_90_days_value: float
+    dead_stock_capital: float
+    todays_cash_drawer: float
 
 class InventoryOverviewSchema(BaseModel):
     total_medicines: int
@@ -39,6 +45,7 @@ class PurchaseSummarySchema(BaseModel):
 class ChartDataPoint(BaseModel):
     date: str
     sales: float
+    profit: Optional[float] = 0.0
 
 class TopMedicinePoint(BaseModel):
     name: str
@@ -49,7 +56,23 @@ class CategorySalesPoint(BaseModel):
     category: str
     sales: float
 
+class PaymentMethodPoint(BaseModel):
+    method: str
+    amount: float
+
+class HourlySalesPoint(BaseModel):
+    hour: str
+    sales: float
+
+class SalesmanLeaderboardPoint(BaseModel):
+    cashier_name: str
+    total_revenue: float
+    commissionable_sales: float
+
 class DashboardChartsSchema(BaseModel):
     sales_trend: List[ChartDataPoint]
     top_medicines: List[TopMedicinePoint]
     category_sales: List[CategorySalesPoint]
+    payment_methods: List[PaymentMethodPoint] = []
+    hourly_sales: List[HourlySalesPoint] = []
+    salesman_leaderboard: List[SalesmanLeaderboardPoint] = []

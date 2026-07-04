@@ -16,11 +16,11 @@ router = APIRouter()
 def require_settings_view(current_user: User = Depends(require_role("settings.view"))): return current_user
 def require_settings_update(current_user: User = Depends(require_role("settings.update"))): return current_user
 
-@router.get("/", response_model=TenantSettingsResponse)
+@router.get("", response_model=TenantSettingsResponse)
 def get_settings(db: Session = Depends(get_db), current_user: User = Depends(require_settings_view)):
     return SettingsService(db).get_settings(current_user.tenant_id)
 
-@router.put("/", response_model=TenantSettingsResponse)
+@router.put("", response_model=TenantSettingsResponse)
 def update_settings(obj_in: TenantSettingsUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_settings_update)):
     return SettingsService(db).update_settings(current_user.tenant_id, obj_in)
 

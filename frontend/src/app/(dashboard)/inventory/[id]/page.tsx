@@ -6,11 +6,11 @@ import { useParams } from 'next/navigation';
 import { useMedicineDetails, useBatches } from '@/features/inventory/services/inventory.api';
 import { useAuthStore } from '@/stores/auth-store';
 import { ArrowLeft, Box, Activity, Package, Settings, Settings2 } from 'lucide-react';
-import MedicineForm from '@/features/inventory/components/MedicineForm';
 import BatchDetails from '@/features/inventory/components/BatchDetails';
 import StockMovementsList from '@/features/inventory/components/StockMovementsList';
 import AuditHistoryList from '@/features/inventory/components/AuditHistoryList';
 import StockAdjustmentModal from '@/features/inventory/components/StockAdjustmentModal';
+import MedicineOverview from '@/features/inventory/components/MedicineOverview';
 
 type TabId = 'overview' | 'batches' | 'movements' | 'audit';
 
@@ -114,7 +114,7 @@ export default function MedicineDetailPage() {
       {/* Tab Content */}
       <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         {activeTab === 'overview' && (
-          <MedicineForm initialData={medicine} isEditMode={true} />
+          <MedicineOverview medicine={medicine} />
         )}
         {activeTab === 'batches' && (
           <BatchDetails medicineId={medicine.id} />

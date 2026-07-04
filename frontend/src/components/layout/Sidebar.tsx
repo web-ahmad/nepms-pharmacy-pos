@@ -7,11 +7,11 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
 import { useModules } from '@/lib/modules';
 import { useLowStockAlerts } from '@/features/inventory/services/alerts.api';
-import { 
-  LayoutDashboard, 
-  ShoppingCart, 
-  Users, 
-  Settings, 
+import {
+  LayoutDashboard,
+  ShoppingCart,
+  Users,
+  Settings,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +31,7 @@ import {
   ClipboardList,
   Stethoscope,
   Wallet,
+  PlusCircle,
 } from 'lucide-react';
 
 interface SidebarState {
@@ -54,28 +55,29 @@ export const useSidebarStore = create<SidebarState>()(
  * - moduleKey: the system_modules key that must be enabled (null = always visible)
  */
 export const NAV_ITEMS = [
-  { label: 'Dashboard',      href: '/',             icon: LayoutDashboard, permission: null,               moduleKey: 'dashboard' },
-  { label: 'POS Terminal',   href: '/pos',          icon: ShoppingCart,    permission: 'pos:create_order', moduleKey: 'pos' },
-  { label: 'Cashier Portal', href: '/pos/cashier',  icon: Wallet,          permission: 'pos:create_order', moduleKey: 'pos' },
-  { label: 'Sales History',  href: '/sales',         icon: FileText,        permission: 'pos:create_order', moduleKey: 'pos' },
-  { label: 'All Medicines',   href: '/inventory/medicines',     icon: Package, permission: 'inventory:view', moduleKey: 'inventory' },
-  { label: 'Add New Medicine',href: '/inventory/medicines/add', icon: PackagePlus, permission: 'inventory:manage', moduleKey: 'inventory' },
-  { label: 'Inventory Core',  href: '/inventory',     icon: Package,         permission: 'inventory:view',   moduleKey: 'inventory' },
-  { label: 'Low Stock Alerts',href: '/inventory/low-stock', icon: AlertTriangle, permission: 'inventory:view', moduleKey: 'inventory' },
-  { label: 'Purchases',      href: '/purchase',     icon: ShoppingBag,     permission: 'purchase:view',    moduleKey: 'purchase_orders' },
-  { label: 'Customers',      href: '/customers',     icon: Users,           permission: 'crm:view',         moduleKey: 'customers' },
-  { label: 'Prescriptions',  href: '/prescriptions', icon: Stethoscope,     permission: 'prescription:view',moduleKey: 'digital_rx' },
-  { label: 'Analytics',      href: '/analytics',     icon: Activity,        permission: 'analytics:view',   moduleKey: 'analytics' },
-  { label: 'Reports',        href: '/reports',       icon: PieChart,        permission: 'reports:view',     moduleKey: 'reports' },
-  { label: 'Accounting',     href: '/accounts',      icon: DollarSign,      permission: 'profit:view',      moduleKey: 'journals' },
-  { label: 'HR & Payroll',   href: '/hr',            icon: UserCog,         permission: 'settings:manage',  moduleKey: 'employees' },
-  { label: 'Audit Log',      href: '/audit',         icon: ShieldAlert,     permission: 'audit:view',       moduleKey: 'audit' },
-  { label: 'Compliance',     href: '/compliance',    icon: ClipboardList,   permission: 'audit:view',       moduleKey: 'audit' },
-  { label: 'Notifications',  href: '/notifications', icon: Bell,            permission: null,               moduleKey: null },
-  { label: 'System',         href: '/system',        icon: Monitor,         permission: 'settings:manage',  moduleKey: null },
-  { label: 'Users & Roles',  href: '/users',         icon: Users,           permission: 'users:manage',     moduleKey: null },
-  { label: 'Roles',          href: '/roles',         icon: ShieldAlert,     permission: 'users:manage',     moduleKey: null },
-  { label: 'Settings',       href: '/settings',      icon: Settings,        permission: 'settings:manage',  moduleKey: null },
+  { label: 'Dashboard', href: '/', icon: LayoutDashboard, permission: null, moduleKey: 'dashboard' },
+  { label: 'POS Terminal', href: '/pos', icon: ShoppingCart, permission: 'pos:create_order', moduleKey: 'pos' },
+  { label: 'Cashier Portal', href: '/pos/cashier', icon: Wallet, permission: 'pos:create_order', moduleKey: 'pos' },
+  { label: 'Sales History', href: '/sales', icon: FileText, permission: 'pos:create_order', moduleKey: 'pos' },
+  // { label: 'All Medicines',   href: '/inventory/medicines',     icon: Package, permission: 'inventory:view', moduleKey: 'inventory' },
+  { label: 'Add Medicine', href: '/inventory/medicines/add', icon: PlusCircle, permission: 'inventory:manage', moduleKey: 'inventory' },
+  { label: 'Inventory Core', href: '/inventory', icon: Package, permission: 'inventory:view', moduleKey: 'inventory' },
+  { label: 'Low Stock Alerts', href: '/inventory/low-stock', icon: AlertTriangle, permission: 'inventory:view', moduleKey: 'inventory' },
+  { label: 'Physical Audit', href: '/inventory/audit', icon: ClipboardList, permission: 'inventory:manage', moduleKey: 'inventory' },
+  { label: 'Purchases', href: '/purchase', icon: ShoppingBag, permission: 'purchase:view', moduleKey: 'purchase_orders' },
+  { label: 'Customers', href: '/customers', icon: Users, permission: 'crm:view', moduleKey: 'customers' },
+  { label: 'Prescriptions', href: '/prescriptions', icon: Stethoscope, permission: 'prescription:view', moduleKey: 'digital_rx' },
+  { label: 'Analytics', href: '/analytics', icon: Activity, permission: 'analytics:view', moduleKey: 'analytics' },
+  { label: 'Reports', href: '/reports', icon: PieChart, permission: 'reports:view', moduleKey: 'reports' },
+  { label: 'Accounting', href: '/accounts', icon: DollarSign, permission: 'profit:view', moduleKey: 'journals' },
+  { label: 'HR & Payroll', href: '/hr', icon: UserCog, permission: 'settings:manage', moduleKey: 'employees' },
+  { label: 'Audit Log', href: '/audit', icon: ShieldAlert, permission: null, moduleKey: null },
+  { label: 'Compliance', href: '/compliance', icon: ClipboardList, permission: null, moduleKey: null },
+  { label: 'Notifications', href: '/notifications', icon: Bell, permission: null, moduleKey: null },
+  { label: 'System', href: '/system', icon: Monitor, permission: 'settings:manage', moduleKey: null },
+  { label: 'Users & Roles', href: '/users', icon: Users, permission: 'users:manage', moduleKey: null },
+  { label: 'Roles', href: '/roles', icon: ShieldAlert, permission: 'users:manage', moduleKey: null },
+  { label: 'Settings', href: '/settings', icon: Settings, permission: 'settings:manage', moduleKey: null },
 ];
 
 export function Sidebar() {
@@ -106,16 +108,15 @@ export function Sidebar() {
   });
 
   return (
-    <div 
-      className={`relative flex flex-col border-r border-zinc-200 bg-white transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-950 ${
-        isCollapsed ? 'w-20' : 'w-64'
-      }`}
+    <div
+      className={`relative flex flex-col border-r border-zinc-200 bg-white transition-all duration-300 dark:border-zinc-800 dark:bg-zinc-950 ${isCollapsed ? 'w-20' : 'w-64'
+        }`}
     >
       <div className="flex h-16 items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
         {!isCollapsed && <span className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">NEPMS</span>}
         {isCollapsed && <span className="mx-auto text-xl font-bold text-blue-600">N</span>}
-        <button 
-          onClick={toggleSidebar} 
+        <button
+          onClick={toggleSidebar}
           className="absolute -right-3 top-5 flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
         >
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
@@ -130,11 +131,10 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium transition-colors ${
-                  isActive 
-                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400' 
+                className={`group flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium transition-colors ${isActive
+                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
                     : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-50'
-                }`}
+                  }`}
                 title={isCollapsed ? item.label : undefined}
               >
                 <div className="flex items-center">
