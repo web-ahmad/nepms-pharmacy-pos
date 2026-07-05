@@ -66,6 +66,19 @@ def close_session(
     elif discrepancy < 0:
         label = f"SHORT by Rs {abs(discrepancy):.2f}"
 
+    transactions = []
+    for e in session.ledger_entries:
+        transactions.append({
+            "id": e.id,
+            "created_at": getattr(e, "created_at_utc", None) or getattr(e, "created_at", None),
+            "invoice_number": e.sale.invoice_number if getattr(e, "sale", None) else None,
+            "type": e.entry_type,
+            "amount": e.amount,
+            "notes": e.notes,
+            "payment_mode": e.payment_mode,
+            "status": e.sale.status if getattr(e, "sale", None) else None
+        })
+
     return {
         "session_id": session.id,
         "status": session.status,
@@ -77,7 +90,8 @@ def close_session(
         "discrepancy_notes": session.discrepancy_notes,
         "opened_at": session.opened_at,
         "closed_at": session.closed_at,
-        "cashier": current_user.username
+        "cashier": current_user.username,
+        "transactions": transactions
     }
 
 

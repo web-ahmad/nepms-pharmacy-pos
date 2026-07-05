@@ -6,8 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { Loader2, Settings2, Barcode, Package, Save } from 'lucide-react';
+import { Save, X, Loader2, Info, ChevronDown, ChevronRight, Package, Calculator, MapPin, Tag, Box, LayoutGrid, Clock, ShieldAlert, Barcode, Settings2 } from 'lucide-react';
 import { useCreateMedicine, useUpdateMedicine } from '@/features/inventory/services/medicine.api';
+import { useMasterData } from '@/features/inventory/services/masterData.api';
+import { parseApiError } from '@/utils/errorParser';
 
 import { medicineSchema, MedicineFormValues, defaultMedicineValues } from './schema';
 import { Label } from '@/components/ui/label';
@@ -52,69 +54,69 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
       let calcTotalBaseUnits = 1;
       let isTablet = false;
       if (data.packaging_type === 'Tablet / Capsule') {
-         isTablet = true;
-         calcTotalBaseUnits = (data.strips_per_box || 1) * (data.units_per_strip || 1);
+        isTablet = true;
+        calcTotalBaseUnits = (data.strips_per_box || 1) * (data.units_per_strip || 1);
       } else {
-         calcTotalBaseUnits = (data.strips_per_box || 1);
+        calcTotalBaseUnits = (data.strips_per_box || 1);
       }
 
       const costPerBaseUnit = data.purchase_price > 0 ? (data.purchase_price / calcTotalBaseUnits) : 0;
-      
+
       // 2. Build packaging levels
       const packagingLevels = [];
       if (isTablet) {
         packagingLevels.push({
-           level_name: 'Tablet',
-           conversion_qty: 1,
-           is_smallest_unit: true,
-           is_sale_unit: true,
-           is_purchase_unit: false,
-           is_default_pos_unit: true,
-           sale_price: data.unit_sale_price || 0
+          level_name: 'Tablet',
+          conversion_qty: 1,
+          is_smallest_unit: true,
+          is_sale_unit: true,
+          is_purchase_unit: false,
+          is_default_pos_unit: true,
+          sale_price: data.unit_sale_price || 0
         });
         packagingLevels.push({
-           level_name: 'Strip',
-           conversion_qty: data.units_per_strip || 10,
-           is_smallest_unit: false,
-           is_sale_unit: true,
-           is_purchase_unit: false,
-           is_default_pos_unit: false,
-           sale_price: 0
+          level_name: 'Strip',
+          conversion_qty: data.units_per_strip || 10,
+          is_smallest_unit: false,
+          is_sale_unit: true,
+          is_purchase_unit: false,
+          is_default_pos_unit: false,
+          sale_price: 0
         });
         packagingLevels.push({
-           level_name: 'Box',
-           conversion_qty: calcTotalBaseUnits,
-           is_smallest_unit: false,
-           is_sale_unit: true,
-           is_purchase_unit: true,
-           is_default_pos_unit: false,
-           sale_price: data.sale_price || 0
+          level_name: 'Box',
+          conversion_qty: calcTotalBaseUnits,
+          is_smallest_unit: false,
+          is_sale_unit: true,
+          is_purchase_unit: true,
+          is_default_pos_unit: false,
+          sale_price: data.sale_price || 0
         });
       } else {
-        const smallestUnitName = data.packaging_type === 'Syrup / Suspension' ? 'Bottle' : 
-                       data.packaging_type === 'Injection (Ampule / Vial)' ? 'Ampule' : 
-                       data.packaging_type === 'Drops (Eye / Ear / Nasal)' ? 'Drop' : 
-                       data.packaging_type === 'Cream / Ointment / Gel' ? 'Tube' : 
-                       data.packaging_type === 'Inhaler / Spray' ? 'Inhaler' : 
-                       data.packaging_type === 'Sachet / Powder' ? 'Sachet' : 'Unit';
-        
+        const smallestUnitName = data.packaging_type === 'Syrup / Suspension' ? 'Bottle' :
+          data.packaging_type === 'Injection (Ampule / Vial)' ? 'Ampule' :
+            data.packaging_type === 'Drops (Eye / Ear / Nasal)' ? 'Drop' :
+              data.packaging_type === 'Cream / Ointment / Gel' ? 'Tube' :
+                data.packaging_type === 'Inhaler / Spray' ? 'Inhaler' :
+                  data.packaging_type === 'Sachet / Powder' ? 'Sachet' : 'Unit';
+
         packagingLevels.push({
-           level_name: smallestUnitName,
-           conversion_qty: 1,
-           is_smallest_unit: true,
-           is_sale_unit: true,
-           is_purchase_unit: false,
-           is_default_pos_unit: true,
-           sale_price: data.unit_sale_price || 0
+          level_name: smallestUnitName,
+          conversion_qty: 1,
+          is_smallest_unit: true,
+          is_sale_unit: true,
+          is_purchase_unit: false,
+          is_default_pos_unit: true,
+          sale_price: data.unit_sale_price || 0
         });
         packagingLevels.push({
-           level_name: 'Box',
-           conversion_qty: calcTotalBaseUnits,
-           is_smallest_unit: false,
-           is_sale_unit: true,
-           is_purchase_unit: true,
-           is_default_pos_unit: false,
-           sale_price: data.sale_price || 0
+          level_name: 'Box',
+          conversion_qty: calcTotalBaseUnits,
+          is_smallest_unit: false,
+          is_sale_unit: true,
+          is_purchase_unit: true,
+          is_default_pos_unit: false,
+          sale_price: data.sale_price || 0
         });
       }
 
@@ -130,11 +132,11 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
         cost_per_base_unit: costPerBaseUnit,
         packaging_levels: packagingLevels,
         initial_batch: data.opening_stock > 0 ? {
-           batch_number: data.batch_number,
-           manufacturing_date: data.manufacturing_date,
-           expiry_date: data.expiry_date,
-           current_stock: data.opening_stock,
-           mrp: data.mrp
+          batch_number: data.batch_number,
+          manufacturing_date: data.manufacturing_date,
+          expiry_date: data.expiry_date,
+          current_stock: data.opening_stock,
+          mrp: data.mrp
         } : undefined
       };
 
@@ -164,35 +166,25 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
           (payload as any)[key] = val.label || val.value || '';
         }
       });
-      
+
       console.log('PAYLOAD:', payload);
 
       if (isEdit) {
         await updateMedicineMutation.mutateAsync(payload as any);
-        toast.success("✅ Medicine Updated Successfully!", {
+        toast.success("Medicine Updated Successfully!", {
           duration: 4000,
           style: { background: '#10b981', color: '#fff', fontWeight: 500 }
         });
       } else {
         await createMedicineMutation.mutateAsync(payload as any);
-        toast.success("✅ Medicine Saved Successfully!", {
+        toast.success("Medicine Saved Successfully!", {
           duration: 4000,
           style: { background: '#10b981', color: '#fff', fontWeight: 500 }
         });
       }
       router.push('/inventory/medicines');
     } catch (error: any) {
-      const detail = error.response?.data?.detail;
-      let errorMsg: string;
-      if (Array.isArray(detail)) {
-        // FastAPI returns [{type, loc, msg, input}] — extract the msg field
-        errorMsg = detail.map((d: any) => (typeof d === 'object' ? d.msg || JSON.stringify(d) : String(d))).join(', ');
-      } else if (typeof detail === 'string') {
-        errorMsg = detail;
-      } else {
-        errorMsg = error.message || 'Failed to save medicine';
-      }
-      toast.error(errorMsg);
+      toast.error(parseApiError(error));
       console.log('Submit Error:', error);
     }
   };
@@ -343,7 +335,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
   }, [showField2, setValue]);
 
   const unitCost = purchasePrice > 0 ? (purchasePrice / totalBaseUnits) : 0;
-  
+
   // Calculate full pack sale price.
   const fullPackSalePrice = unitSalePrice > 0 ? (unitSalePrice * totalBaseUnits) : 0;
 
@@ -357,7 +349,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
 
       const currentUnitSale = methods.getValues('unit_sale_price');
       const currentFullSale = methods.getValues('sale_price');
-      
+
       const newUnitSale = Number(calculatedUnitSale.toFixed(2));
       const newFullSale = Number(calculatedFullSale.toFixed(2));
 
@@ -393,7 +385,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
 
       <FormProvider {...methods}>
         <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6">
-          
+
           {/* Section 1: Basic Information */}
           <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-1">
             <div className="bg-slate-50/50 px-6 py-4 border-b border-outline-variant">
@@ -405,14 +397,14 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
             <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
               <div className="col-span-1 md:col-span-4">
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Medicine Name <span className="text-red-500">*</span></label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   {...register('name')}
-                  placeholder="e.g., Amoxicillin 250mg" 
+                  placeholder="e.g., Amoxicillin 250mg"
                   className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.name ? 'border-red-500' : ''}`}
                 />
               </div>
-              
+
               {settings.showGenericName && (
                 <div className="col-span-1 md:col-span-5">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Generic Name</label>
@@ -466,10 +458,10 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               {settings.showBrandName && (
                 <div className="col-span-1 md:col-span-4">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Brand Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     {...register('brand_name')}
-                    placeholder="e.g., Augmentin" 
+                    placeholder="e.g., Augmentin"
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   />
                 </div>
@@ -478,10 +470,10 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               {settings.showFormula && (
                 <div className="col-span-1 md:col-span-4">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Formula</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     {...register('formula')}
-                    placeholder="e.g., Amoxicillin 250mg + Clavulanic Acid" 
+                    placeholder="e.g., Amoxicillin 250mg + Clavulanic Acid"
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   />
                 </div>
@@ -490,10 +482,10 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               <div className="col-span-1 md:col-span-4">
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Barcode</label>
                 <div className="relative flex items-center">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     {...register('barcode')}
-                    placeholder="Scan or Enter Barcode" 
+                    placeholder="Scan or Enter Barcode"
                     className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all pr-10"
                   />
                   <div className="shrink-0 h-10 rounded-r-custom border-y border-r border-outline-variant bg-slate-50 flex items-center justify-center">
@@ -504,10 +496,10 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
 
               <div className="col-span-1 md:col-span-12">
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Description / Notes</label>
-                <textarea 
+                <textarea
                   {...register('description')}
                   rows={2}
-                  placeholder="Additional details..." 
+                  placeholder="Additional details..."
                   className="w-full border border-outline-variant rounded-custom px-3 py-2 min-h-[80px] focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                 />
               </div>
@@ -526,7 +518,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Packaging Type <span className="text-red-500">*</span></label>
-                  <select 
+                  <select
                     {...register('packaging_type')}
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   >
@@ -543,11 +535,11 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     <option value="General Item (FMCG / Baby Care / Cosmetics)">General Item</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">{field1Label} <span className="text-red-500">*</span></label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     min="1"
                     {...register('strips_per_box', { valueAsNumber: true })}
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
@@ -557,8 +549,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                 {showField2 && (
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">{field2Label} <span className="text-red-500">*</span></label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       min="1"
                       {...register('units_per_strip', { valueAsNumber: true })}
                       className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
@@ -568,15 +560,15 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
 
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Shelf / Rack Location</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     {...register('shelf')}
-                    placeholder="e.g., A-12, Rack 3" 
+                    placeholder="e.g., A-12, Rack 3"
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   />
                 </div>
               </div>
-              
+
               <div className="bg-mint-soft/50 p-4 rounded-custom border border-mint-bright/30 flex items-center gap-4">
                 <div className="bg-emerald-deep p-2 rounded-lg text-white">
                   <Package className="w-6 h-6" />
@@ -602,8 +594,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Purchase Price (Full Pack) <span className="text-red-500">*</span></label>
                 <div className="flex items-center">
                   <span className="bg-slate-100 border border-r-0 border-outline-variant px-3 py-2 rounded-l-custom text-slate-500 text-sm font-bold">Rs</span>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     step="0.01"
                     min="0"
                     {...register('purchase_price', { valueAsNumber: true })}
@@ -615,10 +607,10 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                 <label className="block text-sm font-semibold text-slate-400 mb-1">Unit Cost (Auto)</label>
                 <div className="flex items-center opacity-60">
                   <span className="bg-slate-100 border border-r-0 border-outline-variant px-3 py-2 rounded-l-custom text-slate-500 text-sm font-bold">Rs</span>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={unitCost.toFixed(4)}
-                    disabled 
+                    disabled
                     className="w-full bg-slate-50 border border-outline-variant rounded-r-custom h-10 px-3 py-2 text-slate-500 cursor-not-allowed"
                   />
                 </div>
@@ -626,8 +618,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Margin (%)</label>
                 <div className="flex items-center">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     step="0.1"
                     {...register('margin_percent', { valueAsNumber: true })}
                     className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
@@ -639,8 +631,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Unit Sale Price <span className="text-red-500">*</span></label>
                 <div className="flex items-center">
                   <span className="bg-slate-100 border border-r-0 border-outline-variant px-3 py-2 rounded-l-custom text-slate-500 text-sm font-bold">Rs</span>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     step="0.01"
                     min="0"
                     {...register('unit_sale_price', { valueAsNumber: true })}
@@ -648,7 +640,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   />
                 </div>
               </div>
-              
+
               <div className="md:col-span-4">
                 <div className="bg-slate-50 p-3 rounded-custom inline-block border border-dashed border-outline-variant">
                   <p className="text-xs text-slate-500 font-semibold mb-1 uppercase tracking-tighter">Full Pack Sale Price (Auto)</p>
@@ -670,10 +662,10 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               <div className="md:col-span-1">
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Strength / Specification</label>
                 <div className="flex items-center">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     {...register('strength')}
-                    placeholder={strengthPlaceholder} 
+                    placeholder={strengthPlaceholder}
                     className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   />
                   {strengthSuffix && (
@@ -685,8 +677,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Max Retail Price (MRP)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="0.01"
                   min="0"
                   {...register('mrp', { valueAsNumber: true })}
@@ -695,8 +687,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Tax Rate (%)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="0"
                   {...register('tax_rate', { valueAsNumber: true })}
                   className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
@@ -704,8 +696,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1 text-red-600">Low Stock Alert Level</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="0"
                   {...register('min_stock_level', { valueAsNumber: true })}
                   className="w-full border border-red-200 bg-red-50/30 rounded-custom h-10 px-3 py-2 focus:ring-red-500 focus:border-red-500 transition-all"
@@ -726,35 +718,35 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
               <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Opening Stock Qty</label>
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     min="0"
                     {...register('opening_stock', { valueAsNumber: true })}
-                    placeholder="0" 
+                    placeholder="0"
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Batch Number</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     {...register('batch_number')}
-                    placeholder="e.g., BATCH-001" 
+                    placeholder="e.g., BATCH-001"
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Mfg Date</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     {...register('manufacturing_date')}
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-600"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Expiry Date</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     {...register('expiry_date')}
                     className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-600"
                   />
@@ -777,8 +769,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   control={control}
                   name="status"
                   render={({ field }) => (
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={field.value === 'Active'}
                       onChange={(e) => field.onChange(e.target.checked ? 'Active' : 'Inactive')}
                       className="w-5 h-5 rounded text-emerald-deep focus:ring-emerald-500 transition-all"
@@ -788,24 +780,24 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                 <span className="text-sm font-bold text-slate-700 group-hover:text-emerald-deep transition-colors">Active (Available for Sale)</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   {...register('narcotic')}
                   className="w-5 h-5 rounded text-red-500 border-red-200 focus:ring-red-500 transition-all"
                 />
                 <span className="text-sm font-bold text-slate-700 group-hover:text-red-600 transition-colors">Controlled Substance (Narcotic)</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   {...register('is_antibiotic')}
                   className="w-5 h-5 rounded text-blue-500 border-blue-200 focus:ring-blue-500 transition-all"
                 />
                 <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Antibiotic</span>
               </label>
               <label className="flex items-center gap-3 cursor-pointer group">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   {...register('rx_required')}
                   className="w-5 h-5 rounded text-yellow-500 border-yellow-200 focus:ring-yellow-500 transition-all"
                 />
@@ -816,15 +808,15 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
 
           {/* Form Footer Actions */}
           <div className="flex items-center justify-end gap-4 pt-6 border-t border-outline-variant animate-fade-in delay-6">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => router.push('/inventory/medicines')}
               className="px-8 py-3 text-slate-600 font-bold hover:text-slate-900 transition-all"
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={createMedicineMutation.isPending || updateMedicineMutation.isPending}
               className="px-12 py-3 bg-emerald hover:bg-emerald-deep text-white font-bold rounded-custom shadow-lg shadow-emerald/20 transition-all active:scale-95 flex items-center gap-2"
             >

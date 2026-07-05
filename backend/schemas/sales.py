@@ -23,10 +23,6 @@ class SaleItemCreate(BaseModel):
 
 class CheckoutRequest(BaseModel):
     customer_id: Optional[str] = None
-
-class VoidSaleRequest(BaseModel):
-    voided_by: Optional[str] = None
-    void_reason: Optional[str] = None
     items: List[SaleItemCreate]
     discount_amount: float = 0.0
     tax_amount: float = 0.0
@@ -34,6 +30,11 @@ class VoidSaleRequest(BaseModel):
     amount_paid: float
     payment_method: str = "Cash"
     hold_sale: bool = False  # If True → status becomes Held and no stock is deducted
+
+class VoidSaleRequest(BaseModel):
+    voided_by: Optional[str] = None
+    void_reason: Optional[str] = None
+
 
 
 # ---------------------------------------------------------------------------

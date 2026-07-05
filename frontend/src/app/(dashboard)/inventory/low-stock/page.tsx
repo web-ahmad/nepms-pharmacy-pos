@@ -12,6 +12,7 @@ import { useSuppliers } from '@/features/purchase/services/purchase.api';
 import { useBulkDraftPOs } from '@/features/purchase/services/purchase.api';
 import { AlertTriangle, Download, Search, FileText, Loader2, CheckSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { parseApiError } from '@/utils/errorParser';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -135,9 +136,8 @@ export default function LowStockPage() {
       await generatePOs(medicineIds);
       toast.success('Draft Purchase Orders generated successfully!');
       setRowSelection({});
-    } catch (error) {
-      toast.error('Failed to generate Purchase Orders.');
-      console.error(error);
+    } catch (error: any) {
+      toast.error(parseApiError(error));
     }
   };
 

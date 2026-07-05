@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { POSCartItem, POSMedicine } from '../types/pos';
+import toast from 'react-hot-toast';
 
 interface POSState {
   cartItems: POSCartItem[];
@@ -106,7 +107,13 @@ export const usePOSStore = create<POSState>((set) => ({
   finalTotal: 0,
   changeDue: 0,
 
-  addItem: (medicine, quantity = 1, batch = undefined) => set((state) => {
+  addItem: (medicine, rawQuantity = 1, batch = undefined) => set((state) => {
+    let quantity = rawQuantity || 1;
+    // Determine max available stock for validation
+    const stock = batch 
+      ? batch.available_quantity 
+      : medicine.available_quantity;
+
     // Check if item already exists to just bump quantity
     const existingIndex = state.cartItems.findIndex(i => 
       i.medicine.id === medicine.id && 
@@ -115,32 +122,66 @@ export const usePOSStore = create<POSState>((set) => ({
     let newItems = [...state.cartItems];
     
     if (existingIndex >= 0) {
-      newItems[existingIndex].quantity += quantity;
+      const newQty = newItems[existingIndex].quantity + quantity;
+      if (newQty > stock) {
+        toast.error(`Stock Limit Reached: Only ${stock} ${medicine.name} available.`, { id: 'stock-limit-toast' });
+        newItems[existingIndex].quantity = stock;
+      } else {
+        newItems[existingIndex].quantity = newQty;
+      }
     } else {
-      const fallbackPrice = medicine.unit_retail_price || medicine.sale_price || 0;
-      const price = batch 
-        ? (batch.selling_price || fallbackPrice) 
-        : fallbackPrice;
-      newItems.push({
-        cart_id: crypto.randomUUID(),
-        medicine,
-        batch_id: batch?.id,
-        batch_number: batch?.batch_number,
-        quantity,
-        unit_price: price,
-        discount_type: 'FIXED',
-        discount_value: 0,
-        subtotal: price
-      });
+      if (quantity > stock) {
+        toast.error(`Stock Limit Reached: Only ${stock} ${medicine.name} available.`, { id: 'stock-limit-toast' });
+        quantity = stock;
+      }
+      if (quantity > 0) {
+        const fallbackPrice = medicine.unit_retail_price || medicine.sale_price || 0;
+        const price = batch 
+          ? (batch.selling_price || fallbackPrice) 
+          : fallbackPrice;
+        newItems.push({
+          cart_id: crypto.randomUUID(),
+          medicine,
+          batch_id: batch?.id,
+          batch_number: batch?.batch_number,
+          quantity,
+          unit_price: price,
+          discount_type: 'FIXED',
+          discount_value: 0,
+          subtotal: price
+        });
+      }
     }
     
     return { ...state, ...calculateTotals({ ...state, cartItems: newItems }) };
   }),
 
   updateItemQuantity: (cartId, quantity) => set((state) => {
-    const newItems = state.cartItems.map(item => 
-      item.cart_id === cartId ? { ...item, quantity: Math.max(1, quantity) } : item
-    );
+    let limitReached = false;
+    let limitMessage = '';
+
+    const newItems = state.cartItems.map(item => {
+      if (item.cart_id === cartId) {
+        // Determine stock availability for validation
+        const stock = item.batch_id && item.medicine.batches 
+          ? item.medicine.batches.find(b => b.id === item.batch_id)?.available_quantity || 0 
+          : item.medicine.available_quantity;
+
+        if (quantity > stock) {
+          limitReached = true;
+          limitMessage = `Stock Limit Reached: Only ${stock} ${item.medicine.name} available in stock.`;
+          return { ...item, quantity: Math.max(1, stock) }; // Fallback to max available
+        }
+        
+        return { ...item, quantity: Math.max(1, quantity) };
+      }
+      return item;
+    });
+
+    if (limitReached) {
+      toast.error(limitMessage, { id: 'stock-limit-toast' });
+    }
+
     return { ...state, ...calculateTotals({ ...state, cartItems: newItems }) };
   }),
 

@@ -176,6 +176,8 @@ class CashierService:
                 "notes": e.notes,
                 "created_at": e.created_at,
                 "sale_id": e.sale_id,
+                "invoice_number": e.sale.invoice_number if e.sale else None,
+                "status": e.sale.status if e.sale else None
             })
 
         return {

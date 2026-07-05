@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Role, Permission, RoleCreateUpdate } from '../types/roles';
 import { useCreateRole, useUpdateRole } from '../services/roles.api';
 import toast from 'react-hot-toast';
+import { parseApiError } from '@/utils/errorParser';
 
 interface RolePermissionModalProps {
   isOpen: boolean;
@@ -66,7 +67,7 @@ export const RolePermissionModal: React.FC<RolePermissionModalProps> = ({ isOpen
       }
       onClose();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to save role');
+      toast.error(parseApiError(err));
     }
   };
 

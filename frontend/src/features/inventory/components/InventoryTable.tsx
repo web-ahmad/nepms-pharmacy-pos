@@ -10,6 +10,7 @@ import StockAdjustmentModal from './StockAdjustmentModal';
 import { Medicine } from '../types/inventory';
 import { useDeleteMedicine } from '../services/medicine.api';
 import toast from 'react-hot-toast';
+import { parseApiError } from '@/utils/errorParser';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,13 +30,13 @@ export default function InventoryTable() {
   const [deletingMedicine, setDeletingMedicine] = useState<Medicine | null>(null);
   const deleteMutation = useDeleteMedicine();
   const { user } = useAuthStore();
-  
+
   const canCreate = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Inventory Manager';
   const canEdit = canCreate;
   const canAdjust = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Inventory Manager' || user?.role === 'Branch Manager';
 
   const { data, isLoading } = useMedicines(searchTerm, page, 20);
-  
+
   // Dashboard Metrics
   const { data: expiryAlerts } = useExpiryAlerts();
   const { data: lowStockAlerts } = useLowStockAlerts();
@@ -50,13 +51,13 @@ export default function InventoryTable() {
     if (!deletingMedicine) return;
     try {
       await deleteMutation.mutateAsync(deletingMedicine.id);
-      toast.success('✅ Product deleted successfully', {
+      toast.success('Product deleted successfully', {
         duration: 4000,
         style: { background: '#10b981', color: '#fff', fontWeight: 500 }
       });
       setDeletingMedicine(null);
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || error.message || "Failed to delete medicine");
+      toast.error(parseApiError(error));
       setDeletingMedicine(null);
     }
   };
@@ -89,42 +90,42 @@ export default function InventoryTable() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-fade-in delay-1">
         {/* Attention Required Card */}
         <div className="bg-[#fefce8] border border-[#fcdeb5] rounded-[8px] p-5 relative overflow-hidden transition-all hover:shadow-sm">
-           <div className="absolute top-4 right-4 w-10 h-10 bg-[#fcdeb5] rounded-[8px] flex items-center justify-center opacity-40">
-              <CalendarDays className="text-[#574425] w-5 h-5" />
-           </div>
-           <p className="text-[12px] font-bold text-[#574425] tracking-widest uppercase mb-1">Attention Required</p>
-           <h3 className="text-[24px] font-bold text-[#271901]">{expiryCount} Batches</h3>
-           <p className="text-[14px] text-[#574425] mt-1">Near-expiry in next 30 days</p>
+          <div className="absolute top-4 right-4 w-10 h-10 bg-[#fcdeb5] rounded-[8px] flex items-center justify-center opacity-40">
+            <CalendarDays className="text-[#574425] w-5 h-5" />
+          </div>
+          <p className="text-[12px] font-bold text-[#574425] tracking-widest uppercase mb-1">Attention Required</p>
+          <h3 className="text-[24px] font-bold text-[#271901]">{expiryCount} Batches</h3>
+          <p className="text-[14px] text-[#574425] mt-1">Near-expiry in next 30 days</p>
         </div>
-        
+
         {/* Critical Inventory Card */}
         <div className="bg-[#fff1f0] border border-[#ffdad6] rounded-[8px] p-5 relative overflow-hidden transition-all hover:shadow-sm">
-           <div className="absolute top-4 right-4 w-10 h-10 bg-[#ffdad6] rounded-[8px] flex items-center justify-center opacity-40">
-              <AlertTriangle className="text-[#93000a] w-5 h-5" />
-           </div>
-           <p className="text-[12px] font-bold text-[#93000a] tracking-widest uppercase mb-1">Critical Inventory</p>
-           <h3 className="text-[24px] font-bold text-[#93000a]">{lowStockCount} Items</h3>
-           <p className="text-[14px] text-[#93000a] mt-1">Below minimum threshold</p>
+          <div className="absolute top-4 right-4 w-10 h-10 bg-[#ffdad6] rounded-[8px] flex items-center justify-center opacity-40">
+            <AlertTriangle className="text-[#93000a] w-5 h-5" />
+          </div>
+          <p className="text-[12px] font-bold text-[#93000a] tracking-widest uppercase mb-1">Critical Inventory</p>
+          <h3 className="text-[24px] font-bold text-[#93000a]">{lowStockCount} Items</h3>
+          <p className="text-[14px] text-[#93000a] mt-1">Below minimum threshold</p>
         </div>
 
         {/* Inventory Value Card */}
         <div className="bg-[#f0f5ff] border border-[#d8e2ff] rounded-[8px] p-5 relative overflow-hidden transition-all hover:shadow-sm">
-           <div className="absolute top-4 right-4 w-10 h-10 bg-[#d8e2ff] rounded-[8px] flex items-center justify-center opacity-40">
-              <Wallet className="text-[#004395] w-5 h-5" />
-           </div>
-           <p className="text-[12px] font-bold text-[#004395] tracking-widest uppercase mb-1">Inventory Value</p>
-           <h3 className="text-[24px] font-bold text-[#001a42]">Rs {totalValuation.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</h3>
-           <p className="text-[14px] text-[#004395] mt-1">Total stock valuation</p>
+          <div className="absolute top-4 right-4 w-10 h-10 bg-[#d8e2ff] rounded-[8px] flex items-center justify-center opacity-40">
+            <Wallet className="text-[#004395] w-5 h-5" />
+          </div>
+          <p className="text-[12px] font-bold text-[#004395] tracking-widest uppercase mb-1">Inventory Value</p>
+          <h3 className="text-[24px] font-bold text-[#001a42]">Rs {totalValuation.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</h3>
+          <p className="text-[14px] text-[#004395] mt-1">Total stock valuation</p>
         </div>
 
         {/* Active Inventory Card */}
         <div className="bg-[#ffffff] border border-[#e2e8f0] rounded-[8px] p-5 relative overflow-hidden transition-all hover:shadow-sm">
-           <div className="absolute top-4 right-4 w-10 h-10 bg-[#f1f5f9] rounded-[8px] flex items-center justify-center opacity-60">
-              <Box className="text-[#475569] w-5 h-5" />
-           </div>
-           <p className="text-[12px] font-bold text-[#475569] tracking-widest uppercase mb-1">Active Inventory</p>
-           <h3 className="text-[24px] font-bold text-[#0f172a]">{activeSKUs} SKUs</h3>
-           <p className="text-[14px] text-[#475569] mt-1">Currently tracked medicines</p>
+          <div className="absolute top-4 right-4 w-10 h-10 bg-[#f1f5f9] rounded-[8px] flex items-center justify-center opacity-60">
+            <Box className="text-[#475569] w-5 h-5" />
+          </div>
+          <p className="text-[12px] font-bold text-[#475569] tracking-widest uppercase mb-1">Active Inventory</p>
+          <h3 className="text-[24px] font-bold text-[#0f172a]">{activeSKUs} SKUs</h3>
+          <p className="text-[14px] text-[#475569] mt-1">Currently tracked medicines</p>
         </div>
       </div>
 
@@ -179,7 +180,7 @@ export default function InventoryTable() {
                   const outOfStock = med.total_quantity <= 0;
                   const lowStock = med.total_quantity <= med.reorder_level;
                   const salePrice = med.unit_retail_price || med.packaging_levels?.find((p: any) => p.is_smallest_unit)?.sale_price || med.packaging_levels?.[0]?.sale_price || 0;
-                  
+
                   return (
                     <tr key={med.id} className="hover:bg-[#f1f5f9] transition-colors group">
                       <td className="px-4 py-3">
@@ -235,19 +236,19 @@ export default function InventoryTable() {
                           >
                             <MoreVertical size={16} />
                           </button>
-                          
+
                           {activeMenuId === med.id && (
                             <>
                               <div className="fixed inset-0 z-30" onClick={() => setActiveMenuId(null)} />
                               <div className="absolute right-0 top-full mt-1 w-48 rounded-[4px] border border-[#e2e8f0] bg-white p-1 shadow-lg z-40 text-left animate-in fade-in zoom-in-95 duration-100">
-                                <Link 
+                                <Link
                                   href={`/inventory/${med.id}?tab=batches`}
                                   onClick={() => setActiveMenuId(null)}
                                   className="block rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium"
                                 >
                                   View Batches
                                 </Link>
-                                <Link 
+                                <Link
                                   href={`/inventory/${med.id}?tab=movements`}
                                   onClick={() => setActiveMenuId(null)}
                                   className="block rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium"
@@ -255,7 +256,7 @@ export default function InventoryTable() {
                                   Stock Movements
                                 </Link>
                                 {canAdjust && (
-                                  <button 
+                                  <button
                                     onClick={() => { setActiveMenuId(null); setAdjustingMedicine(med); }}
                                     className="w-full text-left rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium"
                                   >
@@ -263,7 +264,7 @@ export default function InventoryTable() {
                                   </button>
                                 )}
                                 {canEdit && (
-                                  <button 
+                                  <button
                                     onClick={() => { setActiveMenuId(null); setDeletingMedicine(med); }}
                                     className="w-full flex items-center gap-2 text-left rounded-sm px-3 py-2 text-[13px] text-[#ba1a1a] hover:bg-[#ffdad6]/50 transition-colors font-medium"
                                   >
@@ -282,7 +283,7 @@ export default function InventoryTable() {
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination */}
         <div className="flex items-center justify-between border-t border-[#e2e8f0] p-4 bg-[#f8f9ff]/50">
           <p className="text-[13px] text-[#76777d]">
@@ -306,7 +307,7 @@ export default function InventoryTable() {
           </div>
         </div>
       </div>
-      
+
       {adjustingMedicine && (
         <StockAdjustmentWrapper medicine={adjustingMedicine} onClose={() => setAdjustingMedicine(null)} />
       )}
@@ -321,7 +322,7 @@ export default function InventoryTable() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteMutation.isPending} className="border-[#c6c6cd] text-[#0b1c30] hover:bg-[#f8f9ff]">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={(e) => { e.preventDefault(); handleDeleteConfirm(); }}
               className="bg-[#ba1a1a] hover:bg-[#93000a] text-white"
               disabled={deleteMutation.isPending}

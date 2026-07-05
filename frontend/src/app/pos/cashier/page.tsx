@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useQueryClient } from '@tanstack/react-query';
 import { useModules } from '@/lib/modules';
 import { useLowStockAlerts } from '@/features/inventory/services/alerts.api';
+import { parseApiError } from '@/utils/errorParser';
 
 import {
   useCashierSessionCheck,
@@ -26,7 +27,7 @@ import {
   ShieldCheck, PackageSearch, ArrowUpRight, ArrowDownRight, ChevronRight,
   BarChart3, Wallet, Moon, Sun, Search, Bell, Monitor, ClipboardList,
   Stethoscope, ShoppingBag, PackagePlus, Package, Users, FileText,
-  Activity, PieChart, ShieldAlert, UserCog, LayoutDashboard, ShoppingCart, Settings, Trash2
+  Activity, PieChart, ShieldAlert, UserCog, LayoutDashboard, ShoppingCart, Settings, Trash2, Clock, Printer
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -116,6 +117,17 @@ function CloseShiftModal({ session, onClose, onClosed }: { session: any; onClose
   const [notes, setNotes] = useState('');
   const closeSession = useCloseSession();
 
+  useEffect(() => {
+    if (session) {
+      if (session.expected_drawer === undefined || session.expected_drawer === null) {
+        setActualCash('');
+      } else if (!actualCash) {
+        setActualCash(session.expected_drawer.toString());
+      }
+    }
+  }, [session]);
+
+
   const expected = session?.expected_drawer || 0;
   const actual = Number(actualCash) || 0;
   const discrepancy = actual - expected;
@@ -150,9 +162,8 @@ function CloseShiftModal({ session, onClose, onClosed }: { session: any; onClose
             <input type="number" min="0" step="0.01" autoFocus value={actualCash} onChange={e => setActualCash(e.target.value)} placeholder="0.00" className="w-full rounded-lg border border-outline bg-surface px-3 py-2.5 text-xl font-mono font-bold text-on-surface focus:border-primary focus:outline-none" />
           </div>
           {actualCash && (
-            <div className={`rounded-lg p-3 text-sm font-bold flex items-center gap-2 ${
-              discrepancy === 0 ? 'bg-[#dcfce7] text-[#166534]' : discrepancy > 0 ? 'bg-primary-fixed text-primary' : 'bg-error-container text-error'
-            }`}>
+            <div className={`rounded-lg p-3 text-sm font-bold flex items-center gap-2 ${discrepancy === 0 ? 'bg-[#dcfce7] text-[#166534]' : discrepancy > 0 ? 'bg-primary-fixed text-primary' : 'bg-error-container text-error'
+              }`}>
               {discrepancy === 0 ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
               {discrepancy === 0 ? 'Balanced — No discrepancy!' : discrepancy > 0 ? `OVER by Rs ${discrepancy.toFixed(2)}` : `SHORT by Rs ${Math.abs(discrepancy).toFixed(2)}`}
             </div>
@@ -219,6 +230,31 @@ function LogExpenseModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ── Utilities ───────────────────────────────────────────────────────────────
+const formatToLocalTime = (utcDateString: string | null | undefined) => {
+  if (!utcDateString) return '—';
+  const safeDateString = utcDateString.endsWith('Z') ? utcDateString : `${utcDateString}Z`;
+  const date = new Date(safeDateString);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+// ── Live Clock Component ────────────────────────────────────────────────────
+function LiveClock() {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="hidden md:flex items-center gap-2 text-sm font-semibold text-on-surface-variant bg-surface-container-low px-3 py-1.5 rounded-full border border-outline-variant">
+      <Clock size={16} className="text-primary" />
+      {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+    </div>
+  );
+}
+
 // ── Summary Card ────────────────────────────────────────────────────────────
 function SummaryCard({ label, amount, icon: Icon, active }: { label: string; amount: number; icon: any; active?: boolean }) {
   return (
@@ -245,6 +281,31 @@ export default function CashierPortalPage() {
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closedSessionData, setClosedSessionData] = useState<any>(null);
   const [voidSaleId, setVoidSaleId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Global 'Alt + S' Key sequential navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Alt + S
+      if (e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault(); // Prevent default browser behavior (e.g., save page)
+        
+        // Find all cards
+        const cards = Array.from(document.querySelectorAll('[data-pending-card="true"]')) as HTMLElement[];
+        if (cards.length === 0) return;
+
+        // Calculate next focus
+        const currentIndex = cards.indexOf(document.activeElement as HTMLElement);
+        const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cards.length;
+        
+        // Apply focus
+        cards[nextIndex].focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const voidSaleMutation = useVoidSale();
 
@@ -258,11 +319,11 @@ export default function CashierPortalPage() {
           void_reason: 'Voided from Cashier Portal'
         }
       });
-      toast.success('✅ Sale Voided & Stock Reverted');
+      toast.success('Sale Voided & Stock Reverted');
       setVoidSaleId(null);
       qc.invalidateQueries({ queryKey: ['cashier', 'pending-queue'] });
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to void sale');
+      toast.error(parseApiError(error));
     }
   };
 
@@ -270,6 +331,15 @@ export default function CashierPortalPage() {
   const hasSession = sessionCheck?.has_open_session ?? false;
   const { data: session, refetch: refetchSession } = useCashierSession(hasSession);
   const { data: pendingQueue, isLoading: queueLoading, refetch: refetchQueue } = usePendingQueuePolling();
+  
+  const filteredPendingInvoices = useMemo(() => {
+    if (!pendingQueue) return [];
+    if (!searchQuery) return pendingQueue;
+    return pendingQueue.filter((invoice: any) => 
+      invoice.invoice_number?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [pendingQueue, searchQuery]);
+
   const { data: workflowData, isLoading: workflowLoading } = useWorkflowMode();
 
   const { isModuleEnabled } = useModules();
@@ -312,34 +382,191 @@ export default function CashierPortalPage() {
     );
   }
 
-  if (!hasSession) {
-    return <ShiftGuardModal onOpen={() => qc.invalidateQueries({ queryKey: ['cashier'] })} />;
-  }
-
   if (closedSessionData) {
     const disc = closedSessionData.discrepancy || 0;
+    
+    let varianceColor = '';
+    let varianceLabel = '';
+    if (disc === 0) {
+      varianceColor = 'text-[#16a34a] bg-[#dcfce7] border-[#bbf7d0]';
+      varianceLabel = 'Perfect Balance';
+    } else if (disc > 0) {
+      varianceColor = 'text-blue-700 bg-blue-50 border-blue-200';
+      varianceLabel = 'Over';
+    } else {
+      varianceColor = 'text-red-700 bg-red-50 border-red-200';
+      varianceLabel = 'Short';
+    }
+
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-2xl bg-surface-container-lowest border border-outline shadow-2xl p-8 text-center animate-scaleIn">
-          <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full ${disc === 0 ? 'bg-[#dcfce7]' : disc < 0 ? 'bg-error-container' : 'bg-primary-fixed'}`}>
-            {disc === 0 ? <CheckCircle2 className="h-8 w-8 text-[#16a34a]" /> : disc < 0 ? <AlertTriangle className="h-8 w-8 text-error" /> : <ArrowUpRight className="h-8 w-8 text-primary" />}
-          </div>
-          <h2 className="text-2xl font-bold text-on-surface mb-1">Shift Closed</h2>
-          <p className="text-on-surface-variant text-sm mb-6">Your shift has ended. Summary below.</p>
-          <div className="rounded-xl bg-surface-container-low p-4 space-y-2 text-sm text-left mb-6">
-            <div className="flex justify-between"><span className="text-on-surface-variant">Opening Balance:</span><span className="font-mono font-bold text-on-surface">Rs {(closedSessionData.opening_balance || 0).toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-on-surface-variant">Expected:</span><span className="font-mono font-bold text-on-surface">Rs {(closedSessionData.closing_balance_expected || 0).toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-on-surface-variant">Actual Counted:</span><span className="font-mono font-bold text-on-surface">Rs {(closedSessionData.closing_balance_actual || 0).toFixed(2)}</span></div>
-            <div className={`flex justify-between border-t border-outline pt-2 font-bold ${disc === 0 ? 'text-[#16a34a]' : disc < 0 ? 'text-error' : 'text-primary'}`}>
-              <span>Discrepancy:</span><span className="font-mono">{closedSessionData.discrepancy_label}</span>
+      <>
+        <div className="min-h-screen w-screen bg-surface flex flex-col items-center justify-center p-6 print:hidden">
+          <div className="w-full max-w-3xl rounded-3xl bg-surface-container-lowest border border-outline shadow-2xl p-8 lg:p-12 text-center animate-scaleIn">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#dcfce7] shadow-inner border border-[#bbf7d0]">
+              <CheckCircle2 className="h-10 w-10 text-[#16a34a]" />
+            </div>
+            <h1 className="text-3xl font-extrabold text-on-surface mb-2 tracking-tight">Shift Closed Successfully</h1>
+            <p className="text-on-surface-variant text-base mb-8">Thank you for your hard work! Here is the summary of your shift.</p>
+            
+            {/* Shift Details */}
+            <div className="flex justify-center gap-4 mb-8 text-sm font-medium text-on-surface-variant bg-surface-container-low py-3 px-6 rounded-full inline-flex border border-outline-variant">
+              <span className="flex items-center gap-2"><Clock size={16} /> Duration: {formatToLocalTime(closedSessionData.opened_at)} - {formatToLocalTime(closedSessionData.closed_at)}</span>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10 text-left">
+              <div className="rounded-2xl border border-outline bg-surface p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Expected Cash</p>
+                <p className="text-2xl font-mono font-extrabold text-on-surface">Rs {(closedSessionData.closing_balance_expected || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div className="rounded-2xl border border-outline bg-surface p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-on-surface-variant mb-2">Actual Counted</p>
+                <p className="text-2xl font-mono font-extrabold text-on-surface">Rs {(closedSessionData.closing_balance_actual || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+              </div>
+              <div className={`rounded-2xl border p-5 shadow-sm ${varianceColor}`}>
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-xs font-bold uppercase tracking-wider opacity-80">Variance</p>
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white/50">{varianceLabel}</span>
+                </div>
+                <p className="text-2xl font-mono font-extrabold">Rs {Math.abs(disc).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+              <button onClick={() => setClosedSessionData(null)} className="w-full sm:w-auto px-8 flex items-center justify-center gap-2 rounded-xl bg-primary py-4 font-bold text-on-primary hover:bg-primary/90 transition-all shadow-lg active:scale-95 text-lg">
+                Start New Shift
+              </button>
+              <button onClick={() => window.print()} className="w-full sm:w-auto px-8 flex items-center justify-center gap-2 rounded-xl border-2 border-outline py-4 font-bold text-on-surface hover:bg-surface-container transition-all active:scale-95 text-lg">
+                <Printer size={20} /> Print Summary
+              </button>
             </div>
           </div>
-          <button onClick={() => { logout(); router.push('/login'); }} className="w-full flex items-center justify-center gap-2 rounded-xl bg-surface-container-highest py-3 font-bold text-on-surface hover:brightness-95 transition-all">
-            <LogOut size={16} /> Logout
-          </button>
         </div>
-      </div>
+
+        {/* ── Print-Only Z-Report ────────────────────────────────────────── */}
+        <div className="hidden print:block w-full bg-white text-black text-sm p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold uppercase">SHIFT Z-REPORT (END OF SHIFT)</h1>
+            <p className="text-gray-600 mt-2">Shift Duration: {formatToLocalTime(closedSessionData.opened_at)} - {formatToLocalTime(closedSessionData.closed_at)}</p>
+            <p className="text-gray-600">Printed At: {new Date().toLocaleTimeString()}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 mb-8 border-b pb-8 border-gray-300">
+            <div className="space-y-2">
+              <div className="flex justify-between font-bold text-base border-b pb-1">
+                <span>Opening Float:</span>
+                <span>Rs {(closedSessionData.opening_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between font-bold text-base border-b pb-1 pt-1">
+                <span>Expected Cash:</span>
+                <span>Rs {(closedSessionData.closing_balance_expected || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between font-bold text-base border-b pb-1">
+                <span>Actual Counted:</span>
+                <span>Rs {(closedSessionData.closing_balance_actual || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between font-bold text-base border-b pb-1 pt-1">
+                <span>Variance:</span>
+                <span>Rs {Math.abs(disc).toLocaleString('en-IN', { minimumFractionDigits: 2 })} ({varianceLabel.toUpperCase()})</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <h3 className="font-bold text-lg mb-4">Detailed Transactions</h3>
+            <table className="w-full text-left border-collapse border border-gray-300 text-sm">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="border border-gray-300 p-2 font-bold whitespace-nowrap">Date/Time</th>
+                  <th className="border border-gray-300 p-2 font-bold whitespace-nowrap">Transaction ID</th>
+                  <th className="border border-gray-300 p-2 font-bold whitespace-nowrap">Type</th>
+                  <th className="border border-gray-300 p-2 font-bold whitespace-nowrap">Mode</th>
+                  <th className="border border-gray-300 p-2 font-bold text-right whitespace-nowrap">Amount</th>
+                  <th className="border border-gray-300 p-2 font-bold text-right whitespace-nowrap">Running Balance</th>
+                  <th className="border border-gray-300 p-2 font-bold w-full">Notes/Reference</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(() => {
+                  if (!closedSessionData.transactions || closedSessionData.transactions.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={7} className="border border-gray-300 p-4 text-center text-gray-500">
+                          No transactions recorded during this shift.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  let currentBalance = 0;
+                  const txWithBalance = [...closedSessionData.transactions]
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    .map(tx => {
+                      if (tx.type === 'OPENING_BALANCE' || tx.type === 'OPENING') currentBalance += tx.amount;
+                      else if (tx.type === 'SALE' && (tx.payment_mode === 'Cash' || tx.payment_mode == null)) currentBalance += tx.amount;
+                      else if (tx.type === 'EXPENSE') currentBalance -= Math.abs(tx.amount);
+                      else if (tx.type === 'RETURN' && (tx.payment_mode === 'Cash' || tx.payment_mode == null)) currentBalance -= Math.abs(tx.amount);
+                      return { ...tx, running_balance: currentBalance };
+                    });
+
+                  return txWithBalance.map((tx: any, index: number) => {
+                    const isIncome = tx.type === 'SALE' || tx.type === 'OPENING_BALANCE' || tx.type === 'OPENING';
+                    const isExpense = tx.type === 'EXPENSE' || tx.type === 'RETURN';
+                    const isVoid = tx.status === 'Voided' || tx.status === 'VOID' || tx.type === 'VOID';
+                    const entryTypeDisplay = isVoid ? 'VOID' : (tx.type || '').replace('_', ' ');
+
+                    const getDisplayId = (e: any) => {
+                      if (e.type === 'OPENING_BALANCE' || e.type === 'OPENING') return 'OPENING-FLOAT';
+                      if (e.type === 'EXPENSE') return `EXP-${(e.id || '').substring(0, 6).toUpperCase()}`;
+                      if (e.type === 'RETURN') return `RET-${(e.id || '').substring(0, 6).toUpperCase()}`;
+                      return e.invoice_number || (e.id || '').substring(0, 8).toUpperCase();
+                    };
+                    const displayId = getDisplayId(tx);
+
+                    return (
+                      <tr key={tx.id || index}>
+                        <td className="border border-gray-300 p-2 whitespace-nowrap">{formatToLocalTime(tx.created_at)}</td>
+                        <td className="border border-gray-300 p-2 font-mono whitespace-nowrap">{displayId}</td>
+                        <td className="border border-gray-300 p-2 uppercase whitespace-nowrap">
+                          <span className={isVoid ? 'font-bold text-red-600' : ''}>{entryTypeDisplay}</span>
+                        </td>
+                        <td className="border border-gray-300 p-2 whitespace-nowrap">{tx.payment_mode || 'Cash'}</td>
+                        <td className={`border border-gray-300 p-2 text-right font-mono whitespace-nowrap ${isExpense ? 'text-red-700 font-bold' : isIncome ? 'text-green-700 font-bold' : ''}`}>
+                          {tx.amount < 0 ? '- Rs ' : '+ Rs '}{Math.abs(tx.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="border border-gray-300 p-2 text-right font-mono text-gray-700 whitespace-nowrap">
+                          {tx.running_balance < 0 ? '-' : ''}{Math.abs(tx.running_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="border border-gray-300 p-2 max-w-xs truncate">
+                          {isVoid && tx.type !== 'VOID' ? <span className="text-red-600 font-bold mr-1">VOIDED:</span> : null}
+                          {tx.notes || '—'}
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-between mt-16 pt-8 text-base">
+            <div className="w-64 text-center">
+              <div className="border-t-2 border-black pt-2 font-bold">Cashier Signature</div>
+            </div>
+            <div className="w-64 text-center">
+              <div className="border-t-2 border-black pt-2 font-bold">Manager Signature</div>
+            </div>
+          </div>
+        </div>
+      </>
     );
+  }
+
+  if (!hasSession) {
+    return <ShiftGuardModal onOpen={() => qc.invalidateQueries({ queryKey: ['cashier'] })} />;
   }
 
   return (
@@ -361,7 +588,7 @@ export default function CashierPortalPage() {
               </span>
               <span className="text-xs text-primary/70 font-medium">Float: Rs {(session?.opening_balance || 0).toFixed(2)}</span>
             </div>
-            <p className="text-sm font-semibold text-primary/90">Started: {session?.opened_at ? new Date(session.opened_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</p>
+            <p className="text-sm font-semibold text-primary/90">Started: {formatToLocalTime(session?.opened_at)}</p>
           </div>
         </div>
 
@@ -373,11 +600,10 @@ export default function CashierPortalPage() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
-                  isActive 
-                    ? 'bg-primary text-on-primary shadow-md' 
-                    : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
-                }`}
+                className={`group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${isActive
+                  ? 'bg-primary text-on-primary shadow-md'
+                  : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
+                  }`}
               >
                 <div className="flex items-center">
                   <item.icon className={`flex-shrink-0 mr-3 h-[18px] w-[18px] ${isActive ? 'text-on-primary' : 'text-on-surface-variant group-hover:text-primary'}`} />
@@ -419,9 +645,16 @@ export default function CashierPortalPage() {
             <p className="text-xs text-on-surface-variant font-medium mt-0.5">Manage queue, process payments, and track ledger</p>
           </div>
           <div className="flex items-center gap-4">
+            <LiveClock />
             <div className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" size={16} />
-              <input type="text" placeholder="Search orders..." className="h-9 w-64 rounded-full border border-outline-variant bg-surface px-9 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input 
+                type="text" 
+                placeholder="Search orders..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 w-64 rounded-full border border-outline-variant bg-surface px-9 text-sm text-on-surface focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" 
+              />
             </div>
             <button className="relative p-2 rounded-full text-on-surface-variant hover:bg-surface-container-low transition-colors">
               <Bell size={20} />
@@ -444,7 +677,7 @@ export default function CashierPortalPage() {
 
           {/* 2 Columns: Queue & Ledger */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+
             {/* Left Col: Pending Verification Queue */}
             <div className="lg:col-span-2 space-y-4">
               <div className="flex items-center justify-between">
@@ -456,30 +689,53 @@ export default function CashierPortalPage() {
                     </span>
                   )}
                 </h3>
-                <button onClick={() => refetchQueue()} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80">
-                  <RefreshCw size={12} className={queueLoading ? 'animate-spin' : ''} /> Refresh
-                </button>
+                <div className="flex items-center gap-4">
+                  <span className="hidden md:inline-block text-[10px] text-on-surface-variant font-medium bg-surface-container-low px-2 py-1 rounded border border-outline-variant">
+                    Shortcuts: [Alt+S] Navigate • [Enter] Open • [Del] Void
+                  </span>
+                  <button onClick={() => refetchQueue()} className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80">
+                    <RefreshCw size={12} className={queueLoading ? 'animate-spin' : ''} /> Refresh
+                  </button>
+                </div>
               </div>
 
-              {!queueLoading && (!pendingQueue || pendingQueue.length === 0) && (
+              {!queueLoading && (!filteredPendingInvoices || filteredPendingInvoices.length === 0) && (
                 <div className="rounded-2xl border border-dashed border-outline-variant p-12 text-center flex flex-col items-center bg-surface-container-lowest">
                   <div className="h-16 w-16 rounded-full bg-surface-container-low flex items-center justify-center mb-4">
                     <CheckCircle2 size={24} className="text-on-surface-variant" />
                   </div>
-                  <p className="text-sm font-bold text-on-surface">Queue is clear</p>
-                  <p className="text-xs text-on-surface-variant mt-1">Orders sent from the Order Taker will appear here automatically.</p>
+                  <p className="text-sm font-bold text-on-surface">
+                    {searchQuery ? 'No orders match your search' : 'Queue is clear'}
+                  </p>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    {searchQuery ? 'Try adjusting your search filters.' : 'Orders sent from the Order Taker will appear here automatically.'}
+                  </p>
                 </div>
               )}
 
-              {pendingQueue && pendingQueue.length > 0 && (
+              {filteredPendingInvoices && filteredPendingInvoices.length > 0 && (
                 <div className="grid gap-4 md:grid-cols-2">
-                  {pendingQueue.map((sale: any) => (
-                    <div key={sale.id} className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm flex flex-col justify-between">
+                  {filteredPendingInvoices.map((sale: any) => (
+                    <div 
+                      key={sale.id} 
+                      tabIndex={0}
+                      data-pending-card="true"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setVerifyingSale(sale);
+                        } else if (e.key === 'Delete') {
+                          e.preventDefault();
+                          setVoidSaleId(sale.id);
+                        }
+                      }}
+                      className="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 shadow-sm flex flex-col justify-between focus:outline-none focus:ring-4 focus:ring-blue-600 focus:border-blue-600 focus:scale-[1.02] transition-all cursor-pointer"
+                    >
                       <div>
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <p className="font-bold text-on-surface text-sm tracking-tight">{sale.invoice_number}</p>
-                            <p className="text-xs text-on-surface-variant mt-0.5">{new Date(sale.sale_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {sale.items?.length || 0} items</p>
+                            <p className="text-xs text-on-surface-variant mt-0.5">{formatToLocalTime(sale.sale_date)} • {sale.items?.length || 0} items</p>
                           </div>
                           <div className="text-right">
                             <p className="font-mono font-bold text-primary text-base">Rs {sale.total_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
@@ -536,7 +792,7 @@ export default function CashierPortalPage() {
                           </div>
                           <div>
                             <p className="text-xs font-bold text-on-surface">{entry.entry_type === 'SALE' ? 'Sale Payment' : entry.entry_type === 'EXPENSE' ? 'Expense' : entry.entry_type}</p>
-                            <p className="text-[10px] text-on-surface-variant">{entry.payment_mode} • {new Date(entry.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                            <p className="text-[10px] text-on-surface-variant">{entry.payment_mode} • {new Date(entry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                           </div>
                         </div>
                         <span className={`font-mono text-xs font-bold ${isPositive ? 'text-[#16a34a]' : 'text-error'}`}>
@@ -551,19 +807,19 @@ export default function CashierPortalPage() {
                     </div>
                   )}
                 </div>
-                
+
                 {/* Ledger Actions */}
                 <div className="pt-4 mt-2 border-t border-outline-variant space-y-2">
                   <button onClick={() => setShowExpenseModal(true)} className="w-full flex items-center justify-center gap-2 rounded-lg bg-surface-container-high py-2 text-xs font-bold text-on-surface hover:bg-surface-variant transition-colors border border-outline-variant">
                     <TrendingDown size={14} className="text-[#ea580c]" /> Log Counter Expense
                   </button>
-                  <Link href="/sales" className="w-full flex items-center justify-center gap-2 rounded-lg bg-surface-container-lowest py-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors">
+                  <Link href="/pos/cashier/ledger" className="w-full flex items-center justify-center gap-2 rounded-lg bg-surface-container-lowest py-2 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors">
                     <BarChart3 size={14} /> Full Ledger History
                   </Link>
                 </div>
               </div>
             </div>
-            
+
           </div>
         </div>
 
@@ -608,7 +864,7 @@ export default function CashierPortalPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleVoidSale();

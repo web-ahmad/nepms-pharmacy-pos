@@ -11,6 +11,7 @@ import { generateReceiptHtml } from '@/utils/receiptGenerator';
 import PrintableReceipt from '@/components/invoice/PrintableReceipt';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/stores/auth-store';
+import { parseApiError } from '@/utils/errorParser';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,18 +43,18 @@ export default function SalesHistory() {
 
     if (preset === 'today') {
       const startOfDay = new Date(today);
-      startOfDay.setHours(0,0,0,0);
+      startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(today);
-      endOfDay.setHours(23,59,59,999);
-      
+      endOfDay.setHours(23, 59, 59, 999);
+
       start = startOfDay.toLocaleDateString('en-CA');
       end = endOfDay.toLocaleDateString('en-CA');
     } else if (preset === 'week') {
       const day = today.getDay();
       const diff = today.getDate() - day + (day === 0 ? -6 : 1);
       const startOfWeek = new Date(today.setDate(diff));
-      startOfWeek.setHours(0,0,0,0);
-      
+      startOfWeek.setHours(0, 0, 0, 0);
+
       const todayDate = new Date();
       start = startOfWeek.toLocaleDateString('en-CA');
       end = todayDate.toLocaleDateString('en-CA');
@@ -74,10 +75,10 @@ export default function SalesHistory() {
 
   const { data, isLoading, isFetching, refetch } = useSalesHistory(filters);
   const { data: invoiceSettings } = useInvoiceSettings();
-  
+
   const searchParams = useSearchParams();
   const viewId = searchParams.get('view_id');
-  
+
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(viewId);
   const [returnSaleId, setReturnSaleId] = useState<string | null>(null);
   const [voidSaleId, setVoidSaleId] = useState<string | null>(null);
@@ -95,14 +96,14 @@ export default function SalesHistory() {
           void_reason: 'Voided from Sales History'
         }
       });
-      toast.success('✅ Invoice Voided & Stock Reverted Successfully!');
+      toast.success('Invoice Voided & Stock Reverted Successfully!');
       setVoidSaleId(null);
       refetch();
       if (selectedSaleId === voidSaleId) {
         setSelectedSaleId(null);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to void invoice');
+      toast.error(parseApiError(err));
     }
   };
 
@@ -198,7 +199,7 @@ export default function SalesHistory() {
 
   return (
     <div className="space-y-6 font-premium-sans">
-      
+
       {/* Interactive Filters Panel (White Theme) */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -217,11 +218,10 @@ export default function SalesHistory() {
                 key={preset.id}
                 type="button"
                 onClick={() => applyPreset(preset.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 ${
-                  activePreset === preset.id
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 ${activePreset === preset.id
                     ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
                     : 'bg-slate-55 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-                }`}
+                  }`}
               >
                 {preset.label}
               </button>
@@ -422,7 +422,7 @@ export default function SalesHistory() {
       {selectedSaleId && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex justify-end">
           <div className="bg-white border-l border-slate-200 w-full max-w-4xl h-screen shadow-2xl flex flex-col z-50 animate-slideLeft font-premium-sans">
-            
+
             {/* Header */}
             <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50 shrink-0">
               <div className="flex items-center gap-2">
@@ -541,7 +541,7 @@ export default function SalesHistory() {
                         <span>Grand Total</span>
                         <span className="font-mono">{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{saleDetail.total_amount?.toFixed(2)}</span>
                       </div>
-                      
+
                       {(invoiceSettings?.show_received_amount !== false || invoiceSettings?.show_change_amount !== false) && (
                         <div className="mt-4 pt-3 border-t border-dashed border-emerald-200 space-y-2">
                           {invoiceSettings?.show_received_amount !== false && (
@@ -569,7 +569,7 @@ export default function SalesHistory() {
                         <Printer size={18} />
                         Reprint Receipt
                       </button>
-                      
+
                       {(saleDetail.status === 'Completed' || saleDetail.status === 'Partially Returned') && (
                         <button
                           onClick={() => setReturnSaleId(saleDetail.id)}
@@ -579,7 +579,7 @@ export default function SalesHistory() {
                           Return Items
                         </button>
                       )}
-                      
+
                       {(saleDetail.status === 'Completed' || saleDetail.status === 'Pending Verification' || saleDetail.status === 'Pending') && (
                         <button
                           onClick={() => setVoidSaleId(saleDetail.id)}
@@ -628,7 +628,7 @@ export default function SalesHistory() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
                 handleVoidSale();

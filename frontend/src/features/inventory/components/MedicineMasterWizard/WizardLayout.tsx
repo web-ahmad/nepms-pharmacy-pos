@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Loader2, Save, X, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react';
 import { useCreateMedicine } from '@/features/inventory/services/medicine.api';
+import { parseApiError } from '@/utils/errorParser';
 
 import { medicineSchema, MedicineFormValues, defaultMedicineValues } from './schema';
 import Step1BasicInfo from './steps/Step1BasicInfo';
@@ -150,16 +151,7 @@ export default function WizardLayout() {
       toast.success("Medicine created successfully.");
       router.push('/inventory/medicines');
     } catch (error: any) {
-      const detail = error.response?.data?.detail;
-      let errorMsg: string;
-      if (Array.isArray(detail)) {
-        errorMsg = detail.map((d: any) => (typeof d === 'object' ? d.msg || JSON.stringify(d) : String(d))).join(', ');
-      } else if (typeof detail === 'string') {
-        errorMsg = detail;
-      } else {
-        errorMsg = error.message || 'Failed to create medicine';
-      }
-      toast.error(errorMsg);
+      toast.error(parseApiError(error));
       console.log('Submit Error:', error);
     }
   };

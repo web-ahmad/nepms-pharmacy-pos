@@ -23,6 +23,7 @@ class Sale(BaseModel):
     adjustment_amount = Column(Float, default=0.0)
     
     status = Column(String(50), default="Completed")  # Held, Completed, Voided, Partially Returned, Fully Returned
+    notes = Column(Text, nullable=True)
     
     items = relationship("SaleItem", back_populates="sale", lazy="selectin")
     returns = relationship("SaleReturn", back_populates="sale", lazy="selectin")

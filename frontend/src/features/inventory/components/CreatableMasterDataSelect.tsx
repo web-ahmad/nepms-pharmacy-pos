@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useMasterData, useCreateMasterData } from '../services/masterData.api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { parseApiError } from '@/utils/errorParser';
 
 interface CreatableMasterDataSelectProps {
   masterType: string;
@@ -35,10 +36,8 @@ export function CreatableMasterDataSelect({
       onChange(newValue.trim());
       setIsDialogOpen(false);
       setNewValue('');
-    } catch (e: any) {
-      console.error(e);
-      const errMsg = e.response?.data?.detail || e.message || "Failed to add new item.";
-      toast.error(typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg));
+    } catch (err: any) {
+      toast.error(parseApiError(err));
     }
   };
 

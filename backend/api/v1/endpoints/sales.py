@@ -14,7 +14,8 @@ from schemas.sales import (
     SaleListResponse,
     SaleReturnCreateRequest,
     ReturnLogResponse,
-    VerifyCompleteRequest
+    VerifyCompleteRequest,
+    VoidSaleRequest
 )
 from services.sales_service import SalesService
 from repositories.sales import sale_repo, customer_ledger_repo, sale_return_repo
