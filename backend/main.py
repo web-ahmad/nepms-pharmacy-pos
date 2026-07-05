@@ -1,5 +1,19 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+import traceback
+
+class ExceptionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception as e:
+            err = traceback.format_exc()
+            with open("backend_error.log", "a") as f:
+                f.write(err + "\n")
+            return JSONResponse(status_code=500, content={"detail": "Internal Server Error", "error": str(e)})
+
 from api.v1.api import api_router
 import core.audit # Registers SQLAlchemy event listeners
 
@@ -17,6 +31,8 @@ app = FastAPI(
     version="1.0.0",
     openapi_tags=tags_metadata
 )
+
+app.add_middleware(ExceptionMiddleware)
 
 # Configure CORS
 origins = [

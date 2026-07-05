@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 export const initialBatchSchema = z.object({
-  batch_number: z.string().optional(),
-  manufacturing_date: z.string().optional(),
-  expiry_date: z.string().optional(),
-  supplier_id: z.string().optional(),
-  purchase_invoice_id: z.string().optional(),
+  batch_number: z.string().nullable().optional(),
+  manufacturing_date: z.string().nullable().optional(),
+  expiry_date: z.string().nullable().optional(),
+  supplier_id: z.string().nullable().optional(),
+  purchase_invoice_id: z.string().nullable().optional(),
   mrp: z.coerce.number().optional(),
   current_stock: z.coerce.number().min(0, 'Stock cannot be negative').default(0),
 }).refine(data => data.current_stock === 0 || (data.batch_number && data.batch_number.trim().length > 0), {
@@ -19,8 +19,8 @@ export const initialBatchSchema = z.object({
 export const packagingLevelSchema = z.object({
   level_name: z.string().min(1, 'Level name is required'),
   conversion_qty: z.coerce.number().min(0.001, 'Must be greater than 0').default(1),
-  barcode: z.string().optional(),
-  secondary_barcode: z.string().optional(),
+  barcode: z.string().nullable().optional(),
+  secondary_barcode: z.string().nullable().optional(),
   is_purchase_unit: z.boolean().default(false),
   is_sale_unit: z.boolean().default(true),
   is_smallest_unit: z.boolean().default(false),
@@ -28,31 +28,33 @@ export const packagingLevelSchema = z.object({
   sale_price: z.coerce.number().min(0, 'Sale price cannot be negative').default(0),
 });
 
+const selectField = z.union([z.string(), z.any()]);
+
 export const medicineSchema = z.object({
   // Basic Info
   name: z.string().min(2, 'Medicine name is required'),
-  brand_name: z.string().optional(),
-  generic_name: z.string().optional(),
-  strength: z.string().optional(),
-  strength_unit: z.string().optional(),
-  dosage_form: z.string().optional(),
-  category: z.string().min(1, 'Category is required'),
-  therapeutic_class: z.string().optional(),
-  sub_category: z.string().optional(),
-  manufacturer: z.string().min(1, 'Manufacturer is required'),
-  country_of_origin: z.string().optional(),
-  description: z.string().optional(),
-  formula: z.string().optional(),
-  image_url: z.string().optional(),
-  barcode: z.string().optional(),
+  brand_name: z.string().nullable().optional(),
+  generic_name: selectField.nullable().optional(),
+  strength: z.string().nullable().optional(),
+  strength_unit: z.string().nullable().optional(),
+  dosage_form: z.string().nullable().optional(),
+  category: selectField,
+  therapeutic_class: z.string().nullable().optional(),
+  sub_category: z.string().nullable().optional(),
+  manufacturer: selectField,
+  country_of_origin: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  formula: z.string().nullable().optional(),
+  image_url: z.string().nullable().optional(),
+  barcode: z.string().nullable().optional(),
   status: z.enum(['Active', 'Inactive']).default('Active'),
 
   // Auto Generated
-  sku: z.string().optional(),
-  internal_product_code: z.string().optional(),
-  qr_code: z.string().optional(),
-  search_keywords: z.string().optional(),
-  slug: z.string().optional(),
+  sku: z.string().nullable().optional(),
+  internal_product_code: z.string().nullable().optional(),
+  qr_code: z.string().nullable().optional(),
+  search_keywords: z.string().nullable().optional(),
+  slug: z.string().nullable().optional(),
 
   // Pricing
   purchase_price: z.coerce.number().min(0, 'Cannot be negative').default(0),
@@ -70,37 +72,37 @@ export const medicineSchema = z.object({
   packaging_type: z.string().min(1, 'Packaging type is required').default('Tablet / Capsule'),
   strips_per_box: z.coerce.number().min(1, 'Must be at least 1').default(10),
   units_per_strip: z.coerce.number().min(1, 'Must be at least 1').default(10),
-  volume_in_ml: z.coerce.number().min(0, 'Cannot be negative').optional(),
+  volume_in_ml: z.coerce.number().min(0, 'Cannot be negative').nullable().optional(),
   packaging_levels: z.array(packagingLevelSchema).default([]),
 
   // Supplier
-  preferred_supplier: z.string().optional(),
-  supplier_product_code: z.string().optional(),
-  supplier_barcode: z.string().optional(),
-  supplier_purchase_price: z.coerce.number().optional(),
-  lead_time: z.coerce.number().optional(),
-  minimum_order_quantity: z.coerce.number().optional(),
+  preferred_supplier: z.string().nullable().optional(),
+  supplier_product_code: z.string().nullable().optional(),
+  supplier_barcode: z.string().nullable().optional(),
+  supplier_purchase_price: z.coerce.number().nullable().optional(),
+  lead_time: z.coerce.number().nullable().optional(),
+  minimum_order_quantity: z.coerce.number().nullable().optional(),
 
   // Inventory
   min_stock_level: z.coerce.number().min(0).default(0),
   max_stock_level: z.coerce.number().min(0).default(0),
   reorder_level: z.coerce.number().min(0).default(0),
-  shelf: z.string().optional(),
-  rack: z.string().optional(),
-  warehouse: z.string().optional(),
-  expiry_alert_days: z.coerce.number().optional(),
+  shelf: z.string().nullable().optional(),
+  rack: z.string().nullable().optional(),
+  warehouse: z.string().nullable().optional(),
+  expiry_alert_days: z.coerce.number().nullable().optional(),
 
   // Batches
   initial_batch: initialBatchSchema.optional(),
   opening_stock: z.coerce.number().min(0).default(0),
-  batch_number: z.string().optional(),
-  expiry_date: z.string().optional(),
-  manufacturing_date: z.string().optional(),
+  batch_number: z.string().nullable().optional(),
+  expiry_date: z.string().nullable().optional(),
+  manufacturing_date: z.string().nullable().optional(),
 
   // Tax
-  tax_type: z.string().optional(),
+  tax_type: z.string().nullable().optional(),
   tax_inclusive: z.boolean().default(false),
-  hs_code: z.string().optional(),
+  hs_code: z.string().nullable().optional(),
 
   // Prescription
   rx_required: z.boolean().default(false),
@@ -109,10 +111,10 @@ export const medicineSchema = z.object({
   is_controlled: z.boolean().default(false),
   narcotic: z.boolean().default(false),
   cold_chain: z.boolean().default(false),
-  age_restriction: z.coerce.number().optional(),
+  age_restriction: z.coerce.number().nullable().optional(),
 
   // Storage
-  temp_condition: z.string().optional(),
+  temp_condition: z.string().nullable().optional(),
   protect_from_light: z.boolean().default(false),
   keep_dry: z.boolean().default(false),
   hazardous: z.boolean().default(false),

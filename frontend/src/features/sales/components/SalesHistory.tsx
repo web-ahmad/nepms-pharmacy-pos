@@ -1,12 +1,26 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useSalesHistory, useSaleDetail } from '../services/sales.api';
+import { useSearchParams } from 'next/navigation';
+import { useSalesHistory, useSaleDetail, useVoidSale } from '../services/sales.api';
 import { Sale } from '../types/sales';
 import SaleReturnModal from './SaleReturnModal';
-import { Printer, Eye, RotateCcw, Calendar, User, Search, RefreshCw, X, ChevronLeft, ChevronRight, FileText, Filter, Receipt } from 'lucide-react';
+import { Printer, Eye, RotateCcw, Calendar, User, Search, RefreshCw, X, ChevronLeft, ChevronRight, FileText, Filter, Receipt, Ban } from 'lucide-react';
 import { useInvoiceSettings } from '@/features/settings/services/settings.api';
 import { generateReceiptHtml } from '@/utils/receiptGenerator';
+import PrintableReceipt from '@/components/invoice/PrintableReceipt';
+import toast from 'react-hot-toast';
+import { useAuthStore } from '@/stores/auth-store';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function SalesHistory() {
   const [filters, setFilters] = useState({
@@ -60,9 +74,43 @@ export default function SalesHistory() {
 
   const { data, isLoading, isFetching, refetch } = useSalesHistory(filters);
   const { data: invoiceSettings } = useInvoiceSettings();
-  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
+  
+  const searchParams = useSearchParams();
+  const viewId = searchParams.get('view_id');
+  
+  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(viewId);
   const [returnSaleId, setReturnSaleId] = useState<string | null>(null);
+  const [voidSaleId, setVoidSaleId] = useState<string | null>(null);
 
+  const voidSaleMutation = useVoidSale();
+  const { user } = useAuthStore();
+
+  const handleVoidSale = async () => {
+    if (!voidSaleId) return;
+    try {
+      await voidSaleMutation.mutateAsync({
+        saleId: voidSaleId,
+        payload: {
+          voided_by: user?.username || 'System',
+          void_reason: 'Voided from Sales History'
+        }
+      });
+      toast.success('✅ Invoice Voided & Stock Reverted Successfully!');
+      setVoidSaleId(null);
+      refetch();
+      if (selectedSaleId === voidSaleId) {
+        setSelectedSaleId(null);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to void invoice');
+    }
+  };
+
+  React.useEffect(() => {
+    if (viewId) {
+      setSelectedSaleId(viewId);
+    }
+  }, [viewId]);
   const { data: saleDetail, isLoading: isLoadingDetail } = useSaleDetail(selectedSaleId || undefined);
 
   const handleFilterChange = (key: string, value: any) => {
@@ -318,13 +366,22 @@ export default function SalesHistory() {
                       >
                         <Printer size={15} />
                       </button>
-                      {sale.status !== 'Held' && sale.status !== 'Voided' && sale.status !== 'Fully Returned' && (
+                      {(sale.status === 'Completed' || sale.status === 'Partially Returned') && (
                         <button
                           title="Process Return"
                           onClick={() => setReturnSaleId(sale.id)}
                           className="p-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 rounded-lg transition active:scale-90 inline-flex items-center border border-emerald-200"
                         >
                           <RotateCcw size={15} />
+                        </button>
+                      )}
+                      {(sale.status === 'Completed' || sale.status === 'Pending Verification' || sale.status === 'Pending') && (
+                        <button
+                          title="Void Sale"
+                          onClick={() => setVoidSaleId(sale.id)}
+                          className="p-2 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 rounded-lg transition active:scale-90 inline-flex items-center border border-red-200"
+                        >
+                          <Ban size={15} />
                         </button>
                       )}
                     </td>
@@ -364,10 +421,10 @@ export default function SalesHistory() {
       {/* Sale Detail Sidebar Drawer (White Theme) */}
       {selectedSaleId && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex justify-end">
-          <div className="bg-white border-l border-slate-200 w-full max-w-lg h-screen shadow-2xl flex flex-col z-50 animate-slideLeft font-premium-sans">
+          <div className="bg-white border-l border-slate-200 w-full max-w-4xl h-screen shadow-2xl flex flex-col z-50 animate-slideLeft font-premium-sans">
             
             {/* Header */}
-            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50 shrink-0">
               <div className="flex items-center gap-2">
                 <Receipt size={18} className="text-slate-600" />
                 <div>
@@ -384,118 +441,166 @@ export default function SalesHistory() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-hidden">
               {isLoadingDetail ? (
                 <div className="h-full flex items-center justify-center">
                   <span className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-500 border-t-transparent"></span>
                 </div>
               ) : !saleDetail ? (
-                <p className="text-center text-slate-500">Could not fetch invoice details.</p>
+                <p className="text-center text-slate-500 mt-10">Could not fetch invoice details.</p>
               ) : (
-                <div className="space-y-6">
-                  
-                  {/* Meta Grid details */}
-                  <div className="grid grid-cols-2 gap-4 bg-slate-55 p-4 rounded-2xl border border-slate-200 text-sm">
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Invoice Number</p>
-                      <p className="font-bold text-slate-900 mt-0.5">{saleDetail.invoice_number}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Status</p>
-                      <div className="mt-1">{getStatusBadge(saleDetail.status)}</div>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Timestamp</p>
-                      <p className="font-semibold text-slate-700 mt-0.5">
-                        {new Date(saleDetail.sale_date.endsWith('Z') ? saleDetail.sale_date : saleDetail.sale_date + 'Z').toLocaleString('en-PK', { timeZone: 'Asia/Karachi', dateStyle: 'medium', timeStyle: 'short' })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Cashier</p>
-                      <p className="font-semibold text-slate-700 mt-0.5">{saleDetail.cashier_name || 'System'}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Payment Method</p>
-                      <p className="font-bold text-slate-800 mt-0.5">{saleDetail.payment_method}</p>
-                    </div>
-                  </div>
-
-                  {/* List of Medicines */}
-                  <div className="space-y-2">
-                    <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sold Products</h4>
-                    <div className="bg-slate-50/50 rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
-                      {saleDetail.items?.map((item) => (
-                        <div key={item.id} className="p-4 hover:bg-slate-50 transition duration-150">
-                          <div className="flex justify-between font-semibold text-slate-900">
-                            <span>{item.medicine_name}</span>
-                            <span className="font-mono text-slate-700">Rs {item.total.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between text-xs text-slate-500 mt-1">
-                            <span>
-                              Qty: {item.quantity} &bull; Price: Rs {item.unit_price.toFixed(2)}
-                            </span>
-                            {item.quantity_returned_so_far > 0 && (
-                              <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                                {item.quantity_returned_so_far} returned
-                              </span>
-                            )}
-                          </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 h-full divide-x divide-slate-200">
+                  {/* Left Column: Summary */}
+                  <div className="overflow-y-auto p-6 space-y-6 bg-white">
+                    {/* Meta Grid details */}
+                    <div className="grid grid-cols-2 gap-4 bg-slate-55 p-4 rounded-2xl border border-slate-200 text-sm">
+                      <div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Invoice Number</p>
+                        <p className="font-bold text-slate-900 mt-0.5">{saleDetail.invoice_number}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Status</p>
+                        <div className="mt-1">{getStatusBadge(saleDetail.status)}</div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Timestamp</p>
+                        <p className="font-semibold text-slate-700 mt-0.5">
+                          {new Date(saleDetail.sale_date.endsWith('Z') ? saleDetail.sale_date : saleDetail.sale_date + 'Z').toLocaleString('en-PK', { timeZone: 'Asia/Karachi', dateStyle: 'medium', timeStyle: 'short' })}
+                        </p>
+                      </div>
+                      {invoiceSettings?.show_cashier_name !== false && (
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Cashier</p>
+                          <p className="font-semibold text-slate-700 mt-0.5">{saleDetail.cashier_name || 'System'}</p>
                         </div>
-                      ))}
+                      )}
+                      {invoiceSettings?.show_customer_name !== false && saleDetail.customer_id && (
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Customer</p>
+                          <p className="font-semibold text-slate-700 mt-0.5">Registered Account</p>
+                        </div>
+                      )}
+                      {invoiceSettings?.show_payment_method !== false && (
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Payment Method</p>
+                          <p className="font-bold text-slate-800 mt-0.5">{saleDetail.payment_method}</p>
+                        </div>
+                      )}
                     </div>
-                  </div>
 
-                  {/* Bill Calculator Summary */}
-                  <div className="bg-slate-50/30 p-5 rounded-2xl border border-slate-200 space-y-2.5 text-sm">
-                    <div className="flex justify-between text-slate-500 font-medium">
-                      <span>Subtotal</span>
-                      <span className="font-mono text-slate-800">Rs {saleDetail.subtotal.toFixed(2)}</span>
-                    </div>
-                    {saleDetail.discount_amount > 0 && (
-                      <div className="flex justify-between text-emerald-600 font-medium">
-                        <span>Discount Applied</span>
-                        <span className="font-mono">-Rs {saleDetail.discount_amount.toFixed(2)}</span>
+                    {/* List of Medicines */}
+                    <div className="space-y-2">
+                      <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sold Products</h4>
+                      <div className="bg-slate-50/50 rounded-2xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
+                        {saleDetail.items?.map((item) => (
+                          <div key={item.id} className="p-4 hover:bg-slate-50 transition duration-150">
+                            <div className="flex justify-between font-semibold text-slate-900">
+                              <span>{item.medicine_name}</span>
+                              <span className="font-mono text-slate-700">{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{item.total.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-slate-500 mt-1">
+                              <span>
+                                Qty: {item.quantity} &bull; Price: {invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{item.unit_price.toFixed(2)}
+                              </span>
+                              {item.quantity_returned_so_far > 0 && (
+                                <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                  {item.quantity_returned_so_far} returned
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                    {saleDetail.tax_amount > 0 && (
-                      <div className="flex justify-between text-slate-500 font-medium">
-                        <span>Tax</span>
-                        <span className="font-mono text-slate-800">Rs {saleDetail.tax_amount.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="border-t border-slate-200 pt-2.5 flex justify-between font-extrabold text-slate-900 text-base">
-                      <span>Grand Total</span>
-                      <span className="font-mono text-emerald-600">Rs {saleDetail.total_amount.toFixed(2)}</span>
                     </div>
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handlePrint(saleDetail)}
-                      className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold shadow-lg shadow-blue-500/10 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
-                    >
-                      <Printer size={16} />
-                      Reprint Receipt
-                    </button>
-                    {saleDetail.status !== 'Held' && saleDetail.status !== 'Voided' && saleDetail.status !== 'Fully Returned' && (
+                    {/* Financial Summary */}
+                    <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100 space-y-3">
+                      <div className="flex justify-between text-sm text-slate-600">
+                        <span>Subtotal</span>
+                        <span className="font-mono font-medium">{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{(saleDetail.subtotal ?? saleDetail.total_amount)?.toFixed(2)}</span>
+                      </div>
+                      {invoiceSettings?.show_discount !== false && saleDetail.discount_amount > 0 && (
+                        <div className="flex justify-between text-sm text-emerald-600">
+                          <span>Discount</span>
+                          <span className="font-mono font-medium">-{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{saleDetail.discount_amount?.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {invoiceSettings?.show_adjustment !== false && saleDetail.adjustment_amount !== undefined && saleDetail.adjustment_amount !== 0 && (
+                        <div className="flex justify-between text-sm text-orange-600">
+                          <span>Adjustment</span>
+                          <span className="font-mono font-medium">{saleDetail.adjustment_amount > 0 ? '+' : ''}{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{saleDetail.adjustment_amount?.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {invoiceSettings?.show_tax !== false && saleDetail.tax_amount > 0 && (
+                        <div className="flex justify-between text-sm text-slate-600">
+                          <span>Tax</span>
+                          <span className="font-mono font-medium">{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{saleDetail.tax_amount?.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-base font-bold text-emerald-950 pt-2 border-t border-emerald-200">
+                        <span>Grand Total</span>
+                        <span className="font-mono">{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{saleDetail.total_amount?.toFixed(2)}</span>
+                      </div>
+                      
+                      {(invoiceSettings?.show_received_amount !== false || invoiceSettings?.show_change_amount !== false) && (
+                        <div className="mt-4 pt-3 border-t border-dashed border-emerald-200 space-y-2">
+                          {invoiceSettings?.show_received_amount !== false && (
+                            <div className="flex justify-between text-xs text-slate-600">
+                              <span>Amount Received</span>
+                              <span className="font-mono">{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{(saleDetail.amount_paid ?? saleDetail.total_amount)?.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {invoiceSettings?.show_change_amount !== false && (
+                            <div className="flex justify-between text-xs text-blue-600 font-bold">
+                              <span>Change Returned</span>
+                              <span className="font-mono">{invoiceSettings?.show_currency_symbol !== false ? 'Rs ' : ''}{Math.max(0, (saleDetail.amount_paid ?? saleDetail.total_amount) - saleDetail.total_amount).toFixed(2)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-4">
                       <button
-                        onClick={() => {
-                          setReturnSaleId(saleDetail.id);
-                          setSelectedSaleId(null);
-                        }}
-                        className="px-4 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+                        onClick={() => handlePrint(saleDetail)}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2"
                       >
-                        <RotateCcw size={16} />
-                        Return Items
+                        <Printer size={18} />
+                        Reprint Receipt
                       </button>
-                    )}
+                      
+                      {(saleDetail.status === 'Completed' || saleDetail.status === 'Partially Returned') && (
+                        <button
+                          onClick={() => setReturnSaleId(saleDetail.id)}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2"
+                        >
+                          <RotateCcw size={18} />
+                          Return Items
+                        </button>
+                      )}
+                      
+                      {(saleDetail.status === 'Completed' || saleDetail.status === 'Pending Verification' || saleDetail.status === 'Pending') && (
+                        <button
+                          onClick={() => setVoidSaleId(saleDetail.id)}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl font-bold transition flex items-center justify-center gap-2"
+                        >
+                          <Ban size={18} />
+                          Void Sale
+                        </button>
+                      )}
+                    </div>
                   </div>
 
+                  {/* Right Column: Receipt Preview */}
+                  <div className="overflow-y-auto p-6 bg-slate-100 flex justify-center items-start shadow-inner">
+                    <div className="w-[90mm] h-auto bg-white shadow-md border border-slate-300 pointer-events-none transform scale-90 origin-top">
+                      <PrintableReceipt invoice={saleDetail} settings={invoiceSettings} />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}
@@ -508,6 +613,34 @@ export default function SalesHistory() {
           onSuccess={() => refetch()}
         />
       )}
+
+      {/* Void Sale Alert Dialog */}
+      <AlertDialog open={!!voidSaleId} onOpenChange={(open) => !open && setVoidSaleId(null)}>
+        <AlertDialogContent className="font-premium-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              <Ban size={20} />
+              Void Sale Invoice
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to void this entire invoice? This will cancel the sale, reverse the cash entry, and return all items back to the inventory stock. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleVoidSale();
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+              disabled={voidSaleMutation.isPending}
+            >
+              {voidSaleMutation.isPending ? 'Voiding...' : 'Yes, Void Sale'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <style jsx global>{`
         @keyframes slideLeft {

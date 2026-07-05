@@ -37,9 +37,11 @@ class InvoiceSettings(Base):
     show_discount = Column(Boolean, default=True)
     show_cashier_name = Column(Boolean, default=True)
     show_customer_name = Column(Boolean, default=True)
+    show_drug_license = Column(Boolean, default=True)
     
     footer_text = Column(String, default="Thank you for your business!")
     urdu_policy_text = Column(Text, default="خریداری کا شکریہ۔ فروخت شدہ ادویات واپس یا تبدیل نہیں ہوں گی۔")
+    drug_license_number = Column(String, default="368-/NT/9/2015")
     
     print_mode = Column(String, default="Browser") # 'Browser', 'ESC_POS_RAW'
     paper_size = Column(String, default="80mm") # '58mm', '80mm'

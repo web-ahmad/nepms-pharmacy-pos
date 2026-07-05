@@ -47,9 +47,11 @@ class InvoiceSettingsBase(BaseModel):
     show_cashier_name: bool = True
     show_customer_name: bool = True
     show_payment_method: bool = True
+    show_drug_license: bool = True
     
     footer_text: str = "Thank you for your business!"
     urdu_policy_text: str = "خریداری کا شکریہ۔ فروخت شدہ ادویات واپس یا تبدیل نہیں ہوں گی۔"
+    drug_license_number: str = "368-/NT/9/2015"
     
     print_mode: str = "Browser"
     paper_size: str = "80mm"

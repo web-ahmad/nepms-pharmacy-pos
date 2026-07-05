@@ -101,7 +101,7 @@ class CRUDMedicine(CRUDBase[Medicine, MedicineCreate, MedicineUpdate]):
             )
         )
         total = query.count()
-        items = query.offset(skip).limit(limit).all()
+        items = query.order_by(Medicine.created_at.desc()).offset(skip).limit(limit).all()
         return total, items
         
     def get_by_category(self, db: Session, tenant_id: str, category_id: str, skip: int = 0, limit: int = 100) -> Tuple[int, List[Medicine]]:

@@ -64,3 +64,18 @@ export const useProcessReturn = () => {
     }
   });
 };
+
+export const useVoidSale = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ saleId, payload }: { saleId: string; payload: { voided_by: string; void_reason?: string } }) => {
+      const response = await api.post<Sale>(`/api/v1/sales/${saleId}/void`, payload);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['sales', 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['sales', 'detail', variables.saleId] });
+      queryClient.invalidateQueries({ queryKey: ['sales', 'returns', 'logs'] });
+    }
+  });
+};

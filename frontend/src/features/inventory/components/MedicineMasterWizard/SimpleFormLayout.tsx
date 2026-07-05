@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, FormProvider, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Settings2, Barcode, Package, Save } from 'lucide-react';
 import { useCreateMedicine, useUpdateMedicine } from '@/features/inventory/services/medicine.api';
 
 import { medicineSchema, MedicineFormValues, defaultMedicineValues } from './schema';
@@ -31,6 +31,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
   const updateMedicineMutation = useUpdateMedicine(medicineId || '');
   const settings = useMedicineFormSettings();
 
+  const [showSettings, setShowSettings] = useState(false);
   const methods = useForm<MedicineFormValues>({
     resolver: zodResolver(medicineSchema) as any,
     defaultValues: defaultMedicineValues as any,
@@ -42,37 +43,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
   useEffect(() => {
     if (initialData && isEdit) {
       reset(initialData);
-
-      // Trigger Auto-Calculations on Mount/Data Load
-      const pPrice = initialData.purchase_price || 0;
-      const margin = initialData.margin_percent || 0;
-      const pType = initialData.packaging_type || 'Tablet / Capsule';
-      const strips = initialData.strips_per_box || 1;
-      const units = initialData.units_per_strip || 1;
-
-      let baseUnits = 1;
-      if (pType === 'Tablet / Capsule') {
-        baseUnits = strips * units;
-      } else {
-        baseUnits = strips;
-      }
-
-      const uCost = pPrice > 0 ? pPrice / baseUnits : 0;
-      const calcUSale = uCost + (uCost * margin / 100);
-      const formattedUSale = parseFloat(calcUSale.toFixed(2));
-
-      const fullSale = formattedUSale > 0 ? formattedUSale * baseUnits : 0;
-      const formattedFullSale = parseFloat(fullSale.toFixed(2));
-
-      setValue('unit_sale_price', formattedUSale);
-      setValue('sale_price', formattedFullSale);
-
-      const currentMrp = initialData.mrp || 0;
-      if (currentMrp < formattedFullSale) {
-        setValue('mrp', formattedFullSale);
-      }
     }
-  }, [initialData, isEdit, reset, setValue]);
+  }, [initialData, isEdit, reset]);
 
   const onSubmit = async (data: MedicineFormValues) => {
     try {
@@ -146,9 +118,15 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
         });
       }
 
+      if (!data.barcode || data.barcode.trim() === '') {
+        // Generate a random 13-digit EAN-like barcode if empty
+        data.barcode = Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
+      }
+
       const payload = {
         ...data,
         dosage_form: data.packaging_type,
+        unit_retail_price: data.unit_sale_price,
         cost_per_base_unit: costPerBaseUnit,
         packaging_levels: packagingLevels,
         initial_batch: data.opening_stock > 0 ? {
@@ -160,28 +138,85 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
         } : undefined
       };
 
+      // Prevent backend from overwriting min_stock_level with reorder_level default 0
+      delete (payload as any).reorder_level;
+
+      // Sanitize payload: convert null/undefined to empty string ONLY for plain string fields
+      // Do NOT touch numeric fields - the backend validators handle those
+      const STRING_FIELDS = [
+        'name', 'brand_name', 'manufacturer', 'category', 'generic_name',
+        'formula', 'description', 'strength', 'dosage_form', 'packaging_type',
+        'base_unit', 'shelf', 'rack', 'country_of_origin', 'therapeutic_class',
+        'tax_type', 'temp_condition', 'drug_schedule', 'storage_conditions',
+        'search_keywords', 'status',
+      ];
+      STRING_FIELDS.forEach(key => {
+        if ((payload as any)[key] === null || (payload as any)[key] === undefined) {
+          (payload as any)[key] = '';
+        }
+      });
+
+      // Unwrap any select object that may have slipped through (safety net)
+      (['category', 'manufacturer', 'generic_name', 'brand_name'] as const).forEach(key => {
+        const val = (payload as any)[key];
+        if (val && typeof val === 'object') {
+          // Use label (display name) — backend looks up category BY NAME
+          (payload as any)[key] = val.label || val.value || '';
+        }
+      });
+      
+      console.log('PAYLOAD:', payload);
+
       if (isEdit) {
         await updateMedicineMutation.mutateAsync(payload as any);
-        toast.success("Medicine updated successfully.");
+        toast.success("✅ Medicine Updated Successfully!", {
+          duration: 4000,
+          style: { background: '#10b981', color: '#fff', fontWeight: 500 }
+        });
       } else {
         await createMedicineMutation.mutateAsync(payload as any);
-        toast.success("Medicine added successfully.");
+        toast.success("✅ Medicine Saved Successfully!", {
+          duration: 4000,
+          style: { background: '#10b981', color: '#fff', fontWeight: 500 }
+        });
       }
       router.push('/inventory/medicines');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || error.message || "Failed to save medicine");
-      console.log("Submit Error:", error);
+      const detail = error.response?.data?.detail;
+      let errorMsg: string;
+      if (Array.isArray(detail)) {
+        // FastAPI returns [{type, loc, msg, input}] — extract the msg field
+        errorMsg = detail.map((d: any) => (typeof d === 'object' ? d.msg || JSON.stringify(d) : String(d))).join(', ');
+      } else if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else {
+        errorMsg = error.message || 'Failed to save medicine';
+      }
+      toast.error(errorMsg);
+      console.log('Submit Error:', error);
     }
   };
 
   const onError = (errors: any) => {
-    toast.error("Please fill in all required fields correctly.");
+    toast.error('Please fill in all required fields correctly.');
     Object.keys(errors).forEach((key) => {
-      if (errors[key]?.message) {
-        toast.error(`${key}: ${errors[key].message}`);
+      const fieldError = errors[key];
+      if (Array.isArray(fieldError)) {
+        // Nested array errors (e.g. packaging_levels[0].level_name)
+        fieldError.forEach((item: any, idx: number) => {
+          if (item && typeof item === 'object') {
+            Object.keys(item).forEach((subKey) => {
+              if (item[subKey]?.message) {
+                toast.error(`${key}[${idx}].${subKey}: ${String(item[subKey].message)}`);
+              }
+            });
+          }
+        });
+      } else if (fieldError?.message) {
+        toast.error(`${key}: ${String(fieldError.message)}`);
       }
     });
-    console.log("Form Validation Errors:", errors);
+    console.log('Form Validation Errors:', errors);
   };
 
   // Watch fields for calculations
@@ -313,20 +348,27 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
   const fullPackSalePrice = unitSalePrice > 0 ? (unitSalePrice * totalBaseUnits) : 0;
 
 
-  // Auto-calculate unit sale price when unit cost changes to maintain current margin
+  // Auto-calculate unit sale price and full pack sale price when pricing inputs change
   useEffect(() => {
-    if (unitCost >= 0 && (dirtyFields.purchase_price || dirtyFields.margin_percent || dirtyFields.strips_per_box || dirtyFields.units_per_strip || dirtyFields.packaging_type)) {
-      const margin = methods.getValues('margin_percent') || 0;
-      const calculatedUnitSalePrice = unitCost + (unitCost * margin / 100);
+    // Only calculate if we have a valid purchase price and margin
+    if (purchasePrice >= 0 && marginPercent >= 0) {
+      const calculatedUnitSale = unitCost + (unitCost * (marginPercent / 100));
+      const calculatedFullSale = purchasePrice + (purchasePrice * (marginPercent / 100));
+
+      const currentUnitSale = methods.getValues('unit_sale_price');
+      const currentFullSale = methods.getValues('sale_price');
       
-      const currentUnitSalePrice = methods.getValues('unit_sale_price');
-      const formattedCalculated = parseFloat(calculatedUnitSalePrice.toFixed(2));
-      
-      if (currentUnitSalePrice !== formattedCalculated) {
-         setValue('unit_sale_price', formattedCalculated, { shouldValidate: true, shouldDirty: true });
+      const newUnitSale = Number(calculatedUnitSale.toFixed(2));
+      const newFullSale = Number(calculatedFullSale.toFixed(2));
+
+      if (currentUnitSale !== newUnitSale) {
+        setValue('unit_sale_price', newUnitSale, { shouldValidate: true, shouldDirty: true });
+      }
+      if (currentFullSale !== newFullSale) {
+        setValue('sale_price', newFullSale, { shouldValidate: true, shouldDirty: true });
       }
     }
-  }, [unitCost, setValue, methods, dirtyFields]);
+  }, [purchasePrice, marginPercent, totalBaseUnits, unitCost, setValue, methods]);
 
   useEffect(() => {
     if (name && dirtyFields.name) {
@@ -347,426 +389,452 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
 
   return (
     <div className="w-full max-w-5xl mx-auto pb-8">
+
+
       <FormProvider {...methods}>
         <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6">
-          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-            <div className="p-6 md:p-8 space-y-8">
+          
+          {/* Section 1: Basic Information */}
+          <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-1">
+            <div className="bg-slate-50/50 px-6 py-4 border-b border-outline-variant">
+              <h3 className="text-emerald-deep font-bold flex items-center gap-2">
+                <span className="w-6 h-6 bg-emerald-deep text-white text-xs flex items-center justify-center rounded-full">1</span>
+                Basic Information
+              </h3>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
+              <div className="col-span-1 md:col-span-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Medicine Name <span className="text-red-500">*</span></label>
+                <input 
+                  type="text" 
+                  {...register('name')}
+                  placeholder="e.g., Amoxicillin 250mg" 
+                  className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.name ? 'border-red-500' : ''}`}
+                />
+              </div>
               
-              {/* 1. Basic Information */}
-              <div className="space-y-6">
-                <h3 className="text-sm font-semibold text-blue-600 border-b border-slate-100 pb-2">1. Basic Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="text-zinc-700 dark:text-zinc-300">
-                      Medicine Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input 
-                      id="name"
-                      {...register('name')}
-                      placeholder="e.g., Amoxicillin 250mg" 
-                      className={errors.name ? 'border-red-500' : ''}
-                    />
-                  </div>
-                  {settings.showGenericName && (
-                    <div className="space-y-2">
-                      <Label htmlFor="generic_name" className="text-zinc-700 dark:text-zinc-300">Generic Name</Label>
-                      <Controller
-                        control={control}
-                        name="generic_name"
-                        render={({ field }) => (
-                          <CreatableMasterDataSelect
-                            masterType="generics"
-                            value={field.value || ''}
-                            onChange={field.onChange}
-                            placeholder="Amoxicillin"
-                          />
-                        )}
+              {settings.showGenericName && (
+                <div className="col-span-1 md:col-span-5">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Generic Name</label>
+                  <Controller
+                    control={control}
+                    name="generic_name"
+                    render={({ field }) => (
+                      <CreatableMasterDataSelect
+                        masterType="generics"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        placeholder="Select Generic"
                       />
-                    </div>
-                  )}
-                  {settings.showBrandName && (
-                    <div className="space-y-2">
-                      <Label htmlFor="brand_name" className="text-zinc-700 dark:text-zinc-300">Brand Name</Label>
-                      <Input 
-                        id="brand_name"
-                        {...register('brand_name')}
-                        placeholder="e.g., Augmentin" 
-                        className={errors.brand_name ? 'border-red-500' : ''}
-                      />
-                    </div>
-                  )}
-                  {settings.showFormula && (
-                    <div className="space-y-2">
-                      <Label htmlFor="formula" className="text-zinc-700 dark:text-zinc-300">Formula / Composition</Label>
-                      <Input 
-                        id="formula"
-                        {...register('formula')}
-                        placeholder="e.g., Amoxicillin 250mg + Clavulanic Acid 125mg" 
-                        className={errors.formula ? 'border-red-500' : ''}
-                      />
-                    </div>
-                  )}
+                    )}
+                  />
+                </div>
+              )}
 
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="category" className="text-zinc-700 dark:text-zinc-300">
-                      Category <span className="text-red-500">*</span>
-                    </Label>
-                    <Controller
-                      control={control}
-                      name="category"
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value || ''}>
-                          <SelectTrigger className={errors.category ? 'border-red-500' : ''}>
-                            <SelectValue placeholder="Select Category" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Medicine">Medicine</SelectItem>
-                            <SelectItem value="Non-Medicine">Non-Medicine</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
+              <div className="col-span-1 md:col-span-3">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Category <span className="text-red-500">*</span></label>
+                <Controller
+                  control={control}
+                  name="category"
+                  render={({ field }) => (
+                    <CreatableMasterDataSelect
+                      masterType="categories"
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder="Select Category"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="manufacturer" className="text-zinc-700 dark:text-zinc-300">
-                      Manufacturer <span className="text-red-500">*</span>
-                    </Label>
-                    <Controller
-                      control={control}
-                      name="manufacturer"
-                      render={({ field }) => (
-                        <CreatableMasterDataSelect
-                          masterType="manufacturers"
-                          value={field.value || ''}
-                          onChange={field.onChange}
-                          placeholder="GSK"
-                          error={!!errors.manufacturer}
-                        />
-                      )}
-                    />
-                  </div>
-                  {settings.showBarcode && (
-                    <div className="space-y-2">
-                      <Label htmlFor="barcode" className="text-zinc-700 dark:text-zinc-300">Barcode</Label>
-                      <div className="flex items-center gap-2">
-                        <Input id="barcode" {...register('barcode')} placeholder="7245149940272" className="flex-1" />
-                        <BarcodeScannerModal onScan={(code) => setValue('barcode', code, { shouldValidate: true, shouldDirty: true })} />
-                      </div>
-                    </div>
                   )}
+                />
+              </div>
+
+              <div className="col-span-1 md:col-span-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Manufacturer <span className="text-red-500">*</span></label>
+                <Controller
+                  control={control}
+                  name="manufacturer"
+                  render={({ field }) => (
+                    <CreatableMasterDataSelect
+                      masterType="manufacturers"
+                      value={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder="Select Manufacturer"
+                    />
+                  )}
+                />
+              </div>
+
+              {settings.showBrandName && (
+                <div className="col-span-1 md:col-span-4">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Brand Name</label>
+                  <input 
+                    type="text" 
+                    {...register('brand_name')}
+                    placeholder="e.g., Augmentin" 
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+              )}
+
+              {settings.showFormula && (
+                <div className="col-span-1 md:col-span-4">
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Formula</label>
+                  <input 
+                    type="text" 
+                    {...register('formula')}
+                    placeholder="e.g., Amoxicillin 250mg + Clavulanic Acid" 
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+              )}
+
+              <div className="col-span-1 md:col-span-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Barcode</label>
+                <div className="relative flex items-center">
+                  <input 
+                    type="text" 
+                    {...register('barcode')}
+                    placeholder="Scan or Enter Barcode" 
+                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all pr-10"
+                  />
+                  <div className="shrink-0 h-10 rounded-r-custom border-y border-r border-outline-variant bg-slate-50 flex items-center justify-center">
+                    <BarcodeScannerModal onScan={(code) => setValue('barcode', code)} />
+                  </div>
                 </div>
               </div>
 
-              {/* 2. Packaging Details & Location */}
-              <div className="space-y-6">
-                <h3 className="text-sm font-semibold text-blue-600 border-b border-slate-100 pb-2">2. Packaging Details & Location</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="space-y-2 md:col-span-1">
-                    <Label className="text-zinc-700 dark:text-zinc-300">
-                      Packaging Type Selection <span className="text-red-500">*</span>
-                    </Label>
-                    <Select onValueChange={(val) => setValue('packaging_type', val || '')} value={packagingType}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Tablet / Capsule">Tablet / Capsule</SelectItem>
-                        <SelectItem value="Syrup / Suspension">Syrup / Suspension</SelectItem>
-                        <SelectItem value="Injection (Ampule / Vial)">Injection (Ampule / Vial)</SelectItem>
-                        <SelectItem value="Drops (Eye / Ear / Nasal)">Drops (Eye / Ear / Nasal)</SelectItem>
-                        <SelectItem value="Cream / Ointment / Gel">Cream / Ointment / Gel</SelectItem>
-                        <SelectItem value="Inhaler / Spray">Inhaler / Spray</SelectItem>
-                        <SelectItem value="Sachet / Powder">Sachet / Powder</SelectItem>
-                        <SelectItem value="Surgical / Disposable (Syringe, Cannula, IV Set)">Surgical / Disposable (Syringe, Cannula, IV Set)</SelectItem>
-                        <SelectItem value="Bandage / Dressing / Plaster">Bandage / Dressing / Plaster</SelectItem>
-                        <SelectItem value="Medical Device / Equipment (BP Monitor, Thermometer)">Medical Device / Equipment (BP Monitor, Thermometer)</SelectItem>
-                        <SelectItem value="General Item (FMCG / Baby Care / Cosmetics)">General Item (FMCG / Baby Care / Cosmetics)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2 md:col-span-1">
-                    <Label htmlFor="strips_per_box" className="text-zinc-700 dark:text-zinc-300">
-                      {field1Label} <span className="text-red-500">*</span>
-                    </Label>
-                    <Input 
-                      id="strips_per_box" 
+              <div className="col-span-1 md:col-span-12">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Description / Notes</label>
+                <textarea 
+                  {...register('description')}
+                  rows={2}
+                  placeholder="Additional details..." 
+                  className="w-full border border-outline-variant rounded-custom px-3 py-2 min-h-[80px] focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Section 2: Packaging & Location */}
+          <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-2">
+            <div className="bg-slate-50/50 px-6 py-4 border-b border-outline-variant">
+              <h3 className="text-emerald-deep font-bold flex items-center gap-2">
+                <span className="w-6 h-6 bg-emerald-deep text-white text-xs flex items-center justify-center rounded-full">2</span>
+                Packaging & Location
+              </h3>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Packaging Type <span className="text-red-500">*</span></label>
+                  <select 
+                    {...register('packaging_type')}
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  >
+                    <option value="Tablet / Capsule">Tablet / Capsule</option>
+                    <option value="Syrup / Suspension">Syrup / Suspension</option>
+                    <option value="Injection (Ampule / Vial)">Injection (Ampule / Vial)</option>
+                    <option value="Cream / Ointment / Gel">Cream / Ointment / Gel</option>
+                    <option value="Drops (Eye / Ear / Oral)">Drops (Eye / Ear / Oral)</option>
+                    <option value="Inhaler / Spray">Inhaler / Spray</option>
+                    <option value="Powder / Sachet">Powder / Sachet</option>
+                    <option value="Suppository / Enema">Suppository / Enema</option>
+                    <option value="Surgical / Dressing (Bandage, Gauze, Tape)">Surgical / Dressing</option>
+                    <option value="Medical Device / Equipment (BP Monitor, Thermometer)">Medical Device / Equipment</option>
+                    <option value="General Item (FMCG / Baby Care / Cosmetics)">General Item</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">{field1Label} <span className="text-red-500">*</span></label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    {...register('strips_per_box', { valueAsNumber: true })}
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+
+                {showField2 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">{field2Label} <span className="text-red-500">*</span></label>
+                    <input 
                       type="number" 
-                      {...register('strips_per_box', { valueAsNumber: true })} 
-                      className={errors.strips_per_box ? 'border-red-500' : ''}
+                      min="1"
+                      {...register('units_per_strip', { valueAsNumber: true })}
+                      className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                     />
                   </div>
-
-                  {showField2 && (
-                    <div className="space-y-2 md:col-span-1">
-                      <Label htmlFor="units_per_strip" className="text-zinc-700 dark:text-zinc-300">
-                        {field2Label} <span className="text-red-500">*</span>
-                      </Label>
-                      <Input 
-                        id="units_per_strip" 
-                        type="number" 
-                        {...register('units_per_strip', { valueAsNumber: true })} 
-                        className={errors.units_per_strip ? 'border-red-500' : ''}
-                      />
-                    </div>
-                  )}
-
-                  {settings.showShelfLocation && (
-                    <div className="space-y-2 md:col-span-1">
-                      <Label htmlFor="shelf" className="text-zinc-700 dark:text-zinc-300">Shelf / Rack Location</Label>
-                      <Input id="shelf" {...register('shelf')} placeholder="e.g., A-12, Rack 3" />
-                    </div>
-                  )}
-
-                  <div className="space-y-2 col-span-1 md:col-span-4">
-                    <Label className="text-zinc-400 text-xs font-semibold tracking-wider uppercase">Total Base Units (Calculated)</Label>
-                    <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800 flex items-center w-full max-w-sm">
-                      <span className="text-xl font-bold font-mono mr-2">{totalBaseUnits}</span> 
-                      <span className="text-sm text-zinc-500 font-mono">{baseUnitSuffix}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Dynamic Pricing Setup */}
-              <div className="space-y-6">
-                <h3 className="text-sm font-semibold text-blue-600 border-b border-slate-100 pb-2">3. Dynamic Pricing Setup</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="purchase_price" className="text-zinc-700 dark:text-zinc-300">
-                      Purchase Price (Full Pack) <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-medium">Rs</span>
-                      <Input 
-                        id="purchase_price" 
-                        type="number" 
-                        step="0.01"
-                        {...register('purchase_price', { valueAsNumber: true })} 
-                        className={`pl-8 ${errors.purchase_price ? 'border-red-500' : ''}`}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-zinc-400 text-xs font-semibold tracking-wider uppercase">Unit Cost (Auto)</Label>
-                    <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800 flex items-center">
-                      <span className="text-zinc-500 text-sm font-medium mr-1">Rs</span>
-                      <span className="text-lg font-bold font-mono">{unitCost.toFixed(4)}</span>
-                    </div>
-                  </div>
-                  {settings.showMargin && (
-                    <div className="space-y-2">
-                      <Label htmlFor="margin_percent" className="text-zinc-700 dark:text-zinc-300">
-                        Margin (%)
-                      </Label>
-                      <Input 
-                        id="margin_percent" 
-                        type="number" 
-                        step="0.01"
-                        {...register('margin_percent', { 
-                          valueAsNumber: true,
-                          onChange: (e) => {
-                            const newMargin = parseFloat(e.target.value) || 0;
-                            const currentUnitCost = methods.getValues('purchase_price') > 0 ? (methods.getValues('purchase_price') / totalBaseUnits) : 0;
-                            const newSalePrice = currentUnitCost + (currentUnitCost * newMargin / 100);
-                            setValue('unit_sale_price', parseFloat(newSalePrice.toFixed(2)), { shouldValidate: true, shouldDirty: true });
-                          }
-                        })} 
-                        placeholder="e.g. 15"
-                      />
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="unit_sale_price" className="text-zinc-700 dark:text-zinc-300">
-                      Unit Sale Price <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-medium">Rs</span>
-                      <Input 
-                        id="unit_sale_price" 
-                        type="number" 
-                        step="0.01"
-                        {...register('unit_sale_price', { 
-                          valueAsNumber: true,
-                          onChange: (e) => {
-                            const newSalePrice = parseFloat(e.target.value) || 0;
-                            const currentUnitCost = methods.getValues('purchase_price') > 0 ? (methods.getValues('purchase_price') / totalBaseUnits) : 0;
-                            if (currentUnitCost > 0) {
-                              const newMargin = ((newSalePrice - currentUnitCost) / currentUnitCost) * 100;
-                              setValue('margin_percent', parseFloat(newMargin.toFixed(2)), { shouldValidate: true, shouldDirty: true });
-                            }
-                          }
-                        })} 
-                        className={`pl-8 ${errors.unit_sale_price ? 'border-red-500' : ''}`}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-zinc-400 text-xs font-semibold tracking-wider uppercase">Full Pack Sale Price (Auto)</Label>
-                    <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-800 flex items-center">
-                      <span className="text-zinc-500 text-sm font-medium mr-1">Rs</span>
-                      <span className="text-lg font-bold font-mono">{fullPackSalePrice.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. Specifications & Taxes */}
-              <div className="space-y-6">
-                <h3 className="text-sm font-semibold text-blue-600 border-b border-slate-100 pb-2">4. Specifications & Taxes</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {settings.showStrength && (
-                    <div className="space-y-2">
-                      <Label htmlFor="strength">Strength / Specification</Label>
-                      <div className="relative">
-                        <Input 
-                          id="strength" 
-                          {...register('strength')} 
-                          placeholder={strengthPlaceholder} 
-                          className={strengthSuffix ? "pr-28" : ""}
-                        />
-                        {strengthSuffix && (
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-medium pointer-events-none">
-                            {strengthSuffix}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {settings.showMRP && (
-                    <div className="space-y-2">
-                      <Label htmlFor="mrp">Max Retail Price (MRP)</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm font-medium">Rs</span>
-                        <Input id="mrp" type="number" step="0.01" {...register('mrp', { valueAsNumber: true })} className="pl-8" />
-                      </div>
-                    </div>
-                  )}
-                  {settings.showTaxRate && (
-                    <div className="space-y-2">
-                      <Label htmlFor="tax_rate">Tax Rate (%)</Label>
-                      <Input id="tax_rate" type="number" step="0.01" {...register('tax_rate', { valueAsNumber: true })} />
-                    </div>
-                  )}
-                  {settings.showMinStock && (
-                      <div className="space-y-2">
-                        <Label htmlFor="min_stock_level" className="text-zinc-700 dark:text-zinc-300">Low Stock Alert Level</Label>
-                        <Input id="min_stock_level" type="number" {...register('min_stock_level')} placeholder="e.g., 20" />
-                      </div>
-                  )}
-                  {settings.showMaxStock && (
-                    <div className="space-y-2">
-                      <Label htmlFor="max_stock_level">Maximum Stock Level</Label>
-                      <Input id="max_stock_level" type="number" {...register('max_stock_level', { valueAsNumber: true })} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 4.5 Opening Stock & Batch Details */}
-              <div className="space-y-6">
-                <h3 className="text-sm font-semibold text-blue-600 border-b border-slate-100 pb-2">5. Opening Stock & Batch Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {settings.showOpeningStock && (
-                    <div className="space-y-2">
-                      <Label htmlFor="opening_stock">Opening Stock Qty</Label>
-                      <Input 
-                        id="opening_stock" 
-                        type="number" 
-                        {...register('opening_stock', { valueAsNumber: true })} 
-                        className={errors.opening_stock ? 'border-red-500' : ''}
-                      />
-                    </div>
-                  )}
-                  {settings.showBatchDetails && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="batch_number">Batch Number</Label>
-                        <Input 
-                          id="batch_number" 
-                          {...register('batch_number')} 
-                          placeholder="e.g. BATCH-001" 
-                          className={errors.batch_number ? 'border-red-500' : ''}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="manufacturing_date">Mfg Date</Label>
-                        <Input 
-                          id="manufacturing_date" 
-                          type="date" 
-                          {...register('manufacturing_date')} 
-                          className={errors.manufacturing_date ? 'border-red-500' : ''}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="expiry_date">Expiry Date</Label>
-                        <Input 
-                          id="expiry_date" 
-                          type="date" 
-                          {...register('expiry_date')} 
-                          className={errors.expiry_date ? 'border-red-500' : ''}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* 5. Settings & Control */}
-              <div className="space-y-6">
-                <h3 className="text-sm font-semibold text-blue-600 border-b border-slate-100 pb-2">6. Settings & Control</h3>
-                <div className="flex flex-col sm:flex-row gap-6">
-                  {settings.showStatus && (
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="status_active" 
-                        checked={methods.watch('status') === 'Active'}
-                        onCheckedChange={(checked) => setValue('status', checked ? 'Active' : 'Inactive', { shouldValidate: true, shouldDirty: true })}
-                      />
-                      <Label htmlFor="status_active" className="text-sm font-normal">Active (Available for Sale)</Label>
-                    </div>
-                  )}
-                  {settings.showControlledSubstance && (
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="is_controlled" 
-                        checked={!!methods.watch('is_controlled')}
-                        onCheckedChange={(checked) => setValue('is_controlled', !!checked, { shouldValidate: true, shouldDirty: true })}
-                      />
-                      <Label htmlFor="is_controlled" className="text-sm font-normal">Controlled Substance (Narcotic / Prescription Required)</Label>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-
-            {/* Bottom Action Bar */}
-            <div className="p-6 bg-slate-50 dark:bg-zinc-900/50 border-t border-slate-200 dark:border-zinc-800 flex justify-end gap-3">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => router.push('/inventory/medicines')}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                className="bg-blue-600 hover:bg-blue-700 text-white min-w-[150px]"
-                disabled={createMedicineMutation.isPending}
-              >
-                {createMedicineMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  "Save Medicine"
                 )}
-              </Button>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Shelf / Rack Location</label>
+                  <input 
+                    type="text" 
+                    {...register('shelf')}
+                    placeholder="e.g., A-12, Rack 3" 
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+              </div>
+              
+              <div className="bg-mint-soft/50 p-4 rounded-custom border border-mint-bright/30 flex items-center gap-4">
+                <div className="bg-emerald-deep p-2 rounded-lg text-white">
+                  <Package className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-emerald-deep uppercase tracking-wider">Total Base Units (Calculated)</p>
+                  <p className="text-xl font-bold text-slate-900">{totalBaseUnits} <span className="text-slate-500 text-sm font-normal">{baseUnitSuffix}</span></p>
+                </div>
+              </div>
             </div>
+          </section>
+
+          {/* Section 3: Dynamic Pricing Setup */}
+          <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-3">
+            <div className="bg-slate-50/50 px-6 py-4 border-b border-outline-variant">
+              <h3 className="text-emerald-deep font-bold flex items-center gap-2">
+                <span className="w-6 h-6 bg-emerald-deep text-white text-xs flex items-center justify-center rounded-full">3</span>
+                Dynamic Pricing Setup
+              </h3>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Purchase Price (Full Pack) <span className="text-red-500">*</span></label>
+                <div className="flex items-center">
+                  <span className="bg-slate-100 border border-r-0 border-outline-variant px-3 py-2 rounded-l-custom text-slate-500 text-sm font-bold">Rs</span>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    {...register('purchase_price', { valueAsNumber: true })}
+                    className="w-full border border-outline-variant rounded-r-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-400 mb-1">Unit Cost (Auto)</label>
+                <div className="flex items-center opacity-60">
+                  <span className="bg-slate-100 border border-r-0 border-outline-variant px-3 py-2 rounded-l-custom text-slate-500 text-sm font-bold">Rs</span>
+                  <input 
+                    type="text" 
+                    value={unitCost.toFixed(4)}
+                    disabled 
+                    className="w-full bg-slate-50 border border-outline-variant rounded-r-custom h-10 px-3 py-2 text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Margin (%)</label>
+                <div className="flex items-center">
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    {...register('margin_percent', { valueAsNumber: true })}
+                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                  <span className="bg-slate-100 border border-l-0 border-outline-variant px-3 py-2 rounded-r-custom text-slate-500 text-sm font-bold">%</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Unit Sale Price <span className="text-red-500">*</span></label>
+                <div className="flex items-center">
+                  <span className="bg-slate-100 border border-r-0 border-outline-variant px-3 py-2 rounded-l-custom text-slate-500 text-sm font-bold">Rs</span>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    min="0"
+                    {...register('unit_sale_price', { valueAsNumber: true })}
+                    className="w-full border border-outline-variant rounded-r-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-bold text-emerald-deep"
+                  />
+                </div>
+              </div>
+              
+              <div className="md:col-span-4">
+                <div className="bg-slate-50 p-3 rounded-custom inline-block border border-dashed border-outline-variant">
+                  <p className="text-xs text-slate-500 font-semibold mb-1 uppercase tracking-tighter">Full Pack Sale Price (Auto)</p>
+                  <p className="text-lg font-bold text-slate-800">Rs {fullPackSalePrice.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Section 4: Specifications & Taxes */}
+          <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-4">
+            <div className="bg-slate-50/50 px-6 py-4 border-b border-outline-variant">
+              <h3 className="text-emerald-deep font-bold flex items-center gap-2">
+                <span className="w-6 h-6 bg-emerald-deep text-white text-xs flex items-center justify-center rounded-full">4</span>
+                Specifications & Taxes
+              </h3>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="md:col-span-1">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Strength / Specification</label>
+                <div className="flex items-center">
+                  <input 
+                    type="text" 
+                    {...register('strength')}
+                    placeholder={strengthPlaceholder} 
+                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                  {strengthSuffix && (
+                    <span className="bg-slate-100 border border-l-0 border-outline-variant px-2 py-2 rounded-r-custom text-slate-400 text-[10px] uppercase font-bold">
+                      {strengthSuffix}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Max Retail Price (MRP)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  min="0"
+                  {...register('mrp', { valueAsNumber: true })}
+                  className={`w-full border-outline-variant rounded-custom focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.mrp ? 'border-red-500' : ''}`}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Tax Rate (%)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  {...register('tax_rate', { valueAsNumber: true })}
+                  className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1 text-red-600">Low Stock Alert Level</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  {...register('min_stock_level', { valueAsNumber: true })}
+                  className="w-full border border-red-200 bg-red-50/30 rounded-custom h-10 px-3 py-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Section 5: Opening Stock & Batch Details */}
+          {!isEdit && (
+            <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-5">
+              <div className="bg-slate-50/50 px-6 py-4 border-b border-outline-variant">
+                <h3 className="text-emerald-deep font-bold flex items-center gap-2">
+                  <span className="w-6 h-6 bg-emerald-deep text-white text-xs flex items-center justify-center rounded-full">5</span>
+                  Opening Stock & Batch Details
+                </h3>
+              </div>
+              <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Opening Stock Qty</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    {...register('opening_stock', { valueAsNumber: true })}
+                    placeholder="0" 
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Batch Number</label>
+                  <input 
+                    type="text" 
+                    {...register('batch_number')}
+                    placeholder="e.g., BATCH-001" 
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Mfg Date</label>
+                  <input 
+                    type="date" 
+                    {...register('manufacturing_date')}
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Expiry Date</label>
+                  <input 
+                    type="date" 
+                    {...register('expiry_date')}
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-600"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Section 6: Settings & Control */}
+          <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-6">
+            <div className="bg-slate-50/50 px-6 py-4 border-b border-outline-variant">
+              <h3 className="text-emerald-deep font-bold flex items-center gap-2">
+                <span className="w-6 h-6 bg-emerald-deep text-white text-xs flex items-center justify-center rounded-full">{isEdit ? '5' : '6'}</span>
+                Settings & Control
+              </h3>
+            </div>
+            <div className="p-6 flex flex-wrap gap-12">
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <Controller
+                  control={control}
+                  name="status"
+                  render={({ field }) => (
+                    <input 
+                      type="checkbox" 
+                      checked={field.value === 'Active'}
+                      onChange={(e) => field.onChange(e.target.checked ? 'Active' : 'Inactive')}
+                      className="w-5 h-5 rounded text-emerald-deep focus:ring-emerald-500 transition-all"
+                    />
+                  )}
+                />
+                <span className="text-sm font-bold text-slate-700 group-hover:text-emerald-deep transition-colors">Active (Available for Sale)</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  {...register('narcotic')}
+                  className="w-5 h-5 rounded text-red-500 border-red-200 focus:ring-red-500 transition-all"
+                />
+                <span className="text-sm font-bold text-slate-700 group-hover:text-red-600 transition-colors">Controlled Substance (Narcotic)</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  {...register('is_antibiotic')}
+                  className="w-5 h-5 rounded text-blue-500 border-blue-200 focus:ring-blue-500 transition-all"
+                />
+                <span className="text-sm font-bold text-slate-700 group-hover:text-blue-600 transition-colors">Antibiotic</span>
+              </label>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  {...register('rx_required')}
+                  className="w-5 h-5 rounded text-yellow-500 border-yellow-200 focus:ring-yellow-500 transition-all"
+                />
+                <span className="text-sm font-bold text-slate-700 group-hover:text-yellow-600 transition-colors">Prescription Required</span>
+              </label>
+            </div>
+          </section>
+
+          {/* Form Footer Actions */}
+          <div className="flex items-center justify-end gap-4 pt-6 border-t border-outline-variant animate-fade-in delay-6">
+            <button 
+              type="button" 
+              onClick={() => router.push('/inventory/medicines')}
+              className="px-8 py-3 text-slate-600 font-bold hover:text-slate-900 transition-all"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              disabled={createMedicineMutation.isPending || updateMedicineMutation.isPending}
+              className="px-12 py-3 bg-emerald hover:bg-emerald-deep text-white font-bold rounded-custom shadow-lg shadow-emerald/20 transition-all active:scale-95 flex items-center gap-2"
+            >
+              {(createMedicineMutation.isPending || updateMedicineMutation.isPending) ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Save className="w-5 h-5" />
+              )}
+              {isEdit ? 'Update Medicine' : 'Save Medicine'}
+            </button>
           </div>
         </form>
       </FormProvider>

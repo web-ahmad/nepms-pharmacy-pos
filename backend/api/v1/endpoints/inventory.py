@@ -48,7 +48,7 @@ def list_or_search_medicines(
             or_(Medicine.tenant_id == tenant.tenant_id, Medicine.tenant_id == None)
         )
         total = query.count()
-        items = query.offset(skip).limit(limit).all()
+        items = query.order_by(Medicine.created_at.desc()).offset(skip).limit(limit).all()
 
     # Data Masking
     role = token_payload.get("role", "")
@@ -243,68 +243,112 @@ def update_medicine(
     if not medicine:
         raise HTTPException(status_code=404, detail="Medicine not found")
         
-    update_data = medicine_in.model_dump(exclude_unset=True)
-    
-    category_name = update_data.pop("category", None)
-    if category_name:
-        cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == tenant.tenant_id).first()
-        if not cat:
-            cat = Category(name=category_name, tenant_id=tenant.tenant_id)
-            db.add(cat)
-            db.flush()
-        update_data["category_id"] = cat.id
-
-    packaging_levels_in = update_data.pop("packaging_levels", None)
-        
-    # We update manually instead of using medicine_repo.update since we altered the data dictionary
-    for field, value in update_data.items():
-        if field not in ['initial_batch', 'substitute_ids']:
-            setattr(medicine, field, value)
-            
-    if packaging_levels_in is not None:
-        # Delete old packaging levels
-        db.query(PackagingLevel).filter(PackagingLevel.medicine_id == medicine.id).delete()
-        db.flush()
-        
-        # Insert new packaging levels
-        for level_in in packaging_levels_in:
-            if hasattr(level_in, "model_dump"):
-                level_in = level_in.model_dump()
-            elif hasattr(level_in, "dict"):
-                level_in = level_in.dict()
-                
-            if level_in.get("sale_price", 0) <= 0:
-                cost = medicine.cost_per_base_unit or 0.0
-                margin = medicine.margin_percent or 0.0
-                level_cost = cost * level_in.get("conversion_qty", 1)
-                calculated_price = level_cost * (1 + (margin / 100))
-                level_in["sale_price"] = calculated_price
-                
-            pkg = PackagingLevel(
-                medicine_id=medicine.id,
-                level_name=level_in.get("level_name"),
-                conversion_qty=level_in.get("conversion_qty", 1),
-                barcode=level_in.get("barcode"),
-                secondary_barcode=level_in.get("secondary_barcode"),
-                is_purchase_unit=level_in.get("is_purchase_unit", False),
-                is_sale_unit=level_in.get("is_sale_unit", True),
-                is_smallest_unit=level_in.get("is_smallest_unit", False),
-                is_default_pos_unit=level_in.get("is_default_pos_unit", False),
-                sale_price=level_in.get("sale_price", 0)
-            )
-            db.add(pkg)
-        
-    db.add(medicine)
     try:
-        db.commit()
-        db.refresh(medicine)
+        update_data = medicine_in.model_dump(exclude_unset=True)
+        
+        category_name = update_data.pop("category", None)
+        if category_name:
+            cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == tenant.tenant_id).first()
+            if not cat:
+                cat = Category(name=category_name, tenant_id=tenant.tenant_id)
+                db.add(cat)
+                db.flush()
+            update_data["category_id"] = cat.id
+
+        packaging_levels_in = update_data.pop("packaging_levels", None)
+        
+        # Filter keys that actually exist in the Medicine model
+        valid_columns = {c.name for c in Medicine.__table__.columns}
+            
+        # We update manually instead of using medicine_repo.update since we altered the data dictionary
+        # Fields with UNIQUE constraint in DB — empty string must become NULL to avoid constraint violations
+        UNIQUE_FIELDS = {'sku', 'barcode', 'slug', 'internal_product_code', 'qr_code'}
+
+        for field, value in update_data.items():
+            if field in valid_columns and field not in ['id', 'tenant_id', 'created_at', 'updated_at']:
+                # Convert empty string → None for unique fields to avoid UNIQUE constraint failures
+                if field in UNIQUE_FIELDS and value == '':
+                    value = None
+                # Cast numeric fields appropriately
+                elif field in ['cost_per_base_unit', 'discount_percentage', 'margin_percent', 'wholesale_margin_percent', 'mrp', 'tax_rate']:
+                    try:
+                        value = float(value) if value is not None and value != '' else 0.0
+                    except (ValueError, TypeError):
+                        value = 0.0
+                elif field in ['min_stock_level', 'max_stock_level', 'reorder_level', 'strips_per_box', 'units_per_strip', 'age_restriction']:
+                    try:
+                        value = int(value) if value is not None and value != '' else None
+                    except (ValueError, TypeError):
+                        value = None
+                setattr(medicine, field, value)
+            
+        if packaging_levels_in is not None:
+            # Delete old packaging levels
+            db.query(PackagingLevel).filter(PackagingLevel.medicine_id == medicine.id).delete()
+            db.flush()
+            
+            # Insert new packaging levels
+            for level_in in packaging_levels_in:
+                if hasattr(level_in, "model_dump"):
+                    level_in = level_in.model_dump()
+                elif hasattr(level_in, "dict"):
+                    level_in = level_in.dict()
+                    
+                if level_in.get("sale_price", 0) <= 0:
+                    cost = medicine.cost_per_base_unit or 0.0
+                    margin = medicine.margin_percent or 0.0
+                    level_cost = cost * level_in.get("conversion_qty", 1)
+                    calculated_price = level_cost * (1 + (margin / 100))
+                    level_in["sale_price"] = calculated_price
+                    
+                pkg = PackagingLevel(
+                    medicine_id=medicine.id,
+                    level_name=level_in.get("level_name"),
+                    conversion_qty=level_in.get("conversion_qty", 1),
+                    barcode=level_in.get("barcode"),
+                    secondary_barcode=level_in.get("secondary_barcode"),
+                    is_purchase_unit=level_in.get("is_purchase_unit", False),
+                    is_sale_unit=level_in.get("is_sale_unit", True),
+                    is_smallest_unit=level_in.get("is_smallest_unit", False),
+                    is_default_pos_unit=level_in.get("is_default_pos_unit", False),
+                    sale_price=level_in.get("sale_price", 0)
+                )
+                db.add(pkg)
+            
+        db.add(medicine)
+        try:
+            db.commit()
+            db.refresh(medicine)
+        except Exception as e:
+            db.rollback()
+            # Check if it's an integrity error
+            if "UNIQUE constraint failed" in str(e):
+                raise HTTPException(status_code=400, detail="A medicine with this name, code, or barcode already exists. Please use a unique value.")
+            raise e
+            
+        return MedicineResponse.model_validate(medicine)
     except Exception as e:
         db.rollback()
-        # Check if it's an integrity error
-        if "UNIQUE constraint failed" in str(e):
-            raise HTTPException(status_code=400, detail="A medicine with this name, code, or barcode already exists. Please use a unique value.")
-        raise e
-    return medicine
+        import traceback
+        traceback.print_exc()
+        print(f"UPDATE MEDICINE ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/medicines/{id}")
+def delete_medicine(
+    id: str,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_tenant_context),
+    token_payload: dict = Depends(requires_permission("inventory:manage"))
+):
+    medicine = medicine_repo.get(db, id=id, tenant_id=tenant.tenant_id)
+    if not medicine:
+        raise HTTPException(status_code=404, detail="Medicine not found")
+    
+    db.delete(medicine)
+    db.commit()
+    return {"detail": "Medicine deleted"}
 
 
 @router.get("/medicines/{id}/batches", response_model=List[BatchResponse])
@@ -333,6 +377,14 @@ def list_medicine_movements(
         StockMovement.medicine_id == id,
         StockMovement.branch_id == tenant.branch_id
     ).order_by(StockMovement.created_at.desc()).all()
+    
+    from models.sales import Sale
+    for m in movements:
+        if m.movement_type == "Sale" and m.reference_id:
+            sale = db.query(Sale).filter(Sale.id == m.reference_id).first()
+            if sale and sale.invoice_number:
+                m.notes = f"{sale.invoice_number} - {m.notes or ''}"
+                
     return movements
 
 

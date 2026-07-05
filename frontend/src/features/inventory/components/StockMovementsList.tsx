@@ -1,6 +1,7 @@
 import { useStockMovements } from '../services/inventory.api';
 import { Activity } from 'lucide-react';
 import { format } from 'date-fns';
+import Link from 'next/link';
 
 interface StockMovementsListProps {
   medicineId: string;
@@ -45,8 +46,16 @@ export default function StockMovementsList({ medicineId }: StockMovementsListPro
                 </span>
               </td>
               <td className="p-3 text-zinc-600 dark:text-zinc-400 text-xs">
-                {movement.reference_id && <div className="font-mono">{movement.reference_id}</div>}
-                {movement.notes && <div>{movement.notes}</div>}
+                {movement.movement_type === 'Sale' && movement.reference_id ? (
+                  <Link href={`/sales?view_id=${movement.reference_id}`} className="font-mono text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300 block">
+                    {movement.notes || movement.reference_id}
+                  </Link>
+                ) : (
+                  <>
+                    {movement.reference_id && <div className="font-mono text-zinc-400 text-[10px] truncate w-32">{movement.reference_id}</div>}
+                    {movement.notes && <div className="mt-0.5">{movement.notes}</div>}
+                  </>
+                )}
               </td>
             </tr>
           ))}

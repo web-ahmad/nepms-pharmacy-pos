@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-from core.deps import get_db, get_current_user, get_tenant_context, TenantContext, requires_permission
+from core.deps import get_db, get_current_user, get_tenant_context, TenantContext, requires_permission, get_token_payload
 from schemas.sales import (
     CheckoutRequest,
     SaleResponse,
@@ -154,6 +154,36 @@ def verify_complete_sale(
         tenant_id=tenant.tenant_id,
         branch_id=tenant.branch_id,
         user_id=current_user.id
+    )
+    return map_sale_to_response(sale)
+
+@router.post("/{sale_id}/void", response_model=SaleResponse)
+def void_sale(
+    sale_id: str,
+    payload: VoidSaleRequest,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_tenant_context),
+    current_user: User = Depends(get_current_user),
+    token_payload: dict = Depends(get_token_payload)
+):
+    """
+    Void an entire sale/invoice, reverting all stock and cash entry.
+    Requires 'pos:void_sale' permission, or 'Cashier' role.
+    """
+    permissions = token_payload.get("permissions", [])
+    role = token_payload.get("role", "")
+    
+    if role not in ["Owner", "Super Admin", "Cashier"] and "pos:void_sale" not in permissions and "*" not in permissions:
+        raise HTTPException(status_code=403, detail="Missing required permission: pos:void_sale")
+        
+    sale = SalesService.void_sale(
+        db=db,
+        sale_id=sale_id,
+        tenant_id=tenant.tenant_id,
+        branch_id=tenant.branch_id,
+        user_id=current_user.id,
+        void_reason=payload.void_reason,
+        voided_by=payload.voided_by or current_user.username
     )
     return map_sale_to_response(sale)
 

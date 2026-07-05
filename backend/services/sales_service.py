@@ -288,6 +288,113 @@ class SalesService:
             raise HTTPException(status_code=400, detail=str(e))
 
     @staticmethod
+    def void_sale(
+        db: Session,
+        sale_id: str,
+        tenant_id: str,
+        branch_id: str,
+        user_id: str,
+        void_reason: str = None,
+        voided_by: str = None
+    ) -> Sale:
+        try:
+            sale = db.query(Sale).filter(
+                Sale.id == sale_id,
+                Sale.tenant_id == tenant_id,
+                Sale.branch_id == branch_id,
+                Sale.is_deleted == False
+            ).first()
+            if not sale:
+                raise ValueError("Sale not found")
+                
+            if sale.status not in ["Completed", "Partially Paid", "Pending Verification"]:
+                raise ValueError(f"Cannot void a sale with status: {sale.status}")
+                
+            # Iterate through sale items, revert stock
+            for item in sale.items:
+                if item.batch_id:
+                    batch = db.query(Batch).filter(Batch.id == item.batch_id).first()
+                    if batch:
+                        # Revert the full quantity originally sold
+                        batch.current_quantity += item.quantity
+                        db.add(batch)
+                        
+                        movement = StockMovement(
+                            medicine_id=item.medicine_id,
+                            batch_id=batch.id,
+                            branch_id=branch_id,
+                            tenant_id=tenant_id,
+                            user_id=user_id,
+                            movement_type="VOID_SALE",
+                            quantity_change=item.quantity,
+                            balance_after=batch.current_quantity,
+                            reference_id=sale.id,
+                            notes=f"Voided Sale {sale.invoice_number}"
+                        )
+                        db.add(movement)
+            
+            # Revert Customer Ledger if credit was given
+            if sale.customer_id:
+                customer = db.query(Customer).filter(Customer.id == sale.customer_id).first()
+                if customer:
+                    # Reverse loyalty points
+                    points_earned = SalesService.calculate_loyalty_points(sale.total_amount)
+                    customer.loyalty_points = max(0, customer.loyalty_points - points_earned)
+                    
+                    if sale.payment_method == "Credit" or sale.amount_paid < sale.total_amount:
+                        debt_added = sale.total_amount - sale.amount_paid
+                        customer.current_balance -= debt_added
+                        
+                        ledger_credit = CustomerLedger(
+                            customer_id=customer.id,
+                            branch_id=branch_id,
+                            tenant_id=tenant_id,
+                            transaction_date=datetime.utcnow(),
+                            transaction_type="Voided Sale (Credit Reversal)",
+                            reference_id=sale.invoice_number,
+                            debit=0.0,
+                            credit=debt_added,
+                            balance_after=customer.current_balance,
+                            notes=f"Voided sale {sale.invoice_number} reversal"
+                        )
+                        db.add(ledger_credit)
+                    db.add(customer)
+                    
+            # Cash register void entry (use negative amount in inject_sale_entry if no void method)
+            try:
+                from services.cashier_service import CashierService
+                CashierService.inject_sale_entry(
+                    db=db,
+                    user_id=user_id,
+                    branch_id=branch_id,
+                    tenant_id=tenant_id,
+                    sale_id=sale.id,
+                    amount=-sale.amount_paid,
+                    payment_mode=sale.payment_method
+                )
+            except Exception:
+                pass
+
+            sale.status = "Voided"
+            
+            # Append Audit Note
+            audit_note = f"[Voided by: {voided_by} on {datetime.utcnow().isoformat()}]"
+            if void_reason:
+                audit_note += f" Reason: {void_reason}"
+            if sale.notes:
+                sale.notes += f"\n{audit_note}"
+            else:
+                sale.notes = audit_note
+
+            db.commit()
+            db.refresh(sale)
+            return sale
+            
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=str(e))
+
+    @staticmethod
     def process_return(db: Session, return_in: SaleReturnRequest, tenant_id: str, branch_id: str, user_id: str):
         # Legacy fallback method
         try:

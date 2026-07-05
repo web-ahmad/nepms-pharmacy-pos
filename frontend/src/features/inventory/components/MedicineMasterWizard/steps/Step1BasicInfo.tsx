@@ -121,7 +121,7 @@ export default function Step1BasicInfo() {
               />
             )}
           />
-          {errors.manufacturer && <p className="text-xs text-red-500">{errors.manufacturer.message}</p>}
+          {errors.manufacturer && <p className="text-xs text-red-500">{String(errors.manufacturer.message)}</p>}
         </div>
         
         <div className="space-y-2">

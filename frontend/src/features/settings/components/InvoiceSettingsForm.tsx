@@ -21,8 +21,10 @@ export default function InvoiceSettingsForm() {
     show_cashier_name: true,
     show_customer_name: true,
     show_payment_method: true,
+    show_drug_license: true,
     footer_text: '',
     urdu_policy_text: '',
+    drug_license_number: '368-/NT/9/2015',
     print_mode: 'Browser',
     paper_size: '80mm',
     printer_interface: 'USB',
@@ -45,8 +47,10 @@ export default function InvoiceSettingsForm() {
         show_cashier_name: data.show_cashier_name ?? true,
         show_customer_name: data.show_customer_name ?? true,
         show_payment_method: data.show_payment_method ?? true,
+        show_drug_license: data.show_drug_license ?? true,
         footer_text: data.footer_text || '',
         urdu_policy_text: data.urdu_policy_text || '',
+        drug_license_number: data.drug_license_number || '368-/NT/9/2015',
         print_mode: data.print_mode || 'Browser',
         paper_size: data.paper_size || '80mm',
         printer_interface: data.printer_interface || 'USB',
@@ -87,6 +91,7 @@ export default function InvoiceSettingsForm() {
     { name: 'show_cashier_name', label: 'Sale Person', desc: 'Show operator handling the checkout' },
     { name: 'show_customer_name', label: 'Customer Info', desc: 'Display registered customer name' },
     { name: 'show_payment_method', label: 'Payment Method', desc: 'Show payment method (Cash, Card, etc.)' },
+    { name: 'show_drug_license', label: 'Drug License', desc: 'Show Pharmacy Drug License Number' },
     { name: 'show_footer_text', label: 'Footer Text', desc: 'Show bottom policy text' },
     { name: 'show_logo', label: 'Pharmacy Logo', desc: 'Display business logo at top' },
   ];
@@ -233,6 +238,17 @@ export default function InvoiceSettingsForm() {
                 />
               </div>
               <div>
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Drug License Number</label>
+                <input
+                  type="text"
+                  name="drug_license_number"
+                  value={formData.drug_license_number || ''}
+                  onChange={handleChange}
+                  placeholder="e.g. 368-/NT/9/2015"
+                  className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5 flex justify-between">
                   <span>Return Policy Text (Urdu/Arabic Supported)</span>
                   <span className="text-[10px] bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 px-2 py-0.5 rounded font-bold">Auto-Reshaped for Print</span>
@@ -269,7 +285,7 @@ export default function InvoiceSettingsForm() {
                     <input
                       type="checkbox"
                       name={toggle.name}
-                      checked={(formData as any)[toggle.name]}
+                      checked={!!(formData as any)[toggle.name]}
                       onChange={handleChange}
                       className="peer sr-only"
                     />
@@ -328,7 +344,7 @@ function LiveReceiptPreview({ formData }: { formData: any }) {
   };
 
   return (
-    <div className="w-[80mm] min-w-[80mm] max-w-[80mm] bg-white text-zinc-900 p-4 border border-zinc-300 shadow-md font-mono text-[11px] leading-relaxed dark:bg-white dark:text-zinc-900 scale-90 transform-origin-top transition-all duration-300">
+    <div className={`${formData.paper_size === '58mm' ? 'w-[58mm] min-w-[58mm] max-w-[58mm]' : 'w-[80mm] min-w-[80mm] max-w-[80mm]'} bg-white text-zinc-900 p-4 border border-zinc-300 shadow-md font-mono text-[11px] leading-relaxed dark:bg-white dark:text-zinc-900 scale-90 transform-origin-top transition-all duration-300`}>
       
       {/* Header */}
       <div className="text-center space-y-1 mb-4">
@@ -337,6 +353,9 @@ function LiveReceiptPreview({ formData }: { formData: any }) {
         )}
         <p className="text-[10px] text-zinc-600">Plot 12-C, Commercial Area, Sector G-10</p>
         <p className="text-[10px] text-zinc-600">Ph: +92-51-1234567</p>
+        {formData.show_drug_license !== false && formData.drug_license_number && (
+          <p className="text-[10px] text-zinc-600">Drug Lic #: {formData.drug_license_number}</p>
+        )}
         <div className="border-b border-dashed border-zinc-300 my-2"></div>
       </div>
 

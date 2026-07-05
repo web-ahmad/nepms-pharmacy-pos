@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useVerifyComplete } from '../services/pos.api';
 import { useCustomers } from '@/features/crm/services/crm.api';
 import { X, Check, AlertTriangle, User, Banknote, CreditCard, Landmark, CheckCircle2, ReceiptText } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface CashierVerificationModalProps {
   sale: any;
@@ -14,6 +15,9 @@ export default function CashierVerificationModal({ sale, onClose, onSuccess }: C
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Credit' | 'Bank Transfer'>('Cash');
   const [amountReceived, setAmountReceived] = useState<number>(0);
   const [linkedCustomerId, setLinkedCustomerId] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
+
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
   const { data: customers } = useCustomers('');
   const verifyMutation = useVerifyComplete(sale?.id || '');
@@ -21,7 +25,7 @@ export default function CashierVerificationModal({ sale, onClose, onSuccess }: C
   useEffect(() => {
     if (sale) {
       setLinkedCustomerId(sale.customer_id || null);
-      setAmountReceived(0);
+      setAmountReceived(sale.total_amount || 0);
       setPaymentMethod('Cash');
       
       const initialChecked: Record<string, boolean> = {};
@@ -30,6 +34,29 @@ export default function CashierVerificationModal({ sale, onClose, onSuccess }: C
       });
       setCheckedItems(initialChecked);
     }
+  }, [sale]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        if (sale && sale.items) {
+          const allCheckedMap: Record<string, boolean> = {};
+          sale.items.forEach((item: any) => {
+            allCheckedMap[item.id] = true;
+          });
+          setCheckedItems(allCheckedMap);
+          
+          if (amountInputRef.current) {
+            amountInputRef.current.focus();
+            amountInputRef.current.select();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [sale]);
 
   if (!sale) return null;
@@ -54,15 +81,25 @@ export default function CashierVerificationModal({ sale, onClose, onSuccess }: C
   const handleVerifyComplete = async () => {
     if (!allChecked) return;
     if (isWalkingPaymentInvalid) return;
+    if (isSubmittingRef.current) return;
 
+    isSubmittingRef.current = true;
     try {
       const result = await verifyMutation.mutateAsync({
         amount_paid: amountReceived,
         payment_method: paymentMethod
       });
+      
+      toast.success('Thank you! Sale complete.', {
+        duration: 3000,
+        position: 'top-center',
+        style: { fontWeight: 'bold', fontSize: '16px', padding: '16px', borderRadius: '12px' }
+      });
+      
       onSuccess(result);
     } catch (err: any) {
       console.error(err);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -200,10 +237,19 @@ export default function CashierVerificationModal({ sale, onClose, onSuccess }: C
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-on-surface-variant">Rs</span>
                 <input 
+                  ref={amountInputRef}
                   type="number"
                   placeholder="0.00"
                   value={amountReceived || ''}
                   onChange={(e) => setAmountReceived(parseFloat(e.target.value) || 0)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (allChecked && !isWalkingPaymentInvalid && !verifyMutation.isPending) {
+                        handleVerifyComplete();
+                      }
+                    }
+                  }}
                   className="w-full rounded-lg border border-outline-variant bg-surface-container-lowest py-3 pl-11 pr-4 text-[22px] font-bold text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all shadow-sm"
                 />
               </div>

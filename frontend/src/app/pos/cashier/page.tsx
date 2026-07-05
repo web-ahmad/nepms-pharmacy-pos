@@ -26,8 +26,20 @@ import {
   ShieldCheck, PackageSearch, ArrowUpRight, ArrowDownRight, ChevronRight,
   BarChart3, Wallet, Moon, Sun, Search, Bell, Monitor, ClipboardList,
   Stethoscope, ShoppingBag, PackagePlus, Package, Users, FileText,
-  Activity, PieChart, ShieldAlert, UserCog, LayoutDashboard, ShoppingCart, Settings
+  Activity, PieChart, ShieldAlert, UserCog, LayoutDashboard, ShoppingCart, Settings, Trash2
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useVoidSale } from '@/features/sales/services/sales.api';
+import toast from 'react-hot-toast';
 import { NAV_ITEMS } from '@/components/layout/Sidebar';
 
 // ── Shift Guard Modal ──────────────────────────────────────────────────────
@@ -232,6 +244,27 @@ export default function CashierPortalPage() {
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closedSessionData, setClosedSessionData] = useState<any>(null);
+  const [voidSaleId, setVoidSaleId] = useState<string | null>(null);
+
+  const voidSaleMutation = useVoidSale();
+
+  const handleVoidSale = async () => {
+    if (!voidSaleId) return;
+    try {
+      await voidSaleMutation.mutateAsync({
+        saleId: voidSaleId,
+        payload: {
+          voided_by: user?.username || 'Cashier',
+          void_reason: 'Voided from Cashier Portal'
+        }
+      });
+      toast.success('✅ Sale Voided & Stock Reverted');
+      setVoidSaleId(null);
+      qc.invalidateQueries({ queryKey: ['cashier', 'pending-queue'] });
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to void sale');
+    }
+  };
 
   const { data: sessionCheck, isLoading: checkLoading } = useCashierSessionCheck();
   const hasSession = sessionCheck?.has_open_session ?? false;
@@ -465,12 +498,21 @@ export default function CashierPortalPage() {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => setVerifyingSale(sale)}
-                        className="w-full flex items-center justify-center gap-2 rounded-lg bg-[#16a34a] py-2.5 text-xs font-extrabold uppercase tracking-widest text-white hover:bg-[#15803d] transition-colors animate-heartbeat shadow-md shadow-green-500/20 [text-shadow:_0_1px_3px_rgb(0_0_0_/_60%)]"
-                      >
-                        <ShieldCheck size={16} strokeWidth={2.5} className="drop-shadow-md" /> Verify & Collect Payment
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setVoidSaleId(sale.id)}
+                          className="flex items-center justify-center p-2.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors border border-red-200"
+                          title="Void Sale & Revert Stock"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => setVerifyingSale(sale)}
+                          className="w-full flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#16a34a] py-2.5 text-xs font-extrabold uppercase tracking-widest text-white hover:bg-[#15803d] transition-colors animate-heartbeat shadow-md shadow-green-500/20 [text-shadow:_0_1px_3px_rgb(0_0_0_/_60%)]"
+                        >
+                          <ShieldCheck size={16} strokeWidth={2.5} className="drop-shadow-md" /> Verify & Collect
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -551,6 +593,34 @@ export default function CashierPortalPage() {
           }}
         />
       )}
+
+      {/* Void Sale Alert Dialog */}
+      <AlertDialog open={!!voidSaleId} onOpenChange={(open) => !open && setVoidSaleId(null)}>
+        <AlertDialogContent className="font-sans">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              <Trash2 size={20} />
+              Void Pending Invoice
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to void this pending invoice? All items will be returned to inventory.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleVoidSale();
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+              disabled={voidSaleMutation.isPending}
+            >
+              {voidSaleMutation.isPending ? 'Voiding...' : 'Yes, Void Sale'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

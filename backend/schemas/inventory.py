@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from typing import Optional, List, Any
 from datetime import date, datetime
 
@@ -183,6 +183,42 @@ class MedicineUpdate(BaseModel):
     unit_retail_price: Optional[float] = None
     substitute_ids: Optional[List[str]] = None
     packaging_levels: Optional[List[PackagingLevelCreate]] = None
+
+    @field_validator(
+        'strips_per_box', 'units_per_strip', 'units_per_pack',
+        'min_stock_level', 'max_stock_level', 'reorder_level', 'age_restriction',
+        mode='before'
+    )
+    @classmethod
+    def coerce_int_empty_string(cls, v):
+        """Convert empty string to None for optional integer fields."""
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator(
+        'purchase_price', 'sale_price', 'mrp', 'tax_rate',
+        'cost_per_base_unit', 'margin_percent', 'unit_retail_price',
+        'trade_price', 'discount_percentage',
+        mode='before'
+    )
+    @classmethod
+    def coerce_float_empty_string(cls, v):
+        """Convert empty string to None for optional float fields."""
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator(
+        'sku', 'barcode', 'slug', 'internal_product_code', 'qr_code',
+        mode='before'
+    )
+    @classmethod
+    def coerce_unique_string_empty(cls, v):
+        """Convert empty string to None for fields with UNIQUE DB constraints."""
+        if v == '' or v is None:
+            return None
+        return v
 
 # Batch
 class BatchBase(BaseModel):

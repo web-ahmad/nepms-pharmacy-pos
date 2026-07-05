@@ -62,6 +62,11 @@
   --color-on-tertiary-fixed: #001e2f;
   --color-surface-container-lowest: #ffffff;
   --color-surface-container: #eceef0;
+  --color-emerald-deep: #064e3b;
+  --color-emerald: #10b981;
+  --color-emerald-bright: #34d399;
+  --color-mint-bright: #6ee7b7;
+  --color-mint-soft: #ecfdf5;
   --color-outline: #757684;
   --color-on-error-container: #93000a;
   --color-outline-variant: #c4c5d5;
@@ -278,5 +283,21 @@
 }
 
 .animate-heartbeat {
-  animation: heartbeat 2.5s infinite ease-in-out;
+  animation: heartbeat 2s ease-in-out infinite;
+}
+
+/* Medicine Form Custom Utilities */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+.delay-4 { animation-delay: 0.4s; }
+.delay-5 { animation-delay: 0.5s; }
+.delay-6 { animation-delay: 0.6s; }
+
+.rounded-custom {
+  border-radius: 8px;
 }

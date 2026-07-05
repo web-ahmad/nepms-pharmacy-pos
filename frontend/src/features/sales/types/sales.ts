@@ -20,6 +20,7 @@ export interface Sale {
   subtotal: number;
   discount_amount: number;
   tax_amount: number;
+  adjustment_amount?: number;
   total_amount: number;
   payment_method: string;
   amount_paid: number;

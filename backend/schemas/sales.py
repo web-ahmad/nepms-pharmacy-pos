@@ -23,6 +23,10 @@ class SaleItemCreate(BaseModel):
 
 class CheckoutRequest(BaseModel):
     customer_id: Optional[str] = None
+
+class VoidSaleRequest(BaseModel):
+    voided_by: Optional[str] = None
+    void_reason: Optional[str] = None
     items: List[SaleItemCreate]
     discount_amount: float = 0.0
     tax_amount: float = 0.0

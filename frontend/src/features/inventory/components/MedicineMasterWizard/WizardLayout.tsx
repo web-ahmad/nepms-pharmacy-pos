@@ -150,8 +150,17 @@ export default function WizardLayout() {
       toast.success("Medicine created successfully.");
       router.push('/inventory/medicines');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || error.message || "Failed to create medicine");
-      console.log("Submit Error:", error);
+      const detail = error.response?.data?.detail;
+      let errorMsg: string;
+      if (Array.isArray(detail)) {
+        errorMsg = detail.map((d: any) => (typeof d === 'object' ? d.msg || JSON.stringify(d) : String(d))).join(', ');
+      } else if (typeof detail === 'string') {
+        errorMsg = detail;
+      } else {
+        errorMsg = error.message || 'Failed to create medicine';
+      }
+      toast.error(errorMsg);
+      console.log('Submit Error:', error);
     }
   };
 
