@@ -14,24 +14,88 @@ class HRRepository:
 
     # Departments
     def get_departments(self, tenant_id: str):
-        return self.db.query(Department).filter(Department.tenant_id == tenant_id).all()
+        # Return departments with employee count
+        depts = self.db.query(Department).filter(Department.tenant_id == tenant_id).all()
+        result = []
+        for d in depts:
+            d_dict = {
+                "id": d.id,
+                "name": d.name,
+                "description": d.description,
+                "head_id": d.head_id,
+                "is_active": d.is_active,
+                "employee_count": len(d.employees)
+            }
+            result.append(d_dict)
+        return result
+
+    def get_department(self, tenant_id: str, dept_id: str):
+        return self.db.query(Department).filter(Department.tenant_id == tenant_id, Department.id == dept_id).first()
 
     def create_department(self, tenant_id: str, obj_in: DepartmentCreate):
-        db_obj = Department(tenant_id=tenant_id, name=obj_in.name)
+        db_obj = Department(tenant_id=tenant_id, **obj_in.model_dump())
         self.db.add(db_obj)
         self.db.commit()
         self.db.refresh(db_obj)
+        # Needs to match Response model
+        db_obj.employee_count = 0
+        return db_obj
+
+    def update_department(self, tenant_id: str, dept_id: str, obj_in):
+        db_obj = self.get_department(tenant_id, dept_id)
+        if not db_obj:
+            return None
+        
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_obj, key, value)
+            
+        self.db.commit()
+        self.db.refresh(db_obj)
+        db_obj.employee_count = len(db_obj.employees)
         return db_obj
 
     # Designations
     def get_designations(self, tenant_id: str):
-        return self.db.query(Designation).filter(Designation.tenant_id == tenant_id).all()
+        designations = self.db.query(Designation).filter(Designation.tenant_id == tenant_id).all()
+        result = []
+        for d in designations:
+            result.append({
+                "id": d.id,
+                "name": d.name,
+                "department_id": d.department_id,
+                "description": d.description,
+                "is_active": d.is_active,
+                "employee_count": len(d.employees),
+                "department_name": d.department.name if d.department else None
+            })
+        return result
 
-    def create_designation(self, tenant_id: str, name: str):
-        db_obj = Designation(tenant_id=tenant_id, name=name)
+    def get_designation(self, tenant_id: str, desig_id: str):
+        return self.db.query(Designation).filter(Designation.tenant_id == tenant_id, Designation.id == desig_id).first()
+
+    def create_designation(self, tenant_id: str, obj_in):
+        db_obj = Designation(tenant_id=tenant_id, **obj_in.model_dump())
         self.db.add(db_obj)
         self.db.commit()
         self.db.refresh(db_obj)
+        db_obj.employee_count = 0
+        db_obj.department_name = db_obj.department.name if db_obj.department else None
+        return db_obj
+
+    def update_designation(self, tenant_id: str, desig_id: str, obj_in):
+        db_obj = self.get_designation(tenant_id, desig_id)
+        if not db_obj:
+            return None
+        
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_obj, key, value)
+            
+        self.db.commit()
+        self.db.refresh(db_obj)
+        db_obj.employee_count = len(db_obj.employees)
+        db_obj.department_name = db_obj.department.name if db_obj.department else None
         return db_obj
 
     # Employees
@@ -42,7 +106,12 @@ class HRRepository:
         return self.db.query(Employee).filter(Employee.tenant_id == tenant_id, Employee.id == employee_id).first()
 
     def create_employee(self, tenant_id: str, obj_in: EmployeeCreate):
-        db_obj = Employee(tenant_id=tenant_id, **obj_in.model_dump())
+        dump = obj_in.model_dump()
+        if not dump.get('employee_id'):
+            count = self.db.query(Employee).filter(Employee.tenant_id == tenant_id).count()
+            dump['employee_id'] = f"EMP-{1001 + count}"
+            
+        db_obj = Employee(tenant_id=tenant_id, **dump)
         self.db.add(db_obj)
         self.db.commit()
         self.db.refresh(db_obj)
@@ -100,9 +169,25 @@ class HRRepository:
     def get_shifts(self, tenant_id: str):
         return self.db.query(Shift).filter(Shift.tenant_id == tenant_id).all()
 
+    def get_shift(self, tenant_id: str, shift_id: str):
+        return self.db.query(Shift).filter(Shift.tenant_id == tenant_id, Shift.id == shift_id).first()
+
     def create_shift(self, tenant_id: str, obj_in: ShiftCreate):
         db_obj = Shift(tenant_id=tenant_id, **obj_in.model_dump())
         self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def update_shift(self, tenant_id: str, shift_id: str, obj_in):
+        db_obj = self.get_shift(tenant_id, shift_id)
+        if not db_obj:
+            return None
+        
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_obj, key, value)
+            
         self.db.commit()
         self.db.refresh(db_obj)
         return db_obj

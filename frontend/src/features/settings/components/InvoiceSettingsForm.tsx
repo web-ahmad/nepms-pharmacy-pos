@@ -22,9 +22,14 @@ export default function InvoiceSettingsForm() {
     show_customer_name: true,
     show_payment_method: true,
     show_drug_license: true,
+    show_ntn: false,
     footer_text: '',
     urdu_policy_text: '',
     drug_license_number: '368-/NT/9/2015',
+    business_name: 'NEPMS Pharmacy',
+    business_address: 'Plot 12-C, Commercial Area, Sector G-10',
+    business_phone: '+92-51-1234567',
+    business_ntn: '',
     print_mode: 'Browser',
     paper_size: '80mm',
     printer_interface: 'USB',
@@ -48,9 +53,14 @@ export default function InvoiceSettingsForm() {
         show_customer_name: data.show_customer_name ?? true,
         show_payment_method: data.show_payment_method ?? true,
         show_drug_license: data.show_drug_license ?? true,
+        show_ntn: data.show_ntn ?? false,
         footer_text: data.footer_text || '',
         urdu_policy_text: data.urdu_policy_text || '',
         drug_license_number: data.drug_license_number || '368-/NT/9/2015',
+        business_name: data.business_name || 'NEPMS Pharmacy',
+        business_address: data.business_address || 'Plot 12-C, Commercial Area, Sector G-10',
+        business_phone: data.business_phone || '+92-51-1234567',
+        business_ntn: data.business_ntn || '',
         print_mode: data.print_mode || 'Browser',
         paper_size: data.paper_size || '80mm',
         printer_interface: data.printer_interface || 'USB',
@@ -92,6 +102,7 @@ export default function InvoiceSettingsForm() {
     { name: 'show_customer_name', label: 'Customer Info', desc: 'Display registered customer name' },
     { name: 'show_payment_method', label: 'Payment Method', desc: 'Show payment method (Cash, Card, etc.)' },
     { name: 'show_drug_license', label: 'Drug License', desc: 'Show Pharmacy Drug License Number' },
+    { name: 'show_ntn', label: 'Business NTN', desc: 'Show NTN number on Sale & Return invoices' },
     { name: 'show_footer_text', label: 'Footer Text', desc: 'Show bottom policy text' },
     { name: 'show_logo', label: 'Pharmacy Logo', desc: 'Display business logo at top' },
   ];
@@ -226,6 +237,44 @@ export default function InvoiceSettingsForm() {
             </h4>
             
             <div className="space-y-4">
+              {/* Business Identity */}
+              <div className="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-4 space-y-3">
+                <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Business Identity (Appears on All Invoices)</p>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Pharmacy / Business Name</label>
+                  <input
+                    type="text"
+                    name="business_name"
+                    value={formData.business_name || ''}
+                    onChange={handleChange}
+                    placeholder="e.g. NEPMS Pharmacy"
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Address</label>
+                  <input
+                    type="text"
+                    name="business_address"
+                    value={formData.business_address || ''}
+                    onChange={handleChange}
+                    placeholder="e.g. Plot 12-C, Sector G-10"
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Phone Number</label>
+                  <input
+                    type="text"
+                    name="business_phone"
+                    value={formData.business_phone || ''}
+                    onChange={handleChange}
+                    placeholder="e.g. +92-51-1234567"
+                    className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Footer Message (English)</label>
                 <input
@@ -245,6 +294,17 @@ export default function InvoiceSettingsForm() {
                   value={formData.drug_license_number || ''}
                   onChange={handleChange}
                   placeholder="e.g. 368-/NT/9/2015"
+                  className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Business NTN <span className="text-[10px] text-zinc-400 font-normal">(leave blank to hide)</span></label>
+                <input
+                  type="text"
+                  name="business_ntn"
+                  value={formData.business_ntn || ''}
+                  onChange={handleChange}
+                  placeholder="e.g. 1234567-8"
                   className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                 />
               </div>
@@ -349,12 +409,17 @@ function LiveReceiptPreview({ formData }: { formData: any }) {
       {/* Header */}
       <div className="text-center space-y-1 mb-4">
         {formData.show_logo !== false && (
-          <h3 className="text-sm font-bold tracking-wide uppercase">NEPMS PHARMACY</h3>
+          <h3 className="text-sm font-bold tracking-wide uppercase">
+            {formData.business_name || 'NEPMS Pharmacy'}
+          </h3>
         )}
-        <p className="text-[10px] text-zinc-600">Plot 12-C, Commercial Area, Sector G-10</p>
-        <p className="text-[10px] text-zinc-600">Ph: +92-51-1234567</p>
+        <p className="text-[10px] text-zinc-600">{formData.business_address || 'Plot 12-C, Commercial Area, Sector G-10'}</p>
+        <p className="text-[10px] text-zinc-600">Ph: {formData.business_phone || '+92-51-1234567'}</p>
         {formData.show_drug_license !== false && formData.drug_license_number && (
           <p className="text-[10px] text-zinc-600">Drug Lic #: {formData.drug_license_number}</p>
+        )}
+        {formData.show_ntn === true && formData.business_ntn && (
+          <p className="text-[10px] text-indigo-700 bg-indigo-50/50 font-semibold animate-in fade-in">NTN: {formData.business_ntn}</p>
         )}
         <div className="border-b border-dashed border-zinc-300 my-2"></div>
       </div>

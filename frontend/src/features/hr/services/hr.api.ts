@@ -29,17 +29,52 @@ export const useCreateDepartment = () => {
   });
 };
 
-// Designations (Assuming we have endpoints for it, mapping to departments logic for now since it wasn't explicitly requested in the backend list but is in the UI list)
+export const useUpdateDepartment = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<Department>) => {
+      const res = await api.put(`/api/v1/hr/departments/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'departments'] });
+    }
+  });
+};
+
+// Designations
 export const useDesignations = () => {
   return useQuery({
     queryKey: ['hr', 'designations'],
     queryFn: async () => {
-      try {
-         const res = await api.get('/api/v1/hr/designations');
-         return res.data as Designation[];
-      } catch (e) {
-         return [] as Designation[]; // Fallback if endpoint missing
-      }
+      const res = await api.get('/api/v1/hr/designations');
+      return res.data as Designation[];
+    }
+  });
+};
+
+export const useCreateDesignation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<Designation>) => {
+      const res = await api.post('/api/v1/hr/designations', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'designations'] });
+    }
+  });
+};
+
+export const useUpdateDesignation = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<Designation>) => {
+      const res = await api.put(`/api/v1/hr/designations/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'designations'] });
     }
   });
 };
@@ -110,6 +145,19 @@ export const useCreateShift = () => {
   return useMutation({
     mutationFn: async (data: Partial<Shift>) => {
       const res = await api.post('/api/v1/hr/shifts', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'shifts'] });
+    }
+  });
+};
+
+export const useUpdateShift = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<Shift>) => {
+      const res = await api.put(`/api/v1/hr/shifts/${id}`, data);
       return res.data;
     },
     onSuccess: () => {

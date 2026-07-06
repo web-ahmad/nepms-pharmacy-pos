@@ -2,13 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { Medicine, Batch, StockMovement, StockAdjustmentPayload } from '../types/inventory';
 
-export const useMedicines = (search?: string, page = 1, limit = 20) => {
+export const useMedicines = (search?: string, page = 1, limit = 20, filters?: { category?: string, status?: string, expiry?: string }) => {
   return useQuery({
-    queryKey: ['medicines', search, page, limit],
+    queryKey: ['medicines', search, page, limit, filters],
     queryFn: async () => {
       const skip = (page - 1) * limit;
       let url = `/api/v1/inventory/medicines?skip=${skip}&limit=${limit}`;
       if (search) url += `&search_term=${encodeURIComponent(search)}`;
+      if (filters?.category) url += `&category=${encodeURIComponent(filters.category)}`;
+      if (filters?.status) url += `&status=${encodeURIComponent(filters.status)}`;
+      if (filters?.expiry) url += `&expiry=${encodeURIComponent(filters.expiry)}`;
+      
       
       const res = await api.get(url);
       if (res.data && Array.isArray(res.data.items)) {

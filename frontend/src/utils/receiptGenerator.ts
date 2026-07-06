@@ -1,19 +1,26 @@
 export const generateReceiptHtml = (saleOrReturn: any, settings: any, type: 'sale' | 'return') => {
   const isReturn = type === 'return';
   
-  // Settings fallbacks (default to true if undefined)
-  const showLogo = settings?.show_logo !== false;
-  const showCashier = settings?.show_cashier_name !== false;
-  const showCustomer = settings?.show_customer_name !== false;
-  const showCurrency = settings?.show_currency_symbol !== false;
-  const showPaymentMethod = settings?.show_payment_method !== false;
-  const showReceived = settings?.show_received_amount !== false;
-  const showChange = settings?.show_change_amount !== false;
-  const showDiscount = settings?.show_discount !== false;
-  const showAdjustment = settings?.show_adjustment !== false;
-  const showTax = settings?.show_tax !== false;
-  const footerMessage = settings?.footer_message || 'Thank you for your business!';
-  const returnPolicy = settings?.return_policy_text || 'Software Powered by NEPMS';
+  // ── Business identity (dynamic from settings) ──────────────────────────
+  const businessName    = settings?.business_name    || 'NEPMS Pharmacy';
+  const businessAddress = settings?.business_address || 'Plot 12-C, Commercial Area, Sector G-10';
+  const businessPhone   = settings?.business_phone   || '+92-51-1234567';
+
+  // ── Toggle flags (default to true if undefined) ─────────────────────────
+  const showLogo          = settings?.show_logo            !== false;
+  const showCashier       = settings?.show_cashier_name    !== false;
+  const showCustomer      = settings?.show_customer_name   !== false;
+  const showCurrency      = settings?.show_currency_symbol !== false;
+  const showPaymentMethod = settings?.show_payment_method  !== false;
+  const showReceived      = settings?.show_received_amount !== false;
+  const showChange        = settings?.show_change_amount   !== false;
+  const showDiscount      = settings?.show_discount        !== false;
+  const showAdjustment    = settings?.show_adjustment      !== false;
+  const showTax           = settings?.show_tax             !== false;
+  const showDrugLicense   = settings?.show_drug_license    !== false;
+  const showNtn           = settings?.show_ntn             === true;
+  const footerMessage     = settings?.footer_text          || 'Thank you for your business!';
+  const returnPolicy      = settings?.urdu_policy_text     || 'Software Powered by NEPMS';
   
   const currencyPrefix = showCurrency ? 'Rs ' : '';
   
@@ -71,10 +78,12 @@ export const generateReceiptHtml = (saleOrReturn: any, settings: any, type: 'sal
       </head>
       <body onload="window.print(); window.close();">
         <div class="text-center" style="margin-bottom: 12px;">
-          ${isReturn ? '<h3 style="margin: 0 0 4px 0;">RETURN INVOICE</h3>' : ''}
-          ${showLogo ? '<h3 style="margin: 0 0 4px 0; font-size: 14px; letter-spacing: 1px;">NEPMS PHARMACY</h3>' : ''}
-          <p style="margin: 0; font-size: 10px;">Plot 12-C, Commercial Area, Sector G-10</p>
-          <p style="margin: 0; font-size: 10px;">Ph: +92-51-1234567</p>
+          ${isReturn ? '<p style="margin: 0 0 6px 0; font-size: 11px; font-weight: bold; letter-spacing: 2px; border: 1px solid #000; padding: 2px 8px; display: inline-block;">⟵ RETURN INVOICE ⟶</p><br>' : ''}
+          ${showLogo ? `<h3 style="margin: 0 0 4px 0; font-size: 14px; letter-spacing: 1px; text-transform: uppercase;">${businessName}</h3>` : ''}
+          <p style="margin: 0; font-size: 10px;">${businessAddress}</p>
+          <p style="margin: 0; font-size: 10px;">Ph: ${businessPhone}</p>
+          ${showDrugLicense && settings?.drug_license_number ? `<p style="margin: 0; font-size: 10px;">Drug Lic #: ${settings.drug_license_number}</p>` : ''}
+          ${showNtn && settings?.business_ntn ? `<p style="margin: 0; font-size: 10px;">NTN: ${settings.business_ntn}</p>` : ''}
           <div class="divider"></div>
         </div>
 

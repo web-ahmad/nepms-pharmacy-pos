@@ -22,6 +22,8 @@ class Customer(BaseModel):
     current_balance = Column(Float, default=0.0)
     loyalty_points = Column(Integer, default=0)
     loyalty_tier = Column(String(50), default="Bronze")
+    area_zone = Column(String(255), nullable=True)
+    is_active = Column(Boolean, default=True)
 
 class LoyaltyTransaction(BaseModel):
     __tablename__ = "loyalty_transactions"

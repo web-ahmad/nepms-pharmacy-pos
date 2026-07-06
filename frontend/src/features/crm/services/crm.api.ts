@@ -58,6 +58,25 @@ export const useUpdateCustomer = (id: string) => {
   });
 };
 
+export const useUpdateCustomerStatus = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (status: 'active' | 'inactive') => {
+      const res = await api.patch(`/api/v1/crm/customers/${id}/status`, { status });
+      return res.data;
+    },
+    onSuccess: (updatedCustomer) => {
+      // Update cache atomically
+      queryClient.setQueriesData({ queryKey: ['customers'] }, (old: any) => {
+        if (!old) return old;
+        return old.map((c: any) => c.id === id ? updatedCustomer : c);
+      });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['customers', id] });
+    }
+  });
+};
+
 // --- Ledgers & Payments ---
 export const useCustomerLedger = (customerId: string) => {
   return useQuery({
@@ -92,6 +111,7 @@ export const useCreateCustomerPayment = (customerId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customer_ledger', customerId] });
+      queryClient.invalidateQueries({ queryKey: ['customer_purchases', customerId] });
       queryClient.invalidateQueries({ queryKey: ['customers', customerId] });
       queryClient.invalidateQueries({ queryKey: ['crm_dashboard'] });
     }

@@ -48,10 +48,15 @@ class InvoiceSettingsBase(BaseModel):
     show_customer_name: bool = True
     show_payment_method: bool = True
     show_drug_license: bool = True
+    show_ntn: bool = False
     
+    business_name: str = "NEPMS Pharmacy"
+    business_address: str = "Plot 12-C, Commercial Area, Sector G-10"
+    business_phone: str = "+92-51-1234567"
     footer_text: str = "Thank you for your business!"
     urdu_policy_text: str = "خریداری کا شکریہ۔ فروخت شدہ ادویات واپس یا تبدیل نہیں ہوں گی۔"
     drug_license_number: str = "368-/NT/9/2015"
+    business_ntn: Optional[str] = None
     
     print_mode: str = "Browser"
     paper_size: str = "80mm"

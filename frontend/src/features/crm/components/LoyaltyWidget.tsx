@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Customer } from '../types/crm';
 import { useRedeemPoints, useLoyaltyHistory } from '../services/crm.api';
+import { notify } from '@/utils/toast';
 import { Award, Gift, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -12,7 +13,7 @@ export default function LoyaltyWidget({ customer }: { customer: Customer }) {
   const handleRedeem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pointsToRedeem <= 0 || pointsToRedeem > customer.loyalty_points) {
-      alert('Invalid points amount');
+      notify.error('Invalid points amount');
       return;
     }
 
@@ -22,10 +23,10 @@ export default function LoyaltyWidget({ customer }: { customer: Customer }) {
         reason: 'Manual Redemption via Dashboard'
       });
       setPointsToRedeem(0);
-      alert('Points redeemed successfully!');
+      notify.success('Points redeemed successfully!');
     } catch (err) {
       console.error('Failed to redeem points', err);
-      alert('Failed to redeem points');
+      notify.error('Failed to redeem points');
     }
   };
 

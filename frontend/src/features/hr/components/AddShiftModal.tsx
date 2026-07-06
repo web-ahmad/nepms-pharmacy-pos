@@ -1,0 +1,98 @@
+import { useState } from 'react';
+import { useCreateShift, useUpdateShift } from '../services/hr.api';
+import { notify } from '@/utils/toast';
+import { Shift } from '../types/hr';
+
+interface AddShiftModalProps {
+  onClose: () => void;
+  shift?: Shift;
+}
+
+export default function AddShiftModal({ onClose, shift }: AddShiftModalProps) {
+  const [name, setName] = useState(shift?.name || '');
+  const [startTime, setStartTime] = useState(shift?.start_time || '');
+  const [endTime, setEndTime] = useState(shift?.end_time || '');
+  const [gracePeriod, setGracePeriod] = useState<number>(shift?.grace_period ?? 15);
+  const [isActive, setIsActive] = useState(shift ? shift.is_active : true);
+
+  const createMutation = useCreateShift();
+  const updateMutation = useUpdateShift(shift?.id || '');
+
+  const isEditing = !!shift;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name,
+        start_time: startTime,
+        end_time: endTime,
+        grace_period: gracePeriod,
+        is_active: isActive
+      };
+
+      if (isEditing) {
+        await updateMutation.mutateAsync(payload);
+        notify.success('Shift updated successfully');
+      } else {
+        await createMutation.mutateAsync(payload);
+        notify.success('Shift created successfully');
+      }
+      onClose();
+    } catch (err) {
+      console.error(err);
+      notify.error(isEditing ? 'Failed to update shift' : 'Failed to create shift');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-zinc-950">
+        <h2 className="mb-6 text-xl font-bold text-zinc-900 dark:text-zinc-50">
+          {isEditing ? 'Edit Shift' : 'Add Shift'}
+        </h2>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Shift Name <span className="text-red-500">*</span></label>
+            <input required value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Morning Shift" className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Start Time <span className="text-red-500">*</span></label>
+              <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">End Time <span className="text-red-500">*</span></label>
+              <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Grace Period (minutes) <span className="text-red-500">*</span></label>
+            <input type="number" min="0" required value={gracePeriod} onChange={e => setGracePeriod(Number(e.target.value))} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+            <p className="mt-1 text-xs text-zinc-500">Allowable delay before marking late.</p>
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input type="checkbox" className="peer sr-only" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
+              <div className="peer h-6 w-11 rounded-full bg-zinc-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-zinc-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:bg-zinc-700 dark:peer-checked:bg-blue-600"></div>
+            </label>
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Active</span>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800">
+              Cancel
+            </button>
+            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50">
+              {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

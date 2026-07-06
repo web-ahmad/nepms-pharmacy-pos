@@ -11,6 +11,7 @@ export default function CustomerPurchaseHistory({ customerId }: { customerId: st
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
   
   const { data: saleDetail, isLoading: isLoadingDetail } = useSaleDetail(selectedSaleId || undefined);
+  const { data: invoiceSettings } = useInvoiceSettings();
 
   if (isLoading) {
     return (
@@ -23,8 +24,6 @@ export default function CustomerPurchaseHistory({ customerId }: { customerId: st
     return <div className="text-red-500 p-4">Failed to load purchase history</div>;
   }
 
-  const { data: invoiceSettings } = useInvoiceSettings();
-
   const handlePrint = (sale: any) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -34,12 +33,20 @@ export default function CustomerPurchaseHistory({ customerId }: { customerId: st
     printWindow.document.close();
   };
 
+  const getInvoiceStatus = (status: string, total: number, paid: number) => {
+    if (status === 'Voided' || status === 'Held') return status;
+    if (paid >= total) return 'Paid';
+    if (paid > 0) return 'Partially Paid';
+    return 'Unpaid';
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'Completed':
+      case 'Paid':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-250">
-            Completed
+            {status === 'Completed' ? 'Completed' : 'Paid'}
           </span>
         );
       case 'Partially Paid':
@@ -58,6 +65,12 @@ export default function CustomerPurchaseHistory({ customerId }: { customerId: st
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-250">
             Voided
+          </span>
+        );
+      case 'Unpaid':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-250">
+            Unpaid
           </span>
         );
       default:
@@ -94,7 +107,11 @@ export default function CustomerPurchaseHistory({ customerId }: { customerId: st
               purchases.map((sale) => {
                 const balanceOwed = Math.max(0, sale.total_amount - sale.amount_paid);
                 return (
-                  <tr key={sale.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition">
+                  <tr 
+                    key={sale.id} 
+                    onClick={() => setSelectedSaleId(sale.id)}
+                    className="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition cursor-pointer"
+                  >
                     <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100">{sale.invoice_number}</td>
                     <td className="p-4 text-zinc-500">{format(new Date(sale.sale_date), 'yyyy-MM-dd HH:mm')}</td>
                     <td className="p-4 text-zinc-600 dark:text-zinc-400 font-medium">{sale.payment_method}</td>
@@ -103,18 +120,18 @@ export default function CustomerPurchaseHistory({ customerId }: { customerId: st
                     <td className={`p-4 text-right font-mono font-bold ${balanceOwed > 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-500'}`}>
                       Rs {balanceOwed.toFixed(2)}
                     </td>
-                    <td className="p-4 text-center">{getStatusBadge(sale.status)}</td>
+                    <td className="p-4 text-center">{getStatusBadge(getInvoiceStatus(sale.status, sale.total_amount, sale.amount_paid))}</td>
                     <td className="p-4 text-right space-x-1.5 whitespace-nowrap">
                       <button
                         title="View Details"
-                        onClick={() => setSelectedSaleId(sale.id)}
+                        onClick={(e) => { e.stopPropagation(); setSelectedSaleId(sale.id); }}
                         className="p-2 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg transition border border-zinc-200 dark:border-zinc-800"
                       >
                         <Eye size={15} />
                       </button>
                       <button
                         title="Print Invoice"
-                        onClick={() => handlePrint(sale)}
+                        onClick={(e) => { e.stopPropagation(); handlePrint(sale); }}
                         className="p-2 bg-zinc-50 hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg transition border border-zinc-200 dark:border-zinc-800"
                       >
                         <Printer size={15} />
@@ -169,7 +186,7 @@ export default function CustomerPurchaseHistory({ customerId }: { customerId: st
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Status</p>
-                      <div className="mt-1">{getStatusBadge(saleDetail.status)}</div>
+                      <div className="mt-1">{getStatusBadge(getInvoiceStatus(saleDetail.status, saleDetail.total_amount, saleDetail.amount_paid))}</div>
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Timestamp</p>

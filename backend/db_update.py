@@ -1,0 +1,11 @@
+import sqlite3 
+conn = sqlite3.connect('nepms_local.db') 
+c = conn.cursor() 
+c.execute('ALTER TABLE employees ADD COLUMN cnic VARCHAR') 
+c.execute('ALTER TABLE employees ADD COLUMN address VARCHAR') 
+c.execute('ALTER TABLE employees ADD COLUMN dob DATE') 
+c.execute('ALTER TABLE employees ADD COLUMN gender VARCHAR') 
+c.execute('ALTER TABLE employees ADD COLUMN employee_id VARCHAR') 
+c.execute('ALTER TABLE employees ADD COLUMN username VARCHAR') 
+c.execute('ALTER TABLE employees ADD COLUMN shift_id VARCHAR') 
+conn.commit() 

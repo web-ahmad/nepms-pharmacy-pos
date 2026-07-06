@@ -62,6 +62,39 @@ class CRMService:
         )
         self.repo.add_payment(payment)
 
+        # Update Invoice Status if sale_id exists, else Auto-Allocate (FIFO)
+        from models.sales import Sale
+        if payment_in.sale_id:
+            sale = self.db.query(Sale).filter(Sale.id == payment_in.sale_id).first()
+            if sale:
+                sale.amount_paid += payment_in.amount
+                if sale.amount_paid >= sale.total_amount:
+                    sale.status = "Paid"
+                elif sale.amount_paid > 0:
+                    sale.status = "Partially Paid"
+                else:
+                    sale.status = "Unpaid"
+        else:
+            remaining_payment = payment_in.amount
+            unpaid_sales = self.db.query(Sale).filter(
+                Sale.customer_id == customer_id,
+                Sale.amount_paid < Sale.total_amount
+            ).order_by(Sale.sale_date.asc()).all()
+
+            for sale in unpaid_sales:
+                if remaining_payment <= 0:
+                    break
+                balance_owed = sale.total_amount - sale.amount_paid
+                if balance_owed > 0:
+                    allocate = min(balance_owed, remaining_payment)
+                    sale.amount_paid += allocate
+                    remaining_payment -= allocate
+
+                    if sale.amount_paid >= sale.total_amount:
+                        sale.status = "Paid"
+                    elif sale.amount_paid > 0:
+                        sale.status = "Partially Paid"
+
         # Update Customer Balance (Credit reduces amount owed)
         customer.current_balance -= payment_in.amount
 

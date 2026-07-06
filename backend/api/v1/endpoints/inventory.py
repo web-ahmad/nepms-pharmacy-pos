@@ -7,7 +7,8 @@ from core.deps import get_db, get_current_user, get_tenant_context, TenantContex
 from schemas.inventory import (
     MedicineCreate, MedicineUpdate, MedicineResponse, ExpiryAlert, LowStockAlert,
     PaginatedLowStockResponse,
-    BatchResponse, StockMovementResponse, StockAdjustmentPayload
+    BatchResponse, StockMovementResponse, StockAdjustmentPayload,
+    BulkDeletePayload, BulkImportPayload
 )
 from repositories.inventory import medicine_repo
 from services.inventory_service import InventoryService
@@ -27,9 +28,15 @@ class MedicinePaginatedResponse(BaseModel):
         from_attributes = True
 
 
+from datetime import date, timedelta
+from sqlalchemy import func
+
 @router.get("/medicines", response_model=MedicinePaginatedResponse)
 def list_or_search_medicines(
     search_term: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    expiry: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -38,17 +45,51 @@ def list_or_search_medicines(
     token_payload: dict = Depends(get_token_payload)
 ):
     """
-    List all medicines or search medicines by Barcode, Generic Name, Brand, or Manufacturer.
+    List all medicines with optional search and filters.
     """
+    query = db.query(Medicine).options(joinedload(Medicine.batches), joinedload(Medicine.packaging_levels)).filter(
+        Medicine.is_deleted == False,
+        or_(Medicine.tenant_id == tenant.tenant_id, Medicine.tenant_id == None)
+    )
+
     if search_term:
-        total, items = medicine_repo.search(db, tenant.tenant_id, search_term, skip, limit)
-    else:
-        query = db.query(Medicine).options(joinedload(Medicine.batches), joinedload(Medicine.packaging_levels)).filter(
-            Medicine.is_deleted == False,
-            or_(Medicine.tenant_id == tenant.tenant_id, Medicine.tenant_id == None)
-        )
-        total = query.count()
-        items = query.order_by(Medicine.created_at.desc()).offset(skip).limit(limit).all()
+        query = query.filter(or_(
+            Medicine.name.ilike(f"%{search_term}%"),
+            Medicine.generic_name.ilike(f"%{search_term}%"),
+            Medicine.brand_name.ilike(f"%{search_term}%"),
+            Medicine.manufacturer.ilike(f"%{search_term}%"),
+            Medicine.barcode == search_term
+        ))
+
+    if category:
+        query = query.join(Category, Medicine.category_id == Category.id).filter(Category.name.ilike(f"%{category}%"))
+
+    if status or expiry:
+        batch_stats = db.query(
+            Batch.medicine_id,
+            func.sum(Batch.current_quantity - Batch.reserved_quantity).label("tot_qty"),
+            func.min(Batch.expiry_date).label("min_exp")
+        ).filter(
+            Batch.status == "Active",
+            Batch.is_deleted == False
+        ).group_by(Batch.medicine_id).subquery()
+        
+        query = query.outerjoin(batch_stats, Medicine.id == batch_stats.c.medicine_id)
+        
+        if status == "critical":
+            query = query.filter(func.coalesce(batch_stats.c.tot_qty, 0) <= 0)
+        elif status == "low":
+            query = query.filter(func.coalesce(batch_stats.c.tot_qty, 0) > 0, func.coalesce(batch_stats.c.tot_qty, 0) <= Medicine.min_stock_level)
+        elif status == "normal":
+            query = query.filter(func.coalesce(batch_stats.c.tot_qty, 0) > Medicine.min_stock_level)
+            
+        if expiry == "expired":
+            query = query.filter(batch_stats.c.min_exp < date.today())
+        elif expiry == "near_expiry":
+            query = query.filter(batch_stats.c.min_exp >= date.today(), batch_stats.c.min_exp <= date.today() + timedelta(days=30))
+
+    total = query.count()
+    items = query.order_by(Medicine.created_at.desc()).offset(skip).limit(limit).all()
 
     # Data Masking
     role = token_payload.get("role", "")
@@ -266,6 +307,10 @@ def update_medicine(
 
         for field, value in update_data.items():
             if field in valid_columns and field not in ['id', 'tenant_id', 'created_at', 'updated_at']:
+                # Record last_location if shelf changes
+                if field == 'shelf' and value != medicine.shelf:
+                    setattr(medicine, 'last_location', medicine.shelf)
+
                 # Convert empty string → None for unique fields to avoid UNIQUE constraint failures
                 if field in UNIQUE_FIELDS and value == '':
                     value = None
@@ -349,6 +394,128 @@ def delete_medicine(
     db.delete(medicine)
     db.commit()
     return {"detail": "Medicine deleted"}
+
+
+@router.post("/medicines/bulk-delete")
+def bulk_delete_medicines(
+    payload: BulkDeletePayload,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_tenant_context),
+    token_payload: dict = Depends(requires_permission("inventory:manage"))
+):
+    try:
+        deleted_count = db.query(Medicine).filter(
+            Medicine.id.in_(payload.ids),
+            Medicine.tenant_id == tenant.tenant_id
+        ).delete(synchronize_session=False)
+        db.commit()
+        return {"detail": f"{deleted_count} medicines deleted"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/medicines/bulk-import")
+def bulk_import_medicines(
+    payload: BulkImportPayload,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_tenant_context),
+    current_user: User = Depends(get_current_user),
+    token_payload: dict = Depends(requires_permission("inventory:manage"))
+):
+    success_count = 0
+    failed_items = []
+    
+    for medicine_in in payload.medicines:
+        try:
+            if medicine_in.barcode:
+                exists = db.query(Medicine).filter(Medicine.barcode == medicine_in.barcode, Medicine.tenant_id == tenant.tenant_id).first()
+                if exists:
+                    failed_items.append({"name": medicine_in.name, "reason": f"Duplicate barcode: {medicine_in.barcode}"})
+                    continue
+                    
+            initial_batch = medicine_in.initial_batch
+            packaging_levels_in = medicine_in.packaging_levels or []
+            data = medicine_in.model_dump(exclude={"initial_batch", "substitute_ids", "packaging_levels"})
+            
+            category_name = data.pop("category", None)
+            if category_name:
+                cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == tenant.tenant_id).first()
+                if not cat:
+                    cat = Category(name=category_name, tenant_id=tenant.tenant_id)
+                    db.add(cat)
+                    db.flush()
+                data["category_id"] = cat.id
+
+            med = Medicine(**data, tenant_id=tenant.tenant_id)
+            db.add(med)
+            db.flush()
+            
+            for level_in in packaging_levels_in:
+                if level_in.sale_price <= 0:
+                    cost = med.cost_per_base_unit or 0.0
+                    margin = med.margin_percent or 0.0
+                    calculated_price = (cost * level_in.conversion_qty) * (1 + (margin / 100))
+                    level_in.sale_price = calculated_price
+                    
+                pkg = PackagingLevel(
+                    medicine_id=med.id,
+                    level_name=level_in.level_name,
+                    conversion_qty=level_in.conversion_qty,
+                    barcode=level_in.barcode,
+                    secondary_barcode=level_in.secondary_barcode,
+                    is_purchase_unit=level_in.is_purchase_unit,
+                    is_sale_unit=level_in.is_sale_unit,
+                    is_smallest_unit=level_in.is_smallest_unit,
+                    is_default_pos_unit=level_in.is_default_pos_unit,
+                    sale_price=level_in.sale_price
+                )
+                db.add(pkg)
+                
+            db.flush()
+
+            if initial_batch and initial_batch.current_stock > 0:
+                batch = Batch(
+                    tenant_id=tenant.tenant_id,
+                    branch_id=tenant.branch_id,
+                    medicine_id=med.id,
+                    batch_number=initial_batch.batch_number,
+                    manufacturing_date=initial_batch.manufacturing_date,
+                    expiry_date=initial_batch.expiry_date,
+                    supplier_id=initial_batch.supplier_id,
+                    purchase_invoice_id=initial_batch.purchase_invoice_id,
+                    mrp=initial_batch.mrp,
+                    initial_quantity=initial_batch.current_stock,
+                    current_quantity=initial_batch.current_stock,
+                    cost_per_base_unit=med.cost_per_base_unit
+                )
+                db.add(batch)
+                db.flush()
+                
+                movement = StockMovement(
+                    tenant_id=tenant.tenant_id,
+                    branch_id=tenant.branch_id,
+                    medicine_id=med.id,
+                    batch_id=batch.id,
+                    user_id=current_user.id,
+                    movement_type="Opening Balance",
+                    quantity_change=initial_batch.current_stock,
+                    balance_after=initial_batch.current_stock,
+                    notes="Initial stock from Bulk Import"
+                )
+                db.add(movement)
+            
+            db.commit()
+            success_count += 1
+            
+        except IntegrityError as e:
+            db.rollback()
+            failed_items.append({"name": medicine_in.name, "reason": "Database Integrity Error (Duplicate name/SKU)"})
+        except Exception as e:
+            db.rollback()
+            failed_items.append({"name": medicine_in.name, "reason": str(e)})
+
+    return {"detail": f"{success_count} medicines imported successfully", "failed": failed_items, "success_count": success_count}
 
 
 @router.get("/medicines/{id}/batches", response_model=List[BatchResponse])

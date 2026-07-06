@@ -30,7 +30,7 @@ def map_sale_to_response(sale: Sale) -> dict:
         "invoice_number": sale.invoice_number,
         "customer_id": sale.customer_id,
         "cashier_id": sale.cashier_id,
-        "cashier_name": sale.cashier.username if sale.cashier else "Unknown",
+        "cashier_name": (sale.cashier.full_name or sale.cashier.username) if sale.cashier else "Unknown",
         "sale_date": sale.sale_date,
         "subtotal": sale.subtotal,
         "discount_amount": sale.discount_amount,
@@ -324,7 +324,7 @@ def delete_held_sale(
     Deletes a parked/held sale so it can be resumed.
     """
     sale = sale_repo.get(db, id=sale_id, tenant_id=tenant.tenant_id)
-    if not sale or sale.branch_id != tenant.branch_id:
+    if not sale or (tenant.branch_id and sale.branch_id != tenant.branch_id):
         raise HTTPException(status_code=404, detail="Sale not found")
     if sale.status not in ("Held", "Pending Verification"):
         raise HTTPException(status_code=400, detail="Only held or pending sales can be deleted")
@@ -343,9 +343,28 @@ def get_sale_detail(
     """
     Retrieve full details of a specific sale.
     """
-    sale = sale_repo.get(db, id=sale_id, tenant_id=tenant.tenant_id)
-    if not sale or sale.branch_id != tenant.branch_id:
-        raise HTTPException(status_code=404, detail="Sale not found")
+    import uuid
+    from models.sales import Sale
+    
+    sale = None
+    
+    try:
+        # Validate if sale_id is a valid UUID
+        uuid.UUID(sale_id)
+        sale = sale_repo.get(db, id=sale_id, tenant_id=tenant.tenant_id)
+    except ValueError:
+        pass
+        
+    # Fallback to search by invoice_number in case sale_id is an invoice string (e.g. from view_id URL param)
+    if not sale:
+        sale = db.query(Sale).filter(
+            Sale.invoice_number == sale_id,
+            Sale.tenant_id == tenant.tenant_id,
+            Sale.is_deleted == False
+        ).first()
+
+    if not sale or (tenant.branch_id and sale.branch_id != tenant.branch_id):
+        raise HTTPException(status_code=404, detail=f"Sale not found for ID: {sale_id}")
     return map_sale_to_response(sale)
 
 @router.post("/{sale_id}/return", response_model=SaleReturnResponse)

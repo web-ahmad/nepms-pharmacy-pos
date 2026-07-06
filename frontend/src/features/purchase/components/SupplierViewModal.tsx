@@ -1,6 +1,8 @@
-import { X, Package, DollarSign, MapPin, Phone, Mail, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { X, Package, DollarSign, MapPin, Phone, Mail, FileText, Activity } from 'lucide-react';
 import { Supplier } from '../types/purchase';
 import { useSupplierMedicines } from '../services/purchase.api';
+import SupplierScorecard from './SupplierScorecard';
 
 interface SupplierViewModalProps {
   supplier: Supplier & { region_name?: string };
@@ -9,10 +11,11 @@ interface SupplierViewModalProps {
 
 export default function SupplierViewModal({ supplier, onClose }: SupplierViewModalProps) {
   const { data: medicines, isLoading } = useSupplierMedicines(supplier.id);
+  const [activeTab, setActiveTab] = useState<'overview' | 'performance'>('overview');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="w-full max-w-4xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl dark:bg-zinc-950 border dark:border-zinc-800">
+      <div className="w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl dark:bg-zinc-950 border dark:border-zinc-800">
         
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 rounded-t-2xl shrink-0">
@@ -39,10 +42,37 @@ export default function SupplierViewModal({ supplier, onClose }: SupplierViewMod
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex px-6 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'overview'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('performance')}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'performance'
+                ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            Performance Analytics
+          </button>
+        </div>
+
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-8">
+        <div className="p-6 overflow-y-auto flex-1 bg-zinc-50/30 dark:bg-zinc-950/50">
           
-          {/* Top Info Grid */}
+          {activeTab === 'overview' ? (
+            <div className="space-y-8">
+              {/* Top Info Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Contact Information */}
@@ -142,7 +172,12 @@ export default function SupplierViewModal({ supplier, onClose }: SupplierViewMod
               )}
             </div>
           </div>
-
+            </div>
+          ) : (
+            <div className="animate-in fade-in duration-200">
+              <SupplierScorecard supplierId={supplier.id} />
+            </div>
+          )}
         </div>
       </div>
     </div>

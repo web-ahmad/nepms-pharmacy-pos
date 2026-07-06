@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ScanLineIcon, Loader2Icon, CameraIcon } from 'lucide-react';
+import { ScanLine, Loader2, Camera, CheckCircle2, XCircle } from 'lucide-react';
 
 interface BarcodeScannerModalProps {
   onScan: (barcode: string) => void;
@@ -11,132 +11,184 @@ interface BarcodeScannerModalProps {
 
 export function BarcodeScannerModal({ onScan }: BarcodeScannerModalProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const [status, setStatus] = useState<'loading' | 'scanning' | 'success' | 'error'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [scannedValue, setScannedValue] = useState('');
+  const scannerRef = useRef<any>(null);
+  const containerIdRef = useRef(`html5-qrscanner-${Math.random().toString(36).slice(2)}`);
 
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        const state = scannerRef.current.getState?.();
+        // Html5QrcodeScanner states: 1=NOT_STARTED, 2=SCANNING, 3=PAUSED
+        if (state === 2 || state === 3) {
+          await scannerRef.current.stop();
+        }
+      } catch (_) {
+        // ignore stop errors
+      }
+      scannerRef.current = null;
+    }
+  }, []);
+
+  const startScanner = useCallback(async () => {
+    setStatus('loading');
+    setErrorMsg('');
+    setScannedValue('');
+
+    // Dynamic import to avoid SSR issues
+    const { Html5Qrcode } = await import('html5-qrcode');
+
+    await stopScanner();
+
+    const id = containerIdRef.current;
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const html5Qrcode = new Html5Qrcode(id);
+    scannerRef.current = html5Qrcode;
+
+    try {
+      await html5Qrcode.start(
+        { facingMode: 'environment' },
+        {
+          fps: 15,
+          qrbox: { width: 260, height: 120 },
+          aspectRatio: 1.777,
+          disableFlip: false,
+        } as any,
+        async (decodedText: string) => {
+          // Immediate stop on first successful scan
+          setScannedValue(decodedText);
+          setStatus('success');
+          await html5Qrcode.stop().catch(() => {});
+          scannerRef.current = null;
+
+          // Play success beep
+          playBeep();
+
+          // Auto-close after short delay and populate field
+          setTimeout(() => {
+            onScan(decodedText);
+            setIsOpen(false);
+          }, 700);
+        },
+        // Ignore frame errors (normal during scanning)
+        () => {}
+      );
+      setStatus('scanning');
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Camera access denied or not available.');
+      setStatus('error');
+    }
+  }, [onScan, stopScanner]);
+
+  // Start scanner when dialog opens
   useEffect(() => {
     if (isOpen) {
-      startCamera();
+      // Small delay to let dialog DOM mount
+      const t = setTimeout(() => startScanner(), 150);
+      return () => clearTimeout(t);
     } else {
-      stopCamera();
+      stopScanner();
+      setStatus('loading');
+      setScannedValue('');
     }
-    return () => stopCamera();
-  }, [isOpen]);
+  }, [isOpen, startScanner, stopScanner]);
 
-  const startCamera = async () => {
-    setError(null);
-    setIsScanning(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      
-      scanLoop();
-    } catch (err: any) {
-      setError(err.message || "Failed to access camera");
-      setIsScanning(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    setIsScanning(false);
-  };
-
-  const scanLoop = async () => {
-    if (!isOpen) return;
-    
-    // @ts-ignore
-    if ('BarcodeDetector' in window) {
-      try {
-        // @ts-ignore
-        const barcodeDetector = new BarcodeDetector({ formats: ['qr_code', 'ean_13', 'code_128', 'code_39', 'upc_a', 'upc_e'] });
-        const checkVideo = async () => {
-          if (!isOpen || !videoRef.current) return;
-          if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-            const barcodes = await barcodeDetector.detect(videoRef.current);
-            if (barcodes.length > 0) {
-              handleScan(barcodes[0].rawValue);
-              return;
-            }
-          }
-          requestAnimationFrame(checkVideo);
-        };
-        checkVideo();
-      } catch (e) {
-        console.error("BarcodeDetector error", e);
-      }
-    } else {
-      console.warn("BarcodeDetector API not supported in this browser.");
-    }
-  };
-
-  const handleScan = (value: string) => {
-    onScan(value);
-    setIsOpen(false);
-  };
+  // Cleanup on unmount
+  useEffect(() => () => { stopScanner(); }, [stopScanner]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-10 w-10 rounded-md shrink-0" title="Scan Barcode">
-        <ScanLineIcon className="w-5 h-5 text-blue-600" />
+      <DialogTrigger
+        className="inline-flex items-center justify-center h-full w-10 hover:bg-slate-100 transition-colors rounded-r-custom text-blue-600 hover:text-blue-700"
+        title="Scan Barcode"
+      >
+        <ScanLine className="w-[18px] h-[18px]" />
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CameraIcon className="w-5 h-5 text-blue-600" />
+
+      <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden rounded-2xl">
+        <DialogHeader className="px-5 pt-5 pb-0">
+          <DialogTitle className="flex items-center gap-2 text-slate-800">
+            <Camera className="w-5 h-5 text-blue-600" />
             Scan Barcode
           </DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900 rounded-lg min-h-[300px] border border-zinc-200 dark:border-zinc-800 relative overflow-hidden">
-          {error ? (
-            <div className="text-center text-red-500 space-y-2 p-4">
-              <p className="font-semibold">Camera Access Error</p>
-              <p className="text-sm">{error}</p>
-              <Button onClick={startCamera} variant="outline" className="mt-4">Try Again</Button>
+
+        <div className="relative bg-black overflow-hidden" style={{ minHeight: 260 }}>
+          {/* Scanner mounts here */}
+          <div
+            id={containerIdRef.current}
+            className="w-full"
+            style={{ minHeight: 260 }}
+          />
+
+          {/* Loading overlay */}
+          {status === 'loading' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-20 gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+              <p className="text-white text-sm font-medium">Starting camera...</p>
             </div>
-          ) : (
-            <>
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
-                className="w-full h-full object-cover absolute inset-0 z-0 opacity-80"
-              />
-              <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                <div className="w-64 h-32 border-2 border-blue-500 rounded-xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
-                  <div className="absolute w-full h-0.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] top-1/2 -translate-y-1/2 animate-pulse" />
-                </div>
-              </div>
-              <div className="absolute bottom-4 z-20 flex flex-col items-center gap-3 w-full px-4">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-black/60 text-white rounded-full text-xs font-medium backdrop-blur-sm">
-                  <Loader2Icon className="w-3 h-3 animate-spin" />
-                  Scanning for barcodes...
-                </div>
-                {/* Fallback button for demo/testing when API is unsupported */}
-                <Button 
-                  size="sm" 
-                  variant="secondary" 
-                  className="w-full opacity-90"
-                  onClick={() => handleScan(Math.floor(Math.random() * 9000000000000 + 1000000000000).toString())}
-                >
-                  Simulate Scan (Demo)
-                </Button>
-              </div>
-            </>
           )}
+
+          {/* Success overlay */}
+          {status === 'success' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-emerald-900/90 z-20 gap-3 animate-in fade-in duration-200">
+              <CheckCircle2 className="w-14 h-14 text-emerald-400" />
+              <p className="text-white text-sm font-semibold">Scanned!</p>
+              <p className="text-emerald-300 text-xs font-mono px-4 text-center break-all">{scannedValue}</p>
+            </div>
+          )}
+
+          {/* Error overlay */}
+          {status === 'error' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20 gap-3 p-6">
+              <XCircle className="w-10 h-10 text-red-400" />
+              <p className="text-red-300 text-sm font-semibold text-center">Camera Error</p>
+              <p className="text-zinc-400 text-xs text-center">{errorMsg}</p>
+              <Button onClick={startScanner} size="sm" variant="outline" className="mt-2 text-white border-zinc-600 hover:bg-zinc-800">
+                Try Again
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer hint */}
+        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+          <p className="text-xs text-slate-500">
+            {status === 'scanning' ? 'Point camera at barcode — auto-captures instantly' : ''}
+          </p>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs text-slate-500 hover:text-slate-700"
+            onClick={() => setIsOpen(false)}
+          >
+            Cancel
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
   );
+}
+
+// Minimal success beep using Web Audio API
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1046, ctx.currentTime); // C6
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.25);
+  } catch (_) {
+    // Audio not available — silent fail
+  }
 }

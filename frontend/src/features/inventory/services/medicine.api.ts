@@ -256,3 +256,29 @@ export const useDeleteMedicine = () => {
     }
   });
 };
+
+export const useBulkDeleteMedicines = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await api.post('/api/v1/inventory/medicines/bulk-delete', { ids });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['medicines'] });
+    }
+  });
+};
+
+export const useBulkImportMedicines = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (medicines: any[]) => {
+      const res = await api.post('/api/v1/inventory/medicines/bulk-import', { medicines });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['medicines'] });
+    }
+  });
+};

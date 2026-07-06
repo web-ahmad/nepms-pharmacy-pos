@@ -28,8 +28,19 @@ export const useSaleDetail = (saleId?: string) => {
     queryKey: ['sales', 'detail', saleId],
     queryFn: async () => {
       if (!saleId) return null;
-      const response = await api.get<Sale>(`/api/v1/sales/${saleId}`);
-      return response.data;
+      try {
+        console.log(`[useSaleDetail] Fetching: /api/v1/sales/${saleId}`);
+        const response = await api.get<Sale>(`/api/v1/sales/${saleId}`);
+        return response.data;
+      } catch (error: any) {
+        console.error("[useSaleDetail] Failed to fetch invoice:", {
+          url: `/api/v1/sales/${saleId}`,
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        });
+        throw error;
+      }
     },
     enabled: !!saleId
   });

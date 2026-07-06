@@ -9,15 +9,23 @@ class Department(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
     name = Column(String)
+    description = Column(String, nullable=True)
+    head_id = Column(String, ForeignKey("employees.id"), nullable=True)
+    is_active = Column(Boolean, default=True)
     
-    employees = relationship("Employee", back_populates="department")
+    employees = relationship("Employee", back_populates="department", foreign_keys="[Employee.department_id]")
+    head = relationship("Employee", foreign_keys=[head_id])
 
 class Designation(Base):
     __tablename__ = "designations"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
     name = Column(String)
+    department_id = Column(String, ForeignKey("departments.id"), nullable=True)
+    description = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
     
+    department = relationship("Department")
     employees = relationship("Employee", back_populates="designation")
 
 class Employee(Base):
@@ -28,6 +36,14 @@ class Employee(Base):
     last_name = Column(String)
     email = Column(String, nullable=True)
     phone = Column(String, nullable=True)
+    cnic = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    dob = Column(Date, nullable=True)
+    gender = Column(String, nullable=True)
+    employee_id = Column(String, unique=True, index=True, nullable=True)
+    username = Column(String, unique=True, index=True, nullable=True)
+    shift_id = Column(String, ForeignKey("shifts.id"), nullable=True)
+    
     department_id = Column(String, ForeignKey("departments.id"))
     designation_id = Column(String, ForeignKey("designations.id"))
     join_date = Column(Date)
@@ -35,8 +51,9 @@ class Employee(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    department = relationship("Department", back_populates="employees")
+    department = relationship("Department", back_populates="employees", foreign_keys=[department_id])
     designation = relationship("Designation", back_populates="employees")
+    shift = relationship("Shift", back_populates="employees", foreign_keys=[shift_id])
     attendances = relationship("Attendance", back_populates="employee")
     leave_requests = relationship("LeaveRequest", back_populates="employee")
     payroll_lines = relationship("PayrollLine", back_populates="employee")
@@ -48,6 +65,10 @@ class Shift(Base):
     name = Column(String)
     start_time = Column(String) # HH:MM
     end_time = Column(String) # HH:MM
+    grace_period = Column(Integer, default=15)
+    is_active = Column(Boolean, default=True)
+    
+    employees = relationship("Employee", back_populates="shift", foreign_keys="[Employee.shift_id]")
 
 class Attendance(Base):
     __tablename__ = "attendance"

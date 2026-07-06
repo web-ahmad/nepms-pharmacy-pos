@@ -15,6 +15,7 @@ class CustomerBase(BaseModel):
     medical_history: Optional[str] = None
     allergies: Optional[str] = None
     credit_limit: float = 0.0
+    is_active: Optional[bool] = True
 
 class CustomerCreate(CustomerBase):
     pass
@@ -31,6 +32,10 @@ class CustomerUpdate(BaseModel):
     medical_history: Optional[str] = None
     allergies: Optional[str] = None
     credit_limit: Optional[float] = None
+    is_active: Optional[bool] = None
+
+class CustomerStatusUpdate(BaseModel):
+    status: str
 
 class CustomerResponse(CustomerBase):
     id: str

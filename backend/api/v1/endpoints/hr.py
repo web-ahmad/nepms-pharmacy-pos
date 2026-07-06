@@ -11,9 +11,10 @@ from schemas.hr import (
     EmployeeCreate, EmployeeUpdate, EmployeeResponse,
     AttendanceCreate, AttendanceResponse,
     LeaveRequestCreate, LeaveRequestResponse,
-    ShiftCreate, ShiftResponse,
+    ShiftCreate, ShiftResponse, ShiftUpdate,
     PayrollRunCreate, PayrollRunResponse,
-    HRAnalyticsResponse
+    HRAnalyticsResponse,
+    DesignationCreate, DesignationResponse, DesignationUpdate
 )
 from services.hr_service import HRService
 
@@ -33,7 +34,30 @@ def get_departments(db: Session = Depends(get_db), current_user: User = Depends(
 
 @router.post("/departments", response_model=DepartmentResponse)
 def create_department(obj_in: DepartmentCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
-    return HRService(db).create_department(current_user.tenant_id, obj_in)
+    try:
+        return HRService(db).create_department(current_user.tenant_id, obj_in)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Failed to create department: {str(e)}")
+
+from schemas.hr import DepartmentUpdate
+@router.put("/departments/{id}", response_model=DepartmentResponse)
+def update_department(id: str, obj_in: DepartmentUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).update_department(current_user.tenant_id, id, obj_in)
+
+# Designations
+@router.get("/designations", response_model=List[DesignationResponse])
+def get_designations(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+    return HRService(db).get_designations(current_user.tenant_id)
+
+@router.post("/designations", response_model=DesignationResponse)
+def create_designation(obj_in: DesignationCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+    return HRService(db).create_designation(current_user.tenant_id, obj_in)
+
+@router.put("/designations/{id}", response_model=DesignationResponse)
+def update_designation(id: str, obj_in: DesignationUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).update_designation(current_user.tenant_id, id, obj_in)
 
 # Employees
 @router.get("/employees", response_model=List[EmployeeResponse])
@@ -82,6 +106,10 @@ def get_shifts(db: Session = Depends(get_db), current_user: User = Depends(requi
 @router.post("/shifts", response_model=ShiftResponse)
 def create_shift(obj_in: ShiftCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
     return HRService(db).create_shift(current_user.tenant_id, obj_in)
+
+@router.put("/shifts/{id}", response_model=ShiftResponse)
+def update_shift(id: str, obj_in: ShiftUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).update_shift(current_user.tenant_id, id, obj_in)
 
 # Payroll
 @router.get("/payroll", response_model=List[PayrollRunResponse])

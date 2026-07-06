@@ -61,3 +61,17 @@ export const useCreateUser = () => {
     }
   });
 };
+
+export const useUpdateUser = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, data }: { userId: string; data: Partial<User> & { password?: string } }) => {
+      const res = await api.put(`/api/v1/admin/users/${userId}`, data);
+      return res.data as User;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    }
+  });
+};
+

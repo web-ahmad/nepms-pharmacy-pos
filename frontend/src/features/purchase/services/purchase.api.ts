@@ -317,3 +317,46 @@ export const useGenerateAutoSplitPOs = () => {
   });
 };
 
+// --- Analytics ---
+export const useSupplierScorecard = (supplierId: string) => {
+  const { data: orders, isLoading, isError } = usePurchaseOrders();
+  
+  if (isLoading || isError || !orders) {
+    return { fulfillmentRate: 0, avgLeadTime: 0, qualityScore: 0, overallStars: 0, totalOrders: 0, isLoading, isError };
+  }
+
+  const supplierOrders = orders.filter(o => o.supplier_id === supplierId);
+  const totalOrders = supplierOrders.length;
+  
+  if (totalOrders === 0) {
+    return { fulfillmentRate: 0, avgLeadTime: 0, qualityScore: 0, overallStars: 0, totalOrders: 0, isLoading: false, isError: false };
+  }
+
+  const receivedOrders = supplierOrders.filter(o => o.status === 'Received');
+  const cancelledOrders = supplierOrders.filter(o => o.status === 'Cancelled');
+  
+  const fulfillmentRate = (receivedOrders.length / totalOrders) * 100;
+  
+  // Calculate average lead time (Days between created_at and updated_at for received orders)
+  let totalLeadTime = 0;
+  receivedOrders.forEach(o => {
+    const created = o.created_at ? new Date(o.created_at).getTime() : Date.now();
+    const updated = o.updated_at ? new Date(o.updated_at).getTime() : Date.now();
+    const days = (updated - created) / (1000 * 3600 * 24);
+    totalLeadTime += days > 0 ? days : 1; // Default to 1 day if very quick
+  });
+  const avgLeadTime = receivedOrders.length > 0 ? totalLeadTime / receivedOrders.length : 0;
+  
+  // Simple Quality Score heuristic
+  const qualityScore = Math.max(0, 100 - ((cancelledOrders.length / totalOrders) * 50));
+  
+  // Compute stars (1 to 5)
+  // Base 2.5 for just existing, plus up to 1.5 for fulfillment, plus up to 1 for quality
+  let stars = 2.5;
+  stars += (fulfillmentRate / 100) * 1.5;
+  stars += (qualityScore / 100) * 1.0;
+  const overallStars = Math.min(5, Math.max(1, Math.round(stars * 10) / 10)); // Round to 1 decimal
+
+  return { fulfillmentRate, avgLeadTime, qualityScore, overallStars, totalOrders, isLoading: false, isError: false };
+};
+

@@ -40,7 +40,7 @@ export default function MedicineOverview({ medicine }: MedicineOverviewProps) {
         { label: "Base Unit", value: medicine.base_unit || "-" },
         { label: "Strips per Box/Pack", value: stripsPerBox > 1 ? stripsPerBox : "-" },
         { label: "Units per Strip", value: unitsPerStrip > 1 ? unitsPerStrip : "-" },
-        { label: "Volume / Weight", value: medicine.volume_weight ? medicine.volume_weight : "-" },
+        { label: "Strength", value: medicine.strength ? medicine.strength : "-" },
       ]
     },
     {

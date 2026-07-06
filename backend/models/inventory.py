@@ -53,6 +53,7 @@ class Medicine(BaseModel):
     max_stock_level = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     shelf = Column(String(100), nullable=True)
+    last_location = Column(String(100), nullable=True)
     
     therapeutic_class = Column(String(100))
     sku = Column(String(100), unique=True, index=True)
@@ -85,6 +86,7 @@ class Medicine(BaseModel):
     image_url = Column(String(500))
     status = Column(String(50), default="Active")
     unit_retail_price = Column(Float, default=0.0)
+    season_type = Column(String(50), nullable=True) # SUMMER, WINTER, MONSOON, ALL-SEASON
     
     batches = relationship("Batch", back_populates="medicine")
     packaging_levels = relationship("PackagingLevel", back_populates="medicine", cascade="all, delete-orphan")
@@ -210,6 +212,7 @@ class AuditSession(BaseModel):
     status = Column(String(50), default="Draft") # Draft, In Progress, Under Review, Completed
     scope_type = Column(String(50)) # Category, Location, All
     scope_value = Column(String(255))
+    is_blind = Column(Boolean, default=False)
     
     start_date = Column(DateTime, nullable=True)
     completion_date = Column(DateTime, nullable=True)

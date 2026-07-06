@@ -168,6 +168,25 @@ export default function PurchaseOrderForm() {
                         className="w-full rounded-md border border-zinc-300 py-2 pl-7 pr-3 text-sm text-right focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                       />
                     </div>
+                    {(() => {
+                      const medId = watchItems[index]?.medicine_id;
+                      if (!medId) return null;
+                      const med = medicines.find((m: any) => m.id === medId);
+                      if (!med) return null;
+                      const currentPrice = watchItems[index]?.unit_price || 0;
+                      if (currentPrice === 0) return null;
+                      
+                      const avgPrice = med.purchase_price || 0;
+                      if (avgPrice === 0) return null;
+
+                      if (currentPrice > avgPrice * 1.05) {
+                        return <div className="mt-1 flex justify-end"><span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20 dark:bg-yellow-900/30 dark:text-yellow-500">Above Avg</span></div>;
+                      }
+                      if (currentPrice <= avgPrice) {
+                        return <div className="mt-1 flex justify-end"><span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20 dark:bg-green-900/30 dark:text-green-400">Best Deal</span></div>;
+                      }
+                      return null;
+                    })()}
                   </td>
                   <td className="py-3 px-2 text-right font-mono font-medium text-zinc-900 dark:text-zinc-100">
                     Rs {((watchItems[index]?.quantity_ordered || 0) * (watchItems[index]?.unit_price || 0)).toFixed(2)}

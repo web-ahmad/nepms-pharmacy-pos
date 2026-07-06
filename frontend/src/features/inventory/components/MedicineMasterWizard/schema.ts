@@ -77,6 +77,7 @@ export const medicineSchema = z.object({
 
   // Supplier
   preferred_supplier: z.string().nullable().optional(),
+  supplier_id: z.string().nullable().optional(),
   supplier_product_code: z.string().nullable().optional(),
   supplier_barcode: z.string().nullable().optional(),
   supplier_purchase_price: z.coerce.number().nullable().optional(),

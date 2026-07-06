@@ -41,7 +41,25 @@ class SalesService:
             except Exception:
                 pass
 
-            invoice_num = f"INV-{uuid.uuid4().hex[:6].upper()}"
+            # Generate sequential invoice_num
+            # Fetch all existing invoice numbers for the tenant
+            existing_invoices = db.query(Sale.invoice_number).filter(
+                Sale.tenant_id == tenant_id,
+                Sale.invoice_number.like('INV-%')
+            ).all()
+            
+            max_num = 0
+            for (inv_num,) in existing_invoices:
+                try:
+                    num_part = inv_num.replace('INV-', '').strip()
+                    # Only consider purely numeric parts to avoid legacy HEX strings messing up the sequence
+                    if num_part.isdigit():
+                        max_num = max(max_num, int(num_part))
+                except Exception:
+                    pass
+            
+            next_seq = max_num + 1
+            invoice_num = f"INV-{next_seq:02d}"
             total_amount = sum([(i.quantity * i.unit_price) - i.discount for i in checkout_in.items]) + checkout_in.tax_amount + checkout_in.adjustment_amount
             
             # Enforce strict payment validation for Single Counter mode
@@ -168,12 +186,14 @@ class SalesService:
         updates status, and records ledger entries.
         """
         try:
-            sale = db.query(Sale).filter(
+            query = db.query(Sale).filter(
                 Sale.id == sale_id,
                 Sale.tenant_id == tenant_id,
-                Sale.branch_id == branch_id,
                 Sale.is_deleted == False
-            ).first()
+            )
+            if branch_id:
+                query = query.filter(Sale.branch_id == branch_id)
+            sale = query.first()
             if not sale:
                 raise HTTPException(status_code=404, detail="Sale not found or access denied")
             
@@ -298,12 +318,14 @@ class SalesService:
         voided_by: str = None
     ) -> Sale:
         try:
-            sale = db.query(Sale).filter(
+            query = db.query(Sale).filter(
                 Sale.id == sale_id,
                 Sale.tenant_id == tenant_id,
-                Sale.branch_id == branch_id,
                 Sale.is_deleted == False
-            ).first()
+            )
+            if branch_id:
+                query = query.filter(Sale.branch_id == branch_id)
+            sale = query.first()
             if not sale:
                 raise ValueError("Sale not found")
                 
@@ -481,12 +503,14 @@ class SalesService:
         Validates returned quantities and adjusts stock + customer ledger balances accordingly.
         """
         try:
-            sale = db.query(Sale).filter(
+            query = db.query(Sale).filter(
                 Sale.id == sale_id,
                 Sale.tenant_id == tenant_id,
-                Sale.branch_id == branch_id,
                 Sale.is_deleted == False
-            ).first()
+            )
+            if branch_id:
+                query = query.filter(Sale.branch_id == branch_id)
+            sale = query.first()
             if not sale:
                 raise ValueError("Sale not found or access denied")
 
@@ -642,12 +666,20 @@ class SalesService:
             # Update Sale Status
             # Let's count total items returned so far across all items in the sale
             db.flush() # ensure current return items are counted in DB
+            
+            # Since relationship is cached, we must sum directly from the DB to be safe
             total_items_sold = sum(si.quantity for si in sale.items)
-            total_items_returned = sum(si.quantity_returned_so_far for si in sale.items)
-
-            if total_items_returned >= total_items_sold:
-                sale.status = "Fully Returned"
-            elif total_items_returned > 0:
+            
+            # Query db directly to bypass relationship caching
+            from sqlalchemy import func
+            total_returned_db = db.query(func.sum(SaleReturnItem.quantity_returned))\
+                .join(SaleItem)\
+                .filter(SaleItem.sale_id == sale.id)\
+                .scalar() or 0
+                
+            if total_returned_db >= total_items_sold:
+                sale.status = "Returned"
+            elif total_returned_db > 0:
                 sale.status = "Partially Returned"
 
             db.commit()

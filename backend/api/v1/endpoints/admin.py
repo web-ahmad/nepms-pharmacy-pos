@@ -100,3 +100,42 @@ def update_role(role_id: str, role_in: RoleCreateUpdate, db: Session = Depends(g
 def list_permissions(db: Session = Depends(get_db), token_payload: dict = Depends(require_roles_manage)):
     perms = db.query(Permission).all()
     return [{"id": p.id, "module": p.module, "action": p.action, "code": p.code} for p in perms]
+
+class UserUpdate(BaseModel):
+    full_name: str | None = None
+    email: str | None = None
+    role_id: str | None = None
+    is_active: bool | None = None
+    password: str | None = None
+
+@router.put("/users/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: str,
+    user_in: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    token_payload: dict = Depends(require_users_manage)
+):
+    user = db.query(User).filter(User.id == user_id, User.tenant_id == current_user.tenant_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user_in.full_name is not None:
+        user.full_name = user_in.full_name
+    if user_in.email is not None:
+        # Check email not taken by another user
+        existing = db.query(User).filter(User.email == user_in.email, User.id != user_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use by another user")
+        user.email = user_in.email
+    if user_in.role_id is not None:
+        user.role_id = user_in.role_id
+    if user_in.is_active is not None:
+        user.is_active = user_in.is_active
+    if user_in.password:
+        user.hashed_password = get_password_hash(user_in.password)
+
+    db.commit()
+    db.refresh(user)
+    return user
+

@@ -303,8 +303,8 @@ export default function AutoPurchaseEngine() {
                               <option key={opt.supplier_id} value={opt.supplier_id}>
                                 {opt.supplier_name} — Rs {opt.trade_price.toFixed(2)}
                                 {opt.bonus_scheme_threshold > 0 ? ` (Buy ${opt.bonus_scheme_threshold} get 1)` : ''}
-                                {opt.is_fallback ? ' 🏷️ (Ledger Fallback)' : (isBestValue ? ' 🌟 Best Value' : '')}
-                                {isSlow ? ' ⚠️ Slow Lead' : ''}
+                                {opt.is_fallback ? '  (Ledger Fallback)' : (isBestValue ? '  Best Value' : '')}
+                                {isSlow ? '  Slow Lead' : ''}
                               </option>
                             )
                           })}

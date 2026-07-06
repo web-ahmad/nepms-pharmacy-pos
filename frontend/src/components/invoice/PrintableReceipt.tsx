@@ -3,10 +3,14 @@ import React from 'react';
 export interface PrintableReceiptProps {
   invoice: any;
   settings?: any;
+  /** 'sale' (default) or 'return' — controls the invoice label only */
+  type?: 'sale' | 'return';
 }
 
-export default function PrintableReceipt({ invoice, settings }: PrintableReceiptProps) {
+export default function PrintableReceipt({ invoice, settings, type = 'sale' }: PrintableReceiptProps) {
   if (!invoice) return null;
+
+  const isReturn = type === 'return';
 
   // Determine display values for the receipt.
   const isPickingSlip = invoice.status === 'Pending Verification';
@@ -18,19 +22,33 @@ export default function PrintableReceipt({ invoice, settings }: PrintableReceipt
 
   const currencySymbol = settings?.show_currency_symbol !== false ? 'Rs ' : '';
 
+  // ── Business identity from settings ───────────────────────────────────
+  const businessName    = settings?.business_name    || 'NEPMS Pharmacy';
+  const businessAddress = settings?.business_address || 'Plot 12-C, Commercial Area, Sector G-10';
+  const businessPhone   = settings?.business_phone   || '+92-51-1234567';
+
   return (
     <div className="receipt-print-wrapper w-full flex items-center justify-center">
       <div className="receipt-container w-[80mm] min-w-[80mm] max-w-[80mm] bg-white text-zinc-900 p-4 border border-zinc-200 shadow-sm font-mono text-[11px] leading-relaxed dark:bg-white dark:text-zinc-900">
         
         {/* Header */}
         <div className="text-center space-y-1 mb-4">
-          {settings?.show_logo !== false && (
-            <h3 className="text-sm font-bold tracking-wide uppercase">NEPMS PHARMACY</h3>
+          {/* Return Invoice label — only structural difference */}
+          {isReturn && (
+            <p className="text-[11px] font-bold tracking-widest border border-black px-2 py-0.5 inline-block mb-1">
+              ⟵ RETURN INVOICE ⟶
+            </p>
           )}
-          <p className="text-[10px] text-zinc-600">Plot 12-C, Commercial Area, Sector G-10</p>
-          <p className="text-[10px] text-zinc-600">Ph: +92-51-1234567</p>
+          {settings?.show_logo !== false && (
+            <h3 className="text-sm font-bold tracking-wide uppercase">{businessName}</h3>
+          )}
+          <p className="text-[10px] text-zinc-600">{businessAddress}</p>
+          <p className="text-[10px] text-zinc-600">Ph: {businessPhone}</p>
           {settings?.show_drug_license !== false && settings?.drug_license_number && (
             <p className="text-[10px] text-zinc-600">Drug Lic #: {settings.drug_license_number}</p>
+          )}
+          {settings?.show_ntn === true && settings?.business_ntn && (
+            <p className="text-[10px] text-zinc-600">NTN: {settings.business_ntn}</p>
           )}
           <div className="border-b border-dashed border-zinc-300 my-2"></div>
         </div>

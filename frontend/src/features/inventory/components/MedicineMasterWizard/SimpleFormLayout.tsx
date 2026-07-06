@@ -6,9 +6,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import toast from 'react-hot-toast';
-import { Save, X, Loader2, Info, ChevronDown, ChevronRight, Package, Calculator, MapPin, Tag, Box, LayoutGrid, Clock, ShieldAlert, Barcode, Settings2 } from 'lucide-react';
+import { Save, X, Loader2, Info, ChevronDown, ChevronRight, Package, Calculator, MapPin, Tag, Box, LayoutGrid, Clock, ShieldAlert, Barcode, Settings2, Wand2 } from 'lucide-react';
 import { useCreateMedicine, useUpdateMedicine } from '@/features/inventory/services/medicine.api';
 import { useMasterData } from '@/features/inventory/services/masterData.api';
+import { useSuppliers } from '@/features/purchase/services/purchase.api';
 import { parseApiError } from '@/utils/errorParser';
 
 import { medicineSchema, MedicineFormValues, defaultMedicineValues } from './schema';
@@ -32,6 +33,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
   const createMedicineMutation = useCreateMedicine();
   const updateMedicineMutation = useUpdateMedicine(medicineId || '');
   const settings = useMedicineFormSettings();
+  const { data: suppliers = [] } = useSuppliers();
 
   const [showSettings, setShowSettings] = useState(false);
   const methods = useForm<MedicineFormValues>({
@@ -45,8 +47,12 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
   useEffect(() => {
     if (initialData && isEdit) {
       reset(initialData);
+      // Explicitly bind the low stock alert level to ensure it prioritizes server data
+      if (initialData.min_stock_level !== undefined) {
+        setValue('min_stock_level', initialData.min_stock_level);
+      }
     }
-  }, [initialData, isEdit, reset]);
+  }, [initialData, isEdit, reset, setValue]);
 
   const onSubmit = async (data: MedicineFormValues) => {
     try {
@@ -140,8 +146,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
         } : undefined
       };
 
-      // Prevent backend from overwriting min_stock_level with reorder_level default 0
-      delete (payload as any).reorder_level;
+      // Ensure backend doesn't overwrite min_stock_level with a default reorder_level of 0
+      (payload as any).reorder_level = data.min_stock_level;
 
       // Sanitize payload: convert null/undefined to empty string ONLY for plain string fields
       // Do NOT touch numeric fields - the backend validators handle those
@@ -382,7 +388,6 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
   return (
     <div className="w-full max-w-5xl mx-auto pb-8">
 
-
       <FormProvider {...methods}>
         <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6">
 
@@ -401,7 +406,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   type="text"
                   {...register('name')}
                   placeholder="e.g., Amoxicillin 250mg"
-                  className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.name ? 'border-red-500' : ''}`}
+                  className={`w-full border rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.name ? 'border-red-500' : 'border-outline-variant'}`}
                 />
               </div>
 
@@ -455,6 +460,30 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                 />
               </div>
 
+              {/* Supplier — right after Manufacturer */}
+              <div className="col-span-1 md:col-span-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Supplier</label>
+                <Controller
+                  control={control}
+                  name="supplier_id"
+                  render={({ field }) => (
+                    <select
+                      value={field.value || ''}
+                      onChange={(e) => field.onChange(e.target.value || null)}
+                      className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 bg-white focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    >
+                      <option value="">Select Supplier</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                      {suppliers.length === 0 && (
+                        <option value="" disabled>No suppliers found</option>
+                      )}
+                    </select>
+                  )}
+                />
+              </div>
+
               {settings.showBrandName && (
                 <div className="col-span-1 md:col-span-4">
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Brand Name</label>
@@ -481,16 +510,29 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
 
               <div className="col-span-1 md:col-span-4">
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Barcode</label>
-                <div className="relative flex items-center">
+                <div className="flex items-center">
                   <input
                     type="text"
                     {...register('barcode')}
                     placeholder="Scan or Enter Barcode"
-                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all pr-10"
+                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   />
-                  <div className="shrink-0 h-10 rounded-r-custom border-y border-r border-outline-variant bg-slate-50 flex items-center justify-center">
+                  {/* Scanner button */}
+                  <div className="shrink-0 h-10 border-y border-outline-variant bg-slate-50 flex items-center justify-center border-l">
                     <BarcodeScannerModal onScan={(code) => setValue('barcode', code)} />
                   </div>
+                  {/* Random barcode generator button */}
+                  <button
+                    type="button"
+                    title="Generate random barcode"
+                    onClick={() => {
+                      const code = (Math.floor(Math.random() * 9000000000000) + 1000000000000).toString();
+                      setValue('barcode', code, { shouldDirty: true, shouldValidate: true });
+                    }}
+                    className="shrink-0 h-10 w-10 flex items-center justify-center rounded-r-custom border border-l-0 border-outline-variant bg-slate-50 hover:bg-violet-50 hover:border-violet-300 text-slate-400 hover:text-violet-600 transition-all"
+                  >
+                    <Wand2 size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -682,7 +724,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   step="0.01"
                   min="0"
                   {...register('mrp', { valueAsNumber: true })}
-                  className={`w-full border-outline-variant rounded-custom focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.mrp ? 'border-red-500' : ''}`}
+                  className={`w-full border rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.mrp ? 'border-red-500' : 'border-outline-variant'}`}
                 />
               </div>
               <div>
@@ -707,8 +749,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
           </section>
 
           {/* Section 5: Opening Stock & Batch Details */}
-          {!isEdit && (
-            <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-5">
+          <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-5">
               <div className="bg-slate-50/50 px-6 py-4 border-b border-outline-variant">
                 <h3 className="text-emerald-deep font-bold flex items-center gap-2">
                   <span className="w-6 h-6 bg-emerald-deep text-white text-xs flex items-center justify-center rounded-full">5</span>
@@ -723,7 +764,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     min="0"
                     {...register('opening_stock', { valueAsNumber: true })}
                     placeholder="0"
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    disabled={isEdit}
+                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
                   />
                 </div>
                 <div>
@@ -732,7 +774,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="text"
                     {...register('batch_number')}
                     placeholder="e.g., BATCH-001"
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    disabled={isEdit}
+                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
                   />
                 </div>
                 <div>
@@ -740,7 +783,8 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   <input
                     type="date"
                     {...register('manufacturing_date')}
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-600"
+                    disabled={isEdit}
+                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all text-slate-600 ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
                   />
                 </div>
                 <div>
@@ -748,12 +792,12 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   <input
                     type="date"
                     {...register('expiry_date')}
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-slate-600"
+                    disabled={isEdit}
+                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all text-slate-600 ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
                   />
                 </div>
               </div>
             </section>
-          )}
 
           {/* Section 6: Settings & Control */}
           <section className="bg-white rounded-xl shadow-sm border border-outline-variant overflow-hidden animate-fade-in delay-6">
@@ -829,6 +873,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
             </button>
           </div>
         </form>
+
       </FormProvider>
     </div>
   );

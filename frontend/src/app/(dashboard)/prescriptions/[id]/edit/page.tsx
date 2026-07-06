@@ -2,9 +2,12 @@
 
 import PrescriptionForm from '@/features/prescriptions/components/PrescriptionForm';
 import { usePrescriptionDetails } from '@/features/prescriptions/services/prescription.api';
+import { useParams } from 'next/navigation';
 
-export default function EditPrescriptionPage({ params }: { params: { id: string } }) {
-  const { data: prescription, isLoading } = usePrescriptionDetails(params.id);
+export default function EditPrescriptionPage() {
+  const params = useParams();
+  const id = params?.id as string;
+  const { data: prescription, isLoading } = usePrescriptionDetails(id);
 
   if (isLoading) return <div className="p-8 text-center animate-pulse">Loading prescription...</div>;
   if (!prescription) return <div className="p-8 text-center text-red-500">Prescription not found</div>;

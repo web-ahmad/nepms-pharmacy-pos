@@ -19,6 +19,8 @@ class AuditItemResponse(AuditItemBase):
     sku: Optional[str] = None
     batch_number: Optional[str] = None
     expiry_date: Optional[str] = None
+    dosage_form: Optional[str] = None
+    strength: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -27,6 +29,7 @@ class AuditSessionBase(BaseModel):
     name: str
     scope_type: str
     scope_value: str
+    is_blind: bool = False
     notes: Optional[str] = None
 
 class AuditSessionCreate(AuditSessionBase):

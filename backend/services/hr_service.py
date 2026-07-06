@@ -22,6 +22,25 @@ class HRService:
     def create_department(self, tenant_id: str, obj_in: DepartmentCreate):
         return self.repo.create_department(tenant_id, obj_in)
 
+    def update_department(self, tenant_id: str, dept_id: str, obj_in):
+        from schemas.hr import DepartmentUpdate
+        dept = self.repo.update_department(tenant_id, dept_id, obj_in)
+        if not dept:
+            raise HTTPException(404, "Department not found")
+        return dept
+
+    def get_designations(self, tenant_id: str):
+        return self.repo.get_designations(tenant_id)
+
+    def create_designation(self, tenant_id: str, obj_in):
+        return self.repo.create_designation(tenant_id, obj_in)
+
+    def update_designation(self, tenant_id: str, desig_id: str, obj_in):
+        desig = self.repo.update_designation(tenant_id, desig_id, obj_in)
+        if not desig:
+            raise HTTPException(404, "Designation not found")
+        return desig
+
     def get_employees(self, tenant_id: str):
         return self.repo.get_employees(tenant_id)
 
@@ -98,6 +117,12 @@ class HRService:
 
     def create_shift(self, tenant_id: str, obj_in: ShiftCreate):
         return self.repo.create_shift(tenant_id, obj_in)
+
+    def update_shift(self, tenant_id: str, shift_id: str, obj_in):
+        shift = self.repo.update_shift(tenant_id, shift_id, obj_in)
+        if not shift:
+            raise HTTPException(404, "Shift not found")
+        return shift
 
     def get_payroll_runs(self, tenant_id: str):
         return self.repo.get_payroll_runs(tenant_id)

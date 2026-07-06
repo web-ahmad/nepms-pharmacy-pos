@@ -38,10 +38,15 @@ class InvoiceSettings(Base):
     show_cashier_name = Column(Boolean, default=True)
     show_customer_name = Column(Boolean, default=True)
     show_drug_license = Column(Boolean, default=True)
+    show_ntn = Column(Boolean, default=False)
     
+    business_name = Column(String, default="NEPMS Pharmacy")
+    business_address = Column(String, default="Plot 12-C, Commercial Area, Sector G-10")
+    business_phone = Column(String, default="+92-51-1234567")
     footer_text = Column(String, default="Thank you for your business!")
     urdu_policy_text = Column(Text, default="خریداری کا شکریہ۔ فروخت شدہ ادویات واپس یا تبدیل نہیں ہوں گی۔")
     drug_license_number = Column(String, default="368-/NT/9/2015")
+    business_ntn = Column(String, nullable=True)
     
     print_mode = Column(String, default="Browser") # 'Browser', 'ESC_POS_RAW'
     paper_size = Column(String, default="80mm") # '58mm', '80mm'

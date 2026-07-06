@@ -41,6 +41,8 @@ export interface PurchaseOrder {
   total_amount: number;
   status: string; // Draft, Approved, Partially Received, Completed, Cancelled
   items: POItem[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface GRN {

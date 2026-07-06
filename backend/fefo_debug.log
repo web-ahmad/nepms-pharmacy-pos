@@ -1033,3 +1033,125 @@ movement_type: 'Sale'
 preferred_batch_id: None
 Found active batches count: 1
   Batch 1: BAT-050 (qty: 9, reserved: 0, status: Active, expiry: 2029-02-04)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: '73aa1a69-5264-4443-8934-c550f35ad09c'
+quantity_required: 1
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: 'e76377d0-b2e6-4273-bde2-c72abdb998bc'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 1
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: '71bb4dd8-74f6-4cc5-8d77-f3faa33be544'
+quantity_required: 10
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: '3e46285b-28ec-418f-a481-0a09c5a4284b'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 1
+  Batch 1: B-50 (qty: 1000, reserved: 0, status: Active, expiry: 2026-08-05)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: 'bbc69cd5-6c1b-44f1-8f26-e8164e954a70'
+quantity_required: 10
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: '3e46285b-28ec-418f-a481-0a09c5a4284b'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 1
+  Batch 1: B-50 (qty: 1000, reserved: 0, status: Active, expiry: 2026-07-30)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: '9d7f47ea-913a-4af7-829a-477be3a03f94'
+quantity_required: 1
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: '5ad6a44d-d2e0-4747-9574-39d5ca6e0892'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 1
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: 'bbc69cd5-6c1b-44f1-8f26-e8164e954a70'
+quantity_required: 10
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: 'a784c134-3d45-4150-81f6-4e144902f817'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 1
+  Batch 1: B-50 (qty: 990, reserved: 0, status: Active, expiry: 2026-07-30)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: 'bbc69cd5-6c1b-44f1-8f26-e8164e954a70'
+quantity_required: 10
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: 'e5839630-b317-4176-99a1-9efed969bf3b'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 1
+  Batch 1: B-50 (qty: 980, reserved: 0, status: Active, expiry: 2026-07-30)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: 'bbc69cd5-6c1b-44f1-8f26-e8164e954a70'
+quantity_required: 10
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: '7c7103e6-9ed0-407f-b07b-979c09fb5514'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 1
+  Batch 1: B-50 (qty: 980, reserved: 0, status: Active, expiry: 2026-07-30)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: 'bbc69cd5-6c1b-44f1-8f26-e8164e954a70'
+quantity_required: 10
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: '0b4b7dbb-23b9-4bcd-9d3b-3afbd9756e2f'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 2
+  Batch 1: B-50 (qty: 980, reserved: 0, status: Active, expiry: 2026-07-30)
+  Batch 2: B1-qty20 (qty: 20, reserved: 0, status: Active, expiry: 2029-01-01)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: 'bbc69cd5-6c1b-44f1-8f26-e8164e954a70'
+quantity_required: 10
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: '1b0248e3-f3a2-4fd8-9529-dc40ff5fc24c'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 2
+  Batch 1: B-50 (qty: 800, reserved: 0, status: Active, expiry: 2026-07-30)
+  Batch 2: B1-qty20 (qty: 20, reserved: 0, status: Active, expiry: 2029-01-01)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: '6a992892-c7c3-4f3d-8071-675546e1cb52'
+quantity_required: 1
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: 'e3d441cd-d548-41fe-b7cc-73e314645edd'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 1
+  Batch 1: OX-012545 (qty: 500, reserved: 0, status: Active, expiry: 2026-07-23)

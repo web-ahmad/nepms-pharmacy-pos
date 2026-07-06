@@ -306,3 +306,9 @@ class ExpiryAlert(BaseModel):
     days_to_expiry: int
     current_quantity: int
     inventory_value: float
+
+class BulkDeletePayload(BaseModel):
+    ids: List[str]
+
+class BulkImportPayload(BaseModel):
+    medicines: List[MedicineCreate]

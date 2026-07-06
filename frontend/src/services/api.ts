@@ -14,7 +14,21 @@ export const api = axios.create({
 // Request interceptor to inject JWT token
 api.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().accessToken;
+    let token = useAuthStore.getState().accessToken;
+    
+    // Fallback to reading directly from localStorage if Zustand hasn't rehydrated yet
+    if (!token && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('nepms-auth-storage');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          token = parsed.state?.accessToken;
+        }
+      } catch (error) {
+        console.error('Failed to parse auth storage', error);
+      }
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -28,12 +42,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle auto-logout or trigger refresh token flow
+      console.error('API 401 Unauthorized at URL:', error.config?.url);
+      
+      // Clear auth state
       useAuthStore.getState().logout();
+      
+      // Redirect to login if running in browser
       if (typeof window !== 'undefined') {
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

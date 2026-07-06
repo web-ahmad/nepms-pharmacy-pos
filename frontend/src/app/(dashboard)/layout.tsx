@@ -11,21 +11,43 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isAuthenticated } = useAuthStore();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+
+  // Read auth state directly from the store — works after hydration
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  // Track whether the Zustand persist layer has finished rehydrating from localStorage.
+  // Without this guard, the layout renders before localStorage is read and
+  // `isAuthenticated` is temporarily `false`, causing a redirect loop.
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    if (!isAuthenticated) {
-      router.push('/login');
+    // useAuthStore.persist.hasHydrated() is available when using the persist middleware.
+    // Poll until hydration is done (usually instant on first tick).
+    const unsub = useAuthStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+
+    // If already hydrated before this effect ran, set immediately
+    if (useAuthStore.persist.hasHydrated()) {
+      setHydrated(true);
     }
-  }, [isAuthenticated, router]);
 
-  // Prevent hydration mismatch
-  if (!mounted) return null;
+    return () => unsub();
+  }, []);
 
-  // Don't render the dashboard shell if not authenticated (it will redirect)
+  useEffect(() => {
+    // Only redirect after hydration is confirmed so we don't
+    // accidentally redirect a freshly logged-in user.
+    if (hydrated && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [hydrated, isAuthenticated, router]);
+
+  // Show nothing until hydration + auth check is complete
+  if (!hydrated) return null;
+
+  // Unauthenticated — redirect is in flight, render nothing
   if (!isAuthenticated) return null;
 
   return (

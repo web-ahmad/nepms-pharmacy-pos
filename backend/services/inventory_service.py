@@ -83,7 +83,7 @@ class InventoryService:
                 print("Log error:", log_err)
             raise ValueError(f"Insufficient stock for medicine_id: {medicine_id}. Short by {remaining_qty}")
             
-        db.commit()
+        # Do not commit here! Let the caller manage the transaction to ensure atomicity.
         return allocation_logs
 
     @staticmethod

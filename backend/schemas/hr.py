@@ -5,24 +5,45 @@ from datetime import datetime, date
 # Department
 class DepartmentBase(BaseModel):
     name: str
+    description: Optional[str] = None
+    head_id: Optional[str] = None
+    is_active: bool = True
 
 class DepartmentCreate(DepartmentBase):
     pass
 
+class DepartmentUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    head_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
 class DepartmentResponse(DepartmentBase):
     id: str
+    employee_count: Optional[int] = 0
     class Config:
         from_attributes = True
 
 # Designation
 class DesignationBase(BaseModel):
     name: str
+    department_id: str
+    description: Optional[str] = None
+    is_active: bool = True
 
 class DesignationCreate(DesignationBase):
     pass
 
+class DesignationUpdate(BaseModel):
+    name: Optional[str] = None
+    department_id: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
 class DesignationResponse(DesignationBase):
     id: str
+    employee_count: Optional[int] = 0
+    department_name: Optional[str] = None
     class Config:
         from_attributes = True
 
@@ -32,10 +53,17 @@ class EmployeeBase(BaseModel):
     last_name: str
     email: Optional[str] = None
     phone: Optional[str] = None
+    cnic: Optional[str] = None
+    address: Optional[str] = None
+    dob: Optional[date] = None
+    gender: Optional[str] = None
+    employee_id: Optional[str] = None
+    username: Optional[str] = None
+    shift_id: Optional[str] = None
     department_id: str
     designation_id: str
     join_date: date
-    base_salary: float
+    base_salary: float = 0.0
     is_active: bool = True
 
 class EmployeeCreate(EmployeeBase):
@@ -46,6 +74,13 @@ class EmployeeUpdate(BaseModel):
     last_name: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    cnic: Optional[str] = None
+    address: Optional[str] = None
+    dob: Optional[date] = None
+    gender: Optional[str] = None
+    employee_id: Optional[str] = None
+    username: Optional[str] = None
+    shift_id: Optional[str] = None
     department_id: Optional[str] = None
     designation_id: Optional[str] = None
     base_salary: Optional[float] = None
@@ -62,9 +97,18 @@ class ShiftBase(BaseModel):
     name: str
     start_time: str
     end_time: str
+    grace_period: Optional[int] = 15
+    is_active: bool = True
 
 class ShiftCreate(ShiftBase):
     pass
+
+class ShiftUpdate(BaseModel):
+    name: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    grace_period: Optional[int] = None
+    is_active: Optional[bool] = None
 
 class ShiftResponse(ShiftBase):
     id: str

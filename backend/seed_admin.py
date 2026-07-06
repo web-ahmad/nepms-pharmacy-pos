@@ -29,8 +29,7 @@ def seed():
         role = Role(
             id=str(uuid.uuid4()),
             name="Super Admin",
-            description="Full Access",
-            permissions='["all"]'
+            description="Full Access"
         )
         db.add(role)
         db.commit()

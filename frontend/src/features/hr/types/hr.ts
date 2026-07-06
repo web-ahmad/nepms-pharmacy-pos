@@ -1,11 +1,20 @@
 export interface Department {
   id: string;
   name: string;
+  description?: string;
+  head_id?: string;
+  is_active: boolean;
+  employee_count?: number;
 }
 
 export interface Designation {
   id: string;
   name: string;
+  department_id: string;
+  description?: string;
+  is_active: boolean;
+  employee_count?: number;
+  department_name?: string;
 }
 
 export interface Employee {
@@ -14,10 +23,17 @@ export interface Employee {
   last_name: string;
   email?: string;
   phone?: string;
+  cnic?: string;
+  address?: string;
+  dob?: string;
+  gender?: string;
+  employee_id?: string;
+  username?: string;
+  shift_id?: string;
   department_id: string;
   designation_id: string;
   join_date: string;
-  base_salary: number;
+  base_salary?: number;
   is_active: boolean;
   created_at: string;
 }
@@ -27,6 +43,8 @@ export interface Shift {
   name: string;
   start_time: string;
   end_time: string;
+  grace_period?: number;
+  is_active?: boolean;
 }
 
 export interface Attendance {

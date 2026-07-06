@@ -6,7 +6,7 @@ from schemas.crm import (
     CustomerResponse, CustomerCreate, CustomerUpdate, 
     CustomerLedgerResponse, CustomerPaymentCreate, 
     CustomerPaymentResponse, CustomerLoyaltyRedeemRequest,
-    LoyaltyHistoryResponse
+    LoyaltyHistoryResponse, CustomerStatusUpdate
 )
 from schemas.sales import SaleResponse
 from services.crm_service import CRMService
@@ -54,6 +54,23 @@ def update_customer(
 ):
     service = CRMService(db)
     return service.update_customer(customer_id, customer)
+
+@router.patch("/customers/{customer_id}/status", response_model=CustomerResponse)
+def update_customer_status(
+    customer_id: str,
+    status_update: CustomerStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = CRMService(db)
+    customer = service.get_customer(customer_id)
+    if status_update.status.lower() == 'active':
+        customer.is_active = True
+    else:
+        customer.is_active = False
+    db.commit()
+    db.refresh(customer)
+    return customer
 
 @router.get("/customers/{customer_id}/ledger", response_model=List[CustomerLedgerResponse])
 def get_customer_ledger(

@@ -3,165 +3,177 @@
 import React, { useState } from 'react';
 import SalesHistory from '@/features/sales/components/SalesHistory';
 import ReturnLogs from '@/features/sales/components/ReturnLogs';
-import { History, ClipboardList, TrendingUp, DollarSign, ArrowDownRight, Users, Sparkles } from 'lucide-react';
+import { History, ClipboardList, TrendingUp, ArrowDownRight, Users, Zap, BarChart3, RefreshCw } from 'lucide-react';
 import { useSalesHistory, useReturnLogs } from '@/features/sales/services/sales.api';
 
 export default function SalesPage() {
   const [activeTab, setActiveTab] = useState<'history' | 'returns'>('history');
 
-  // Load KPI metrics data
   const { data: salesData } = useSalesHistory({ page: 1, limit: 100 });
   const { data: returnsData } = useReturnLogs({});
 
   const totalSalesCount = salesData?.total || 0;
-  const totalRevenue = salesData?.items.reduce((sum, item) => sum + item.total_amount, 0) || 0;
-  const totalRefunded = returnsData?.reduce((sum, item) => sum + item.total_amount, 0) || 0;
-  const netRevenue = totalRevenue - totalRefunded;
+  const totalRevenue   = salesData?.items.reduce((s, i) => s + i.total_amount, 0) || 0;
+  const totalRefunded  = returnsData?.reduce((s, i) => s + i.total_amount, 0) || 0;
+  const netRevenue     = totalRevenue - totalRefunded;
+
+  const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const kpis = [
+    {
+      label: 'Gross Sales',
+      value: `Rs ${fmt(totalRevenue)}`,
+      sub: `From ${totalSalesCount} transactions`,
+      icon: <BarChart3 size={20} />,
+      color: 'emerald',
+      gradient: 'from-emerald-500 to-teal-500',
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-200',
+      text: 'text-emerald-700',
+      hoverBorder: 'hover:border-emerald-400',
+    },
+    {
+      label: 'Total Refunded',
+      value: `Rs ${fmt(totalRefunded)}`,
+      sub: 'Processed via return logs',
+      icon: <ArrowDownRight size={20} />,
+      color: 'rose',
+      gradient: 'from-rose-500 to-pink-500',
+      bg: 'bg-rose-50',
+      border: 'border-rose-200',
+      text: 'text-rose-700',
+      hoverBorder: 'hover:border-rose-400',
+    },
+    {
+      label: 'Net Revenue',
+      value: `Rs ${fmt(netRevenue)}`,
+      sub: 'Post-refund net proceeds',
+      icon: <TrendingUp size={20} />,
+      color: 'blue',
+      gradient: 'from-blue-500 to-indigo-500',
+      bg: 'bg-blue-50',
+      border: 'border-blue-200',
+      text: 'text-blue-700',
+      hoverBorder: 'hover:border-blue-400',
+    },
+    {
+      label: 'Transactions',
+      value: String(totalSalesCount),
+      sub: 'Active and completed orders',
+      icon: <Users size={20} />,
+      color: 'amber',
+      gradient: 'from-amber-500 to-orange-500',
+      bg: 'bg-amber-50',
+      border: 'border-amber-200',
+      text: 'text-amber-700',
+      hoverBorder: 'hover:border-amber-400',
+    },
+  ];
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto px-4 md:px-6 py-6 text-slate-800 animate-fadeIn bg-slate-50/50 rounded-3xl min-h-screen font-premium-sans">
-      
-      {/* Decorative Light Radial Glows */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-100/30 rounded-full blur-[100px] pointer-events-none animate-fadeIn" />
-      <div className="absolute top-1/3 left-1/4 w-80 h-80 bg-blue-50/30 rounded-full blur-[120px] pointer-events-none animate-fadeIn" />
+    <div className="min-h-screen bg-[#f6f8f6] px-4 md:px-8 py-6 space-y-6 font-sans relative overflow-hidden">
 
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10 border-b border-slate-200 pb-6">
+      {/* Background decorative glows */}
+      <div className="pointer-events-none fixed top-0 right-0 w-[600px] h-[600px] rounded-full bg-emerald-100/40 blur-[140px] -z-0" />
+      <div className="pointer-events-none fixed bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-teal-100/30 blur-[120px] -z-0" />
+
+      {/* ── PAGE HEADER ───────────────────────────────────────────────── */}
+      <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-gray-200">
         <div className="space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
-            <Sparkles size={12} className="text-emerald-500 animate-pulse" />
-            <span>Sales & Returns Terminal</span>
+          {/* Badge */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#006a43] text-white shadow-sm shadow-emerald-200"
+            style={{ animation: 'sh-fadein 0.4s ease-out both' }}>
+            <Zap size={11} className="fill-white" />
+            Sales &amp; Returns Terminal
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight font-premium-heading">
-            Sales & Returns Manager
+          <h1 className="text-[28px] md:text-[34px] font-extrabold text-gray-900 tracking-tight leading-none"
+            style={{ animation: 'sh-fadein 0.5s ease-out both 0.05s' }}>
+            Sales &amp; Returns Manager
           </h1>
-          <p className="text-slate-500 max-w-2xl text-sm leading-relaxed">
+          <p className="text-[13px] text-gray-500 max-w-xl leading-relaxed"
+            style={{ animation: 'sh-fadein 0.5s ease-out both 0.1s' }}>
             Monitor real-time pharmacy invoices, run item-wise pro-rated returns, and inspect detailed audit trails from a single sleek cockpit.
           </p>
         </div>
       </div>
 
-      {/* KPI Dashboard Cards Section (White Themed) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5 relative z-10">
-        
-        {/* KPI 1: Gross Sales */}
-        <div className="group relative bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-emerald-300">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Gross Sales</span>
-              <p className="text-2xl font-bold text-slate-950 font-mono tracking-tight">Rs {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 group-hover:scale-110 transition-transform duration-350">
-              <DollarSign size={18} />
-            </div>
-          </div>
-          <p className="text-xs text-slate-500 mt-4 flex items-center gap-1 font-medium">
-            From last {totalSalesCount} transactions
-          </p>
-        </div>
+      {/* ── KPI CARDS ─────────────────────────────────────────────────── */}
+      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {kpis.map((kpi, i) => (
+          <div
+            key={kpi.label}
+            className={`group relative bg-white rounded-2xl border ${kpi.border} ${kpi.hoverBorder} p-5 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 overflow-hidden`}
+            style={{ animation: `sh-slideup 0.4s ease-out both ${0.05 * i + 0.1}s` }}
+          >
+            {/* Top gradient strip */}
+            <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${kpi.gradient} opacity-70 group-hover:opacity-100 transition-opacity`} />
 
-        {/* KPI 2: Total Refunds */}
-        <div className="group relative bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-rose-300">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Refunded</span>
-              <p className="text-2xl font-bold text-slate-950 font-mono tracking-tight">Rs {totalRefunded.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <div className="flex items-start justify-between">
+              <div className="space-y-1 flex-1 min-w-0">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{kpi.label}</span>
+                <p className="text-[22px] font-extrabold text-gray-900 font-mono tracking-tight truncate">{kpi.value}</p>
+              </div>
+              <div className={`ml-3 p-2.5 rounded-xl ${kpi.bg} ${kpi.text} border ${kpi.border} group-hover:scale-110 transition-transform duration-300 shrink-0`}>
+                {kpi.icon}
+              </div>
             </div>
-            <div className="p-3 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 group-hover:scale-110 transition-transform duration-350">
-              <ArrowDownRight size={18} />
-            </div>
+            <p className="text-[11px] text-gray-400 font-medium mt-3">{kpi.sub}</p>
           </div>
-          <p className="text-xs text-slate-500 mt-4 flex items-center gap-1 font-medium">
-            Processed via return logs
-          </p>
-        </div>
-
-        {/* KPI 3: Net Revenue */}
-        <div className="group relative bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-blue-300">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Net Revenue</span>
-              <p className="text-2xl font-bold text-slate-950 font-mono tracking-tight">Rs {netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 group-hover:scale-110 transition-transform duration-350">
-              <TrendingUp size={18} />
-            </div>
-          </div>
-          <p className="text-xs text-slate-500 mt-4 flex items-center gap-1 font-medium">
-            Post-refund net proceeds
-          </p>
-        </div>
-
-        {/* KPI 4: Transactions */}
-        <div className="group relative bg-white border border-slate-200 rounded-2xl p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-amber-300">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Transactions</span>
-              <p className="text-2xl font-bold text-slate-950 font-mono tracking-tight">{totalSalesCount}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 group-hover:scale-110 transition-transform duration-350">
-              <Users size={18} />
-            </div>
-          </div>
-          <p className="text-xs text-slate-500 mt-4 flex items-center gap-1 font-medium">
-            Active and completed orders
-          </p>
-        </div>
-
+        ))}
       </div>
 
-      {/* Navigation Tab Bar */}
-      <div className="relative z-10 flex gap-2 border-b border-slate-200 pb-0.5">
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`group py-3.5 px-5 font-semibold text-sm flex items-center gap-2 border-b-2 transition duration-300 outline-none select-none ${
-            activeTab === 'history'
-              ? 'border-emerald-600 text-emerald-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-          }`}
-        >
-          <History size={16} className="transition-transform duration-300 group-hover:rotate-[-10deg]" />
-          Sales History
-        </button>
-        <button
-          onClick={() => setActiveTab('returns')}
-          className={`group py-3.5 px-5 font-semibold text-sm flex items-center gap-2 border-b-2 transition duration-300 outline-none select-none ${
-            activeTab === 'returns'
-              ? 'border-emerald-600 text-emerald-700'
-              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
-          }`}
-        >
-          <ClipboardList size={16} className="transition-transform duration-300 group-hover:translate-y-[-1px]" />
-          Return Logs & Audits
-        </button>
+      {/* ── TAB BAR ───────────────────────────────────────────────────── */}
+      <div className="relative z-10 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
+        style={{ animation: 'sh-fadein 0.5s ease-out both 0.3s' }}>
+        <div className="flex border-b border-gray-100">
+          {([
+            { id: 'history',  label: 'Sales History',       icon: <History size={15} /> },
+            { id: 'returns',  label: 'Return Logs & Audits', icon: <ClipboardList size={15} /> },
+          ] as const).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`relative flex items-center gap-2 px-6 py-4 text-[13px] font-semibold transition-all duration-200 outline-none select-none ${
+                activeTab === tab.id
+                  ? 'text-[#006a43]'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#006a43] rounded-t-full" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
+        <div className="p-0">
+          {activeTab === 'history'
+            ? <div key="history" style={{ animation: 'sh-slideup 0.3s ease-out both' }}><SalesHistory /></div>
+            : <div key="returns" style={{ animation: 'sh-slideup 0.3s ease-out both' }}><ReturnLogs /></div>
+          }
+        </div>
       </div>
 
-      {/* Active Tab View */}
-      <div className="relative z-10 transition-all duration-300">
-        {activeTab === 'history' ? (
-          <div className="animate-slideUp"><SalesHistory /></div>
-        ) : (
-          <div className="animate-slideUp"><ReturnLogs /></div>
-        )}
-      </div>
-
-      <style jsx global>{`
-        @keyframes fadeIn {
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes sh-fadein {
           from { opacity: 0; }
-          to { opacity: 1; }
+          to   { opacity: 1; }
         }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
+        @keyframes sh-slideup {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
-        .animate-fadeIn {
-          animation: fadeIn 0.4s ease-out forwards;
+        @keyframes slideLeft {
+          from { transform: translateX(100%); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
         }
-        .animate-slideUp {
-          animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        .animate-slideLeft {
+          animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-      `}</style>
-
+      ` }} />
     </div>
   );
 }

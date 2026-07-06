@@ -15,6 +15,7 @@ export interface Customer {
   current_balance: number;
   loyalty_points: number;
   loyalty_tier: string;
+  is_active?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +62,7 @@ export interface CreateCustomerPayload {
   medical_history?: string;
   allergies?: string;
   credit_limit: number;
+  is_active?: boolean;
 }
 
 export interface CustomerPaymentPayload {

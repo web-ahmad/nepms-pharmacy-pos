@@ -1,9 +1,10 @@
 import PrescriptionViewer from '@/features/prescriptions/components/PrescriptionViewer';
 
-export default function PrescriptionDetailsPage({ params }: { params: { id: string } }) {
+export default async function PrescriptionDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   return (
     <div className="space-y-6">
-      <PrescriptionViewer id={params.id} />
+      <PrescriptionViewer id={id} />
     </div>
   );
 }

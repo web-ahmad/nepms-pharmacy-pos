@@ -1,6 +1,21 @@
 import { useState } from 'react';
 import { useSuppliers, useDeleteSupplier } from '../services/purchase.api';
-import { Edit, Book, Download, MoreVertical, Eye, Trash2 } from 'lucide-react';
+import { Edit, Book, Download, MoreVertical, Eye, Trash2, Star } from 'lucide-react';
+import { useSupplierScorecard } from '../services/purchase.api';
+
+function SupplierScoreBadge({ supplierId }: { supplierId: string }) {
+  const { overallStars, totalOrders, isLoading } = useSupplierScorecard(supplierId);
+  
+  if (isLoading) return <span className="text-zinc-300">...</span>;
+  if (totalOrders === 0) return <span className="text-xs text-zinc-400">New</span>;
+  
+  return (
+    <div className="flex items-center gap-1 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded-md w-fit">
+      <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-500" />
+      <span className="text-xs font-bold text-yellow-700 dark:text-yellow-500">{overallStars.toFixed(1)}</span>
+    </div>
+  );
+}
 
 interface SupplierTableProps {
   onEdit: (id: string) => void;
@@ -46,6 +61,7 @@ export default function SupplierTable({ onEdit, onViewLedger, onView, canEdit }:
             <tr>
               <th className="p-4 font-medium">Supplier</th>
               <th className="p-4 font-medium">Contact</th>
+              <th className="p-4 font-medium text-center">Rating</th>
               <th className="p-4 font-medium text-right">Current Balance</th>
               <th className="p-4 font-medium text-center">Status</th>
               <th className="p-4 font-medium text-right">Actions</th>
@@ -66,6 +82,9 @@ export default function SupplierTable({ onEdit, onViewLedger, onView, canEdit }:
                   <td className="p-4">
                     <div className="text-zinc-900 dark:text-zinc-300">{supplier.contact_person || '-'}</div>
                     <div className="text-xs text-zinc-500">{supplier.phone}</div>
+                  </td>
+                  <td className="p-4 flex justify-center">
+                    <SupplierScoreBadge supplierId={supplier.id} />
                   </td>
                   <td className="p-4 text-right">
                     <span className={`font-mono font-bold ${supplier.current_balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>

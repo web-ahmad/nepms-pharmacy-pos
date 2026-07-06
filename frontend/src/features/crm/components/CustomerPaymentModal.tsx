@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Customer } from '../types/crm';
 import { useCreateCustomerPayment } from '../services/crm.api';
+import { notify } from '@/utils/toast';
 import { X } from 'lucide-react';
 
 interface CustomerPaymentModalProps {
@@ -22,7 +23,7 @@ export default function CustomerPaymentModal({ customer, isOpen, onClose }: Cust
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (amount <= 0) {
-      alert(`Payment amount must be greater than zero`);
+      notify.error(`Payment amount must be greater than zero`);
       return;
     }
 
@@ -33,10 +34,11 @@ export default function CustomerPaymentModal({ customer, isOpen, onClose }: Cust
         reference_number: reference,
         notes
       });
+      notify.success('Payment recorded successfully');
       onClose();
     } catch (err) {
       console.error('Payment failed', err);
-      alert('Failed to record payment');
+      notify.error('Failed to record payment');
     }
   };
 

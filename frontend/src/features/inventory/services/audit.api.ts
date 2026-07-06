@@ -9,6 +9,8 @@ export interface AuditItem {
   batch_id: string | null;
   batch_number: string | null;
   expiry_date: string | null;
+  dosage_form: string | null;
+  strength: string | null;
   system_quantity: number;
   physical_count: number | null;
   variance: number | null;
@@ -21,6 +23,7 @@ export interface AuditSession {
   status: string;
   scope_type: string;
   scope_value: string;
+  is_blind: boolean;
   notes: string | null;
   start_date: string;
   completion_date: string | null;
@@ -42,6 +45,16 @@ export const useAuditSessions = () => {
     queryKey: ['inventory', 'audit-sessions'],
     queryFn: async () => {
       const res = await api.get<AuditSession[]>('/api/v1/inventory-audit/sessions');
+      return res.data;
+    }
+  });
+};
+
+export const useAvailableRacks = () => {
+  return useQuery({
+    queryKey: ['inventory', 'audit-racks'],
+    queryFn: async () => {
+      const res = await api.get<string[]>('/api/v1/inventory-audit/racks');
       return res.data;
     }
   });
@@ -113,6 +126,20 @@ export const useSubmitAuditSession = () => {
   });
 };
 
+export const useSyncAuditSession = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const res = await api.post(`/api/v1/inventory-audit/sessions/${sessionId}/sync`);
+      return res.data;
+    },
+    onSuccess: (_, sessionId) => {
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'audit-session', sessionId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'audit-summary', sessionId] });
+    }
+  });
+};
+
 export const useReconcileAuditSession = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -123,6 +150,20 @@ export const useReconcileAuditSession = () => {
     onSuccess: (_, sessionId) => {
       queryClient.invalidateQueries({ queryKey: ['inventory', 'audit-session', sessionId] });
       queryClient.invalidateQueries({ queryKey: ['inventory', 'audit-sessions'] });
+    }
+  });
+};
+
+export const useReconcileAuditItem = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sessionId, itemId }: { sessionId: string; itemId: string }) => {
+      const res = await api.post(`/api/v1/inventory-audit/sessions/${sessionId}/items/${itemId}/reconcile`);
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'audit-session', variables.sessionId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'audit-summary', variables.sessionId] });
     }
   });
 };

@@ -25,6 +25,7 @@ class MedicineMaster(BaseModel):
     
     medicine_type = Column(String(100)) # e.g., Allopathic, Homeopathic
     status = Column(String(50), default="Active")
+    season_type = Column(String(50), nullable=True) # e.g., SUMMER, WINTER, MONSOON, ALL-SEASON
 
     # Image
     image_url = Column(String(500))

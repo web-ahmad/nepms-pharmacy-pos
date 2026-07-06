@@ -1,15 +1,14 @@
 'use client';
 
-import React, { use, useEffect } from 'react';
+import React from 'react';
+import { useParams } from 'next/navigation';
 import SimpleFormLayout from '@/features/inventory/components/MedicineMasterWizard/SimpleFormLayout';
-import MedicineFormSettingsModal from '@/features/inventory/components/MedicineMasterWizard/MedicineFormSettingsModal';
 import { useGetMedicine, mapBackendToForm } from '@/features/inventory/services/medicine.api';
 import { Loader2 } from 'lucide-react';
 
-export default function EditMedicinePage({ params }: { params: { id: string } | Promise<{ id: string }> }) {
-  // Unwrap the promise if needed in Next.js 15+ or just use params.id directly
-  const resolvedParams = params instanceof Promise ? use(params) : params;
-  const id = resolvedParams?.id;
+export default function EditMedicinePage() {
+  const params = useParams();
+  const id = params?.id as string;
 
   const { data: medicine, isLoading, isError } = useGetMedicine(id);
 
@@ -41,7 +40,6 @@ export default function EditMedicinePage({ params }: { params: { id: string } | 
             Update medicine profile and inventory settings.
           </p>
         </div>
-        <MedicineFormSettingsModal />
       </div>
 
       <SimpleFormLayout initialData={initialData as any} medicineId={id} isEdit={true} />

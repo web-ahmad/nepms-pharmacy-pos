@@ -8,20 +8,24 @@ from schemas.sales import CheckoutRequest
 
 class CRUDSale(CRUDBase[Sale, CheckoutRequest, CheckoutRequest]):
     def get_held_sales(self, db: Session, tenant_id: str, branch_id: str) -> List[Sale]:
-        return db.query(Sale).filter(
+        query = db.query(Sale).filter(
             Sale.tenant_id == tenant_id,
-            Sale.branch_id == branch_id,
             Sale.status == "Held",
             Sale.is_deleted == False
-        ).order_by(Sale.created_at.desc()).all()
+        )
+        if branch_id:
+            query = query.filter(Sale.branch_id == branch_id)
+        return query.order_by(Sale.created_at.desc()).all()
 
     def get_pending_verification_sales(self, db: Session, tenant_id: str, branch_id: str) -> List[Sale]:
-        return db.query(Sale).filter(
+        query = db.query(Sale).filter(
             Sale.tenant_id == tenant_id,
-            Sale.branch_id == branch_id,
             Sale.status == "Pending Verification",
             Sale.is_deleted == False
-        ).order_by(Sale.created_at.desc()).all()
+        )
+        if branch_id:
+            query = query.filter(Sale.branch_id == branch_id)
+        return query.order_by(Sale.created_at.desc()).all()
 
     def get_sales_history(
         self,
@@ -38,9 +42,10 @@ class CRUDSale(CRUDBase[Sale, CheckoutRequest, CheckoutRequest]):
     ) -> Tuple[List[Sale], int]:
         query = db.query(Sale).filter(
             Sale.tenant_id == tenant_id,
-            Sale.branch_id == branch_id,
             Sale.is_deleted == False
         )
+        if branch_id:
+            query = query.filter(Sale.branch_id == branch_id)
 
         if start_date:
             query = query.filter(Sale.sale_date >= start_date)
@@ -56,7 +61,7 @@ class CRUDSale(CRUDBase[Sale, CheckoutRequest, CheckoutRequest]):
             query = query.filter(Sale.cashier_id == cashier_id)
 
         total = query.count()
-        items = query.order_by(desc(Sale.sale_date)).offset(skip).limit(limit).all()
+        items = query.order_by(desc(Sale.created_at)).offset(skip).limit(limit).all()
         return items, total
 
 sale_repo = CRUDSale(Sale)
@@ -75,9 +80,10 @@ class CRUDSaleReturn(CRUDBase[SaleReturn, None, None]):
     ) -> Tuple[List[SaleReturn], int]:
         query = db.query(SaleReturn).filter(
             SaleReturn.tenant_id == tenant_id,
-            SaleReturn.branch_id == branch_id,
             SaleReturn.is_deleted == False
         )
+        if branch_id:
+            query = query.filter(SaleReturn.branch_id == branch_id)
 
         if start_date:
             query = query.filter(SaleReturn.return_date >= start_date)
