@@ -1,53 +1,64 @@
-import { useState, useEffect } from 'react';
-import { useCreateEmployee, useDepartments, useDesignations, useShifts } from '../services/hr.api';
+import { useState, useEffect, useRef } from 'react';
+import { useCreateEmployee, useUpdateEmployee, useDepartments, useDesignations, useShifts } from '../services/hr.api';
 import { notify } from '@/utils/toast';
+
+import { Employee } from '../types/hr';
 
 interface AddEmployeeFormProps {
   onClose: () => void;
+  isEditing?: boolean;
+  initialData?: Employee;
 }
 
-export default function AddEmployeeForm({ onClose }: AddEmployeeFormProps) {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [cnic, setCnic] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
-  const [dob, setDob] = useState('');
-  const [gender, setGender] = useState('');
+export default function AddEmployeeForm({ onClose, isEditing, initialData }: AddEmployeeFormProps) {
+  const [firstName, setFirstName] = useState(initialData?.first_name || '');
+  const [lastName, setLastName] = useState(initialData?.last_name || '');
+  const [cnic, setCnic] = useState(initialData?.cnic || '');
+  const [phone, setPhone] = useState(initialData?.phone || '');
+  const [email, setEmail] = useState(initialData?.email || '');
+  const [address, setAddress] = useState(initialData?.address || '');
+  const [dob, setDob] = useState(initialData?.dob || '');
+  const [gender, setGender] = useState(initialData?.gender || '');
   
-  const [departmentId, setDepartmentId] = useState('');
-  const [designationId, setDesignationId] = useState('');
-  const [shiftId, setShiftId] = useState('');
-  const [joinDate, setJoinDate] = useState(new Date().toISOString().split('T')[0]);
+  const [departmentId, setDepartmentId] = useState(initialData?.department_id || '');
+  const [designationId, setDesignationId] = useState(initialData?.designation_id || '');
+  const [shiftId, setShiftId] = useState(initialData?.shift_id || '');
+  const [joinDate, setJoinDate] = useState(initialData?.join_date || new Date().toISOString().split('T')[0]);
   
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(initialData?.username || '');
 
   const { data: departments } = useDepartments();
   const { data: designations } = useDesignations();
   const { data: shifts } = useShifts();
   
   const createMutation = useCreateEmployee();
+  const updateMutation = useUpdateEmployee(initialData?.id || '');
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
-  // Auto-generate username
+  // Auto-generate username only if not editing or if username is empty
   useEffect(() => {
-    if (firstName || lastName) {
+    if (!isEditing && (firstName || lastName)) {
       const generated = `${firstName.toLowerCase().trim()}.${lastName.toLowerCase().trim()}`.replace(/\s+/g, '');
       setUsername(generated);
-    } else {
-      setUsername('');
     }
-  }, [firstName, lastName]);
+  }, [firstName, lastName, isEditing]);
 
-  // Reset designation when department changes
+  // Reset designation when department changes, but not on initial load for edit
   useEffect(() => {
-    setDesignationId('');
-  }, [departmentId]);
+    if (initialData?.department_id !== departmentId) {
+      setDesignationId('');
+    }
+  }, [departmentId, initialData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
-      await createMutation.mutateAsync({
+      const payload = {
         first_name: firstName,
         last_name: lastName,
         cnic,
@@ -61,19 +72,44 @@ export default function AddEmployeeForm({ onClose }: AddEmployeeFormProps) {
         designation_id: designationId,
         shift_id: shiftId,
         join_date: joinDate,
-        is_active: true,
-      });
-      notify.success('Employee created successfully');
-      onClose();
-    } catch (err) {
-      console.error(err);
-      notify.error('Failed to create employee');
+        is_active: initialData ? initialData.is_active : true,
+      };
+
+      if (isEditing && initialData) {
+        await updateMutation.mutateAsync(payload);
+        onClose();
+        notify.success('Employee updated successfully');
+      } else {
+        await createMutation.mutateAsync(payload);
+        onClose();
+        notify.success('Employee created successfully');
+      }
+    } catch (err: any) {
+      console.error("Full Backend Response:", err.response?.data);
+      const data = err.response?.data;
+      const exactMessage =
+        (typeof data === 'string' && data ? data : null) ||
+        data?.message ||
+        data?.error ||
+        (Array.isArray(data?.detail)
+          ? `${data.detail[0]?.loc?.join('.')}: ${data.detail[0]?.msg}`
+          : data?.detail) ||
+        err.message ||
+        'Failed to save employee. Please try again.';
+      notify.error(exactMessage);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
+  const isPending = isSubmitting || (isEditing ? updateMutation.isPending : createMutation.isPending);
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="mb-6 text-lg font-bold text-zinc-900 dark:text-zinc-50">Add New Employee</h2>
+      <h2 className="mb-6 text-lg font-bold text-zinc-900 dark:text-zinc-50">
+        {isEditing ? 'Edit Employee' : 'Add New Employee'}
+      </h2>
       
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -155,7 +191,7 @@ export default function AddEmployeeForm({ onClose }: AddEmployeeFormProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-blue-800 dark:text-blue-200">Employee ID</label>
-              <input disabled value="EMP-[Auto-Generated]" className="w-full rounded-md border border-blue-200 bg-blue-50/50 px-3 py-2 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-100 cursor-not-allowed" />
+              <input disabled value={initialData?.employee_id || "EMP-[Auto-Generated]"} className="w-full rounded-md border border-blue-200 bg-blue-50/50 px-3 py-2 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-100 cursor-not-allowed" />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-blue-800 dark:text-blue-200">Username</label>
@@ -168,8 +204,8 @@ export default function AddEmployeeForm({ onClose }: AddEmployeeFormProps) {
           <button type="button" onClick={onClose} className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800">
             Cancel
           </button>
-          <button type="submit" disabled={createMutation.isPending} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50">
-            {createMutation.isPending ? 'Saving...' : 'Save Employee'}
+          <button type="submit" disabled={isPending} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50">
+            {isPending ? 'Saving...' : (isEditing ? 'Update Employee' : 'Save Employee')}
           </button>
         </div>
       </form>

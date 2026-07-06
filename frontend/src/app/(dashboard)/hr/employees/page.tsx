@@ -2,15 +2,48 @@
 
 import { useState } from 'react';
 import ModuleGuard from '@/components/ModuleGuard';
-import { useEmployees } from '@/features/hr/services/hr.api';
+import { useEmployees, useDeleteEmployee } from '@/features/hr/services/hr.api';
 import EmployeeTable from '@/features/hr/components/EmployeeTable';
 import AddEmployeeForm from '@/features/hr/components/AddEmployeeForm';
+import ViewEmployeeModal from '@/features/hr/components/ViewEmployeeModal';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { notify } from '@/utils/toast';
+import { Employee } from '@/features/hr/types/hr';
 
 export default function EmployeesPage() {
   const { data, isLoading } = useEmployees();
+  const deleteMutation = useDeleteEmployee();
+  
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [viewingEmployee, setViewingEmployee] = useState<Employee | null>(null);
+
+  const handleEdit = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setShowAddForm(true);
+  };
+
+  const handleView = (employee: Employee) => {
+    setViewingEmployee(employee);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Are you sure? This will archive the employee record.")) {
+      try {
+        await deleteMutation.mutateAsync(id);
+        notify.success('Employee archived successfully');
+      } catch (error) {
+        console.error(error);
+        notify.error('Failed to archive employee');
+      }
+    }
+  };
+
+  const handleCloseForm = () => {
+    setShowAddForm(false);
+    setEditingEmployee(null);
+  };
 
   return (
     <ModuleGuard moduleKey="employees">
@@ -26,9 +59,24 @@ export default function EmployeesPage() {
         </div>
         
         {showAddForm ? (
-          <AddEmployeeForm onClose={() => setShowAddForm(false)} />
+          <AddEmployeeForm 
+            onClose={handleCloseForm} 
+            isEditing={!!editingEmployee} 
+            initialData={editingEmployee || undefined} 
+          />
+        ) : viewingEmployee ? (
+          <ViewEmployeeModal 
+            employee={viewingEmployee} 
+            onClose={() => setViewingEmployee(null)} 
+          />
         ) : (
-          <EmployeeTable data={data!} isLoading={isLoading} />
+          <EmployeeTable 
+            data={data!} 
+            isLoading={isLoading} 
+            onView={handleView}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
         )}
       </div>
     </ModuleGuard>

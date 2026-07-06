@@ -54,6 +54,18 @@ export interface Attendance {
   clock_in?: string;
   clock_out?: string;
   status: string;
+  // Enriched fields from admin logs endpoint
+  employee_name?: string;
+  shift_name?: string;
+  total_hours_worked?: number;
+}
+
+export interface ClockInRequest {
+  employee_id: string;
+}
+
+export interface ClockOutRequest {
+  attendance_id: string;
 }
 
 export interface LeaveRequest {

@@ -1,14 +1,16 @@
 import { Employee } from '../types/hr';
-import { Badge } from '@/components/ui/badge';
 import { useDepartments, useDesignations } from '../services/hr.api';
-import { Users, Eye, Pencil } from 'lucide-react';
+import { Users, Eye, Pencil, Trash2 } from 'lucide-react';
 
 interface EmployeeTableProps {
   data: Employee[];
   isLoading: boolean;
+  onView: (employee: Employee) => void;
+  onEdit: (employee: Employee) => void;
+  onDelete: (id: string) => void;
 }
 
-export default function EmployeeTable({ data, isLoading }: EmployeeTableProps) {
+export default function EmployeeTable({ data, isLoading, onView, onEdit, onDelete }: EmployeeTableProps) {
   const { data: departments } = useDepartments();
   const { data: designations } = useDesignations();
 
@@ -97,11 +99,23 @@ export default function EmployeeTable({ data, isLoading }: EmployeeTableProps) {
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors">
+                      <button 
+                        onClick={() => onView(emp)}
+                        className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors"
+                      >
                         <Eye size={18} />
                       </button>
-                      <button className="rounded-md p-1.5 text-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors">
+                      <button 
+                        onClick={() => onEdit(emp)}
+                        className="rounded-md p-1.5 text-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors"
+                      >
                         <Pencil size={18} />
+                      </button>
+                      <button 
+                        onClick={() => onDelete(emp.id)}
+                        className="rounded-md p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={18} />
                       </button>
                     </div>
                   </td>

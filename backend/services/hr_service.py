@@ -4,8 +4,10 @@ from datetime import datetime, date
 
 from repositories.hr import HRRepository
 from schemas.hr import (
-    DepartmentCreate, EmployeeCreate, EmployeeUpdate, AttendanceCreate, 
-    LeaveRequestCreate, ShiftCreate, PayrollRunCreate
+    DepartmentCreate, EmployeeCreate, EmployeeUpdate, AttendanceCreate, AttendanceUpdate,
+    LeaveRequestCreate, ShiftCreate, PayrollRunCreate,
+    ClockInRequest, ClockOutRequest,
+    BulkAttendanceRow, BulkAttendanceResponse, AttendanceWeeklySummaryResponse
 )
 from services.auto_posting_service import AutoPostingService
 from schemas.accounts import JournalEntryCreate, JournalEntryLineCreate
@@ -52,7 +54,6 @@ class HRService:
 
     def create_employee(self, tenant_id: str, user_id: str, obj_in: EmployeeCreate):
         emp = self.repo.create_employee(tenant_id, obj_in)
-        # Assuming we have an audit service or we just log it directly, standard is via AuditLog
         from models.audit import AuditLog
         self.db.add(AuditLog(
             tenant_id=tenant_id,
@@ -60,7 +61,7 @@ class HRService:
             action="Create Employee",
             entity_type="Employee",
             entity_id=emp.id,
-            details=f"Created employee {emp.first_name} {emp.last_name}"
+            new_value={"name": f"{emp.first_name} {emp.last_name}"}
         ))
         self.db.commit()
         return emp
@@ -76,16 +77,71 @@ class HRService:
             action="Update Employee",
             entity_type="Employee",
             entity_id=emp.id,
-            details=f"Updated employee {emp.first_name} {emp.last_name}"
+            new_value={"name": f"{emp.first_name} {emp.last_name}"}
         ))
         self.db.commit()
         return emp
 
+    def delete_employee(self, tenant_id: str, user_id: str, emp_id: str):
+        success = self.repo.delete_employee(tenant_id, emp_id)
+        if not success:
+            raise HTTPException(404, "Employee not found")
+            
+        from models.audit import AuditLog
+        self.db.add(AuditLog(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            action="Delete Employee",
+            entity_type="Employee",
+            entity_id=emp_id,
+            new_value={"action": "soft_delete"}
+        ))
+        self.db.commit()
+        return {"message": "Employee deleted successfully"}
+
     def get_attendances(self, tenant_id: str):
         return self.repo.get_attendances(tenant_id)
 
+    def get_attendance_logs(self, tenant_id: str, target_date: date = None):
+        """Return enriched attendance logs (with employee name, shift, hours)."""
+        return self.repo.get_attendances_enriched(tenant_id, target_date)
+
+    def get_today_attendance(self, tenant_id: str, employee_id: str):
+        """Fetch today's attendance record for the given employee."""
+        return self.repo.get_today_attendance(tenant_id, employee_id)
+
+    def clock_in(self, tenant_id: str, employee_id: str):
+        # Prevent double clock-in
+        existing = self.repo.get_today_attendance(tenant_id, employee_id)
+        if existing:
+            raise HTTPException(status_code=409, detail="Already clocked in today")
+        result = self.repo.clock_in(tenant_id, employee_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Employee not found")
+        return result
+
+    def clock_out(self, tenant_id: str, attendance_id: str):
+        result = self.repo.clock_out(tenant_id, attendance_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="Attendance record not found")
+        return result
+
     def create_attendance(self, tenant_id: str, obj_in: AttendanceCreate):
         return self.repo.create_attendance(tenant_id, obj_in)
+
+    def update_attendance(self, tenant_id: str, attendance_id: str, obj_in: AttendanceUpdate):
+        rec = self.repo.update_attendance(tenant_id, attendance_id, obj_in)
+        if not rec:
+            raise HTTPException(status_code=404, detail="Attendance record not found")
+        return rec
+
+    def bulk_create_attendance(self, tenant_id: str, rows: list):
+        created, skipped, errors = self.repo.bulk_create_attendance(tenant_id, rows)
+        return {"created": created, "skipped": skipped, "errors": errors}
+
+    def get_weekly_summary(self, tenant_id: str):
+        days = self.repo.get_weekly_summary(tenant_id)
+        return {"days": days}
 
     def get_leaves(self, tenant_id: str):
         return self.repo.get_leaves(tenant_id)

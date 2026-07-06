@@ -2,6 +2,7 @@
 
 import { useHRAnalytics } from '@/features/hr/services/hr.api';
 import HRAnalyticsCards from '@/features/hr/components/HRAnalyticsCards';
+import AttendanceTerminal from '@/features/hr/components/AttendanceTerminal';
 
 export default function HRDashboardPage() {
   const { data, isLoading } = useHRAnalytics();
@@ -13,10 +14,15 @@ export default function HRDashboardPage() {
       </div>
 
       <HRAnalyticsCards data={data} isLoading={isLoading} />
-      
-      {/* Visual gap for future charts */}
-      <div className="h-64 w-full rounded-xl border border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center dark:border-zinc-800 dark:bg-zinc-900/50">
-        <p className="text-zinc-500 font-medium">Headcount Analytics (Coming Soon)</p>
+
+      {/* Attendance Terminal + Headcount Analytics */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-1">
+          <AttendanceTerminal />
+        </div>
+        <div className="flex items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 xl:col-span-2 dark:border-zinc-800 dark:bg-zinc-900/50 min-h-64">
+          <p className="text-zinc-500 font-medium">Headcount Analytics (Coming Soon)</p>
+        </div>
       </div>
     </div>
   );

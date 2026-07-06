@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useCreateDepartment, useUpdateDepartment, useEmployees } from '../services/hr.api';
 import { notify } from '@/utils/toast';
 
@@ -16,11 +16,16 @@ export default function AddDepartmentModal({ onClose, department }: AddDepartmen
   const createMutation = useCreateDepartment();
   const updateMutation = useUpdateDepartment(department?.id || '');
   const { data: employees } = useEmployees();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   const isEditing = !!department;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
     try {
       const payload = {
         name,
@@ -32,15 +37,29 @@ export default function AddDepartmentModal({ onClose, department }: AddDepartmen
 
       if (isEditing) {
         await updateMutation.mutateAsync(payload);
+        onClose();
         notify.success('Department updated successfully');
       } else {
         await createMutation.mutateAsync(payload);
+        onClose();
         notify.success('Department created successfully');
       }
-      onClose();
-    } catch (err) {
-      console.error(err);
-      notify.error(isEditing ? 'Failed to update department' : 'Failed to create department');
+    } catch (err: any) {
+      console.error("Full Backend Response:", err.response?.data);
+      const data = err.response?.data;
+      const exactMessage =
+        (typeof data === 'string' && data ? data : null) ||
+        data?.message ||
+        data?.error ||
+        (Array.isArray(data?.detail)
+          ? `${data.detail[0]?.loc?.join('.')}: ${data.detail[0]?.msg}`
+          : data?.detail) ||
+        err.message ||
+        'Failed to save department. Please try again.';
+      notify.error(exactMessage);
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -84,8 +103,8 @@ export default function AddDepartmentModal({ onClose, department }: AddDepartmen
             <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800">
               Cancel
             </button>
-            <button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50">
-              {createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save'}
+            <button type="submit" disabled={isSubmitting || createMutation.isPending || updateMutation.isPending} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50">
+              {isSubmitting || createMutation.isPending || updateMutation.isPending ? 'Saving...' : 'Save'}
             </button>
           </div>
         </form>

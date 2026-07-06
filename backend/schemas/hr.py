@@ -18,9 +18,14 @@ class DepartmentUpdate(BaseModel):
     head_id: Optional[str] = None
     is_active: Optional[bool] = None
 
-class DepartmentResponse(DepartmentBase):
+class DepartmentResponse(BaseModel):
     id: str
+    name: str
+    description: Optional[str] = None
+    head_id: Optional[str] = None
+    is_active: bool = True
     employee_count: Optional[int] = 0
+
     class Config:
         from_attributes = True
 
@@ -40,10 +45,15 @@ class DesignationUpdate(BaseModel):
     description: Optional[str] = None
     is_active: Optional[bool] = None
 
-class DesignationResponse(DesignationBase):
+class DesignationResponse(BaseModel):
     id: str
+    name: str
+    department_id: Optional[str] = None
+    description: Optional[str] = None
+    is_active: bool = True
     employee_count: Optional[int] = 0
     department_name: Optional[str] = None
+
     class Config:
         from_attributes = True
 
@@ -86,9 +96,26 @@ class EmployeeUpdate(BaseModel):
     base_salary: Optional[float] = None
     is_active: Optional[bool] = None
 
-class EmployeeResponse(EmployeeBase):
+class EmployeeResponse(BaseModel):
     id: str
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    cnic: Optional[str] = None
+    address: Optional[str] = None
+    dob: Optional[date] = None
+    gender: Optional[str] = None
+    employee_id: Optional[str] = None
+    username: Optional[str] = None
+    shift_id: Optional[str] = None
+    department_id: Optional[str] = None
+    designation_id: Optional[str] = None
+    join_date: Optional[date] = None
+    base_salary: float = 0.0
+    is_active: bool = True
     created_at: datetime
+
     class Config:
         from_attributes = True
 
@@ -110,8 +137,14 @@ class ShiftUpdate(BaseModel):
     grace_period: Optional[int] = None
     is_active: Optional[bool] = None
 
-class ShiftResponse(ShiftBase):
+class ShiftResponse(BaseModel):
     id: str
+    name: str
+    start_time: str
+    end_time: str
+    grace_period: Optional[int] = 15
+    is_active: bool = True
+
     class Config:
         from_attributes = True
 
@@ -126,10 +159,47 @@ class AttendanceBase(BaseModel):
 class AttendanceCreate(AttendanceBase):
     pass
 
+class ClockInRequest(BaseModel):
+    employee_id: str
+
+class ClockOutRequest(BaseModel):
+    attendance_id: str
+
 class AttendanceResponse(AttendanceBase):
     id: str
+    # Enriched fields for admin logs
+    employee_name: Optional[str] = None
+    shift_name: Optional[str] = None
+    total_hours_worked: Optional[float] = None
+
     class Config:
         from_attributes = True
+
+class AttendanceUpdate(BaseModel):
+    clock_in: Optional[datetime] = None
+    clock_out: Optional[datetime] = None
+    status: Optional[str] = None
+
+class BulkAttendanceRow(BaseModel):
+    employee_id: str       # matches Employee.employee_id field (e.g. EMP-1001)
+    date: date
+    clock_in: Optional[str] = None    # "HH:MM" string from CSV
+    clock_out: Optional[str] = None   # "HH:MM" string from CSV
+
+class BulkAttendanceResponse(BaseModel):
+    created: int
+    skipped: int
+    errors: List[str]
+
+class AttendanceWeeklySummaryDay(BaseModel):
+    date: str          # YYYY-MM-DD
+    label: str         # Mon, Tue, …
+    present: int
+    late: int
+    absent: int
+
+class AttendanceWeeklySummaryResponse(BaseModel):
+    days: List[AttendanceWeeklySummaryDay]
 
 # Leave Request
 class LeaveRequestBase(BaseModel):

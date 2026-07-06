@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { 
   Department, Designation, Employee, Shift, Attendance, 
-  LeaveRequest, PayrollRun, HRAnalytics 
+  LeaveRequest, PayrollRun, HRAnalytics,
+  ClockInRequest, ClockOutRequest
 } from '../types/hr';
 
 // Departments
@@ -129,6 +130,20 @@ export const useUpdateEmployee = (id: string) => {
   });
 };
 
+export const useDeleteEmployee = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/api/v1/hr/employees/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employees'] });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'analytics'] });
+    }
+  });
+};
+
 // Shifts
 export const useShifts = () => {
   return useQuery({
@@ -167,12 +182,55 @@ export const useUpdateShift = (id: string) => {
 };
 
 // Attendance
-export const useAttendance = () => {
+export const useAttendance = (date?: string) => {
   return useQuery({
-    queryKey: ['hr', 'attendance'],
+    queryKey: ['hr', 'attendance', date],
     queryFn: async () => {
-      const res = await api.get('/api/v1/hr/attendance');
+      const params = date ? `?date=${date}` : '';
+      const res = await api.get(`/api/v1/hr/attendance${params}`);
       return res.data as Attendance[];
+    }
+  });
+};
+
+export const useTodayAttendance = (employeeId: string | null) => {
+  return useQuery({
+    queryKey: ['hr', 'attendance', 'today', employeeId],
+    queryFn: async () => {
+      const res = await api.get(`/api/v1/hr/attendance/today/${employeeId}`);
+      return res.data as Attendance | null;
+    },
+    enabled: !!employeeId,
+    retry: false,
+  });
+};
+
+export const useClockIn = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: ClockInRequest) => {
+      const res = await api.post('/api/v1/hr/attendance/clock-in', data);
+      return res.data as Attendance;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'attendance', 'today', variables.employee_id] });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'analytics'] });
+    }
+  });
+};
+
+export const useClockOut = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: ClockOutRequest & { employee_id: string }) => {
+      const res = await api.post('/api/v1/hr/attendance/clock-out', { attendance_id: data.attendance_id });
+      return res.data as Attendance;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'attendance', 'today', variables.employee_id] });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'analytics'] });
     }
   });
 };
