@@ -34,6 +34,13 @@ export interface Employee {
   designation_id: string;
   join_date: string;
   base_salary?: number;
+  salary_type?: string;
+  account_no?: string;
+
+  weekend_days?: string[];
+  overtime_allowed?: boolean;
+  standard_break_time?: number;
+
   is_active: boolean;
   created_at: string;
 }
@@ -54,10 +61,13 @@ export interface Attendance {
   clock_in?: string;
   clock_out?: string;
   status: string;
+  leave_type?: string;
   // Enriched fields from admin logs endpoint
   employee_name?: string;
   shift_name?: string;
   total_hours_worked?: number;
+  break_time?: number;
+  overtime?: number;
 }
 
 export interface ClockInRequest {
@@ -66,6 +76,45 @@ export interface ClockInRequest {
 
 export interface ClockOutRequest {
   attendance_id: string;
+}
+
+export interface AttendanceUpdate {
+  clock_in?: string;
+  clock_out?: string;
+  status?: string;
+}
+
+export interface BulkAttendanceRow {
+  employee_id?: string;
+  employeeId?: string;
+  date: string;
+  clock_in?: string;
+  clock_out?: string;
+  checkInAt?: string;
+  checkOutAt?: string;
+  workedHour?: number;
+  breakTime?: number;
+  overtime?: number;
+  status?: string;
+  shiftId?: string;
+}
+
+export interface BulkAttendanceResponse {
+  created: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface AttendanceWeeklySummaryDay {
+  date: string;
+  label: string;
+  present: number;
+  late: number;
+  absent: number;
+}
+
+export interface AttendanceWeeklySummaryResponse {
+  days: AttendanceWeeklySummaryDay[];
 }
 
 export interface LeaveRequest {
@@ -78,12 +127,15 @@ export interface LeaveRequest {
   status: string;
   approved_by?: string;
   created_at: string;
+  employee_name?: string;
 }
 
 export interface PayrollLine {
-  id: string;
+  id?: string;
   employee_id: string;
+  employee_name?: string;
   base_salary: number;
+  worked_units?: string;
   allowances: number;
   deductions: number;
   net_pay: number;
@@ -107,4 +159,17 @@ export interface HRAnalytics {
   attendance_percent: number;
   pending_leaves: number;
   monthly_payroll_cost: number;
+}
+
+export interface AdvanceSalary {
+  id: string;
+  employee_id: string;
+  amount: number;
+  request_date: string;
+  deduction_month: string;
+  reason?: string;
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Paid';
+  approved_by?: string;
+  employee_name?: string;
+  created_at?: string;
 }

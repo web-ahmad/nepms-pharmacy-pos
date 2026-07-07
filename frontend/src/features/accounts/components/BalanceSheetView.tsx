@@ -1,110 +1,140 @@
 import { BalanceSheetResponse } from '../types/accounts';
+import { Printer, AlertTriangle } from 'lucide-react';
+import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
 
-interface BalanceSheetViewProps {
-  data: BalanceSheetResponse;
-  isLoading: boolean;
+interface Props { data: BalanceSheetResponse; isLoading: boolean; }
+
+const fmt = (v: number) => new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 }).format(v);
+
+function Section({ title, items, total, totalLabel, color }: {
+  title: string; items: { account_name: string; amount: number }[];
+  total: number; totalLabel: string; color: string;
+}) {
+  return (
+    <div>
+      <p className={`text-[11px] font-bold uppercase tracking-widest mb-2 ${color}`}>{title}</p>
+      <div className="space-y-1">
+        {items.map((item, i) => (
+          <div key={i} className="flex justify-between text-sm py-1.5 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors">
+            <span className="text-gray-600 dark:text-zinc-400">{item.account_name}</span>
+            <span className="font-mono font-medium text-gray-900 dark:text-zinc-100">{fmt(item.amount)}</span>
+          </div>
+        ))}
+        {items.length === 0 && <p className="text-xs text-gray-400 italic px-2 py-1">No entries</p>}
+      </div>
+      <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-gray-200 dark:border-zinc-700 text-sm font-bold px-2">
+        <span className="text-gray-800 dark:text-zinc-200">{totalLabel}</span>
+        <span className={`font-mono ${color}`}>{fmt(total)}</span>
+      </div>
+    </div>
+  );
 }
 
-export default function BalanceSheetView({ data, isLoading }: BalanceSheetViewProps) {
+export default function BalanceSheetView({ data, isLoading }: Props) {
   if (isLoading) {
     return (
-      <div className="animate-pulse space-y-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-        <div className="h-6 w-1/4 rounded bg-zinc-200 dark:bg-zinc-800" />
-        <div className="h-4 w-full rounded bg-zinc-100 dark:bg-zinc-900" />
-        <div className="h-4 w-full rounded bg-zinc-100 dark:bg-zinc-900" />
+      <div className="animate-pulse space-y-4">
+        <div className="h-10 rounded-xl bg-gray-100 dark:bg-zinc-800" />
+        <div className="grid grid-cols-2 gap-6">
+          <div className="h-72 rounded-2xl bg-gray-50 dark:bg-zinc-900" />
+          <div className="h-72 rounded-2xl bg-gray-50 dark:bg-zinc-900" />
+        </div>
       </div>
     );
   }
-
   if (!data) return null;
 
-  const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'PKR' }).format(val);
+  const totalLE = data.total_liabilities + data.total_equity;
+  const isBalanced = Math.abs(data.total_assets - totalLE) < 0.01;
 
-  const isBalanced = Math.abs(data.total_assets - (data.total_liabilities + data.total_equity)) < 0.01;
+  const exportData = [
+    { section: 'Assets', type: 'Header', account: '', amount: null },
+    ...data.assets.map(a => ({ section: 'Assets', type: 'Item', account: a.account_name, amount: a.amount })),
+    { section: 'Assets', type: 'Total Assets', account: '', amount: data.total_assets },
+    { section: 'Liabilities', type: 'Header', account: '', amount: null },
+    ...data.liabilities.map(l => ({ section: 'Liabilities', type: 'Item', account: l.account_name, amount: l.amount })),
+    { section: 'Liabilities', type: 'Total Liabilities', account: '', amount: data.total_liabilities },
+    { section: 'Equity', type: 'Header', account: '', amount: null },
+    ...data.equity.map(e => ({ section: 'Equity', type: 'Item', account: e.account_name, amount: e.amount })),
+    { section: 'Equity', type: 'Total Equity', account: '', amount: data.total_equity },
+    { section: 'Summary', type: 'Total L+E', account: '', amount: totalLE }
+  ];
+
+  const exportColumns: ExportColumn[] = [
+    { header: 'Section', accessorKey: 'section' },
+    { header: 'Type', accessorKey: 'type' },
+    { header: 'Account Name', accessorKey: 'account' },
+    { header: 'Amount', accessorKey: 'amount' }
+  ];
 
   return (
-    <div className="space-y-6">
-      {!isBalanced && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800 dark:text-red-400">Balance Sheet Equation Mismatch</h3>
-              <div className="mt-2 text-sm text-red-700 dark:text-red-300">
-                <p>Assets must equal Liabilities + Equity. The current calculation is out of balance.</p>
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-gray-900 dark:text-zinc-100">Balance Sheet</h2>
+          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">Statement of financial position · all approved entries</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {!isBalanced && (
+            <span className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-1.5 rounded-full border border-red-200 dark:border-red-800">
+              <AlertTriangle className="h-3.5 w-3.5" /> Out of balance
+            </span>
+          )}
+          <DataExportMenu 
+            title="Balance Sheet Report" 
+            data={exportData} 
+            columns={exportColumns} 
+            fileName="balance_sheet"
+          />
+        </div>
+      </div>
+
+      {/* Accounting equation banner */}
+      <div className={`rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isBalanced ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
+        <p className={`text-xs font-bold uppercase tracking-wide ${isBalanced ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+          Accounting Equation: Assets = Liabilities + Equity
+        </p>
+        <div className="flex gap-4 text-xs font-mono font-bold">
+          <span className="text-blue-600 dark:text-blue-400">Assets: {fmt(data.total_assets)}</span>
+          <span className="text-gray-400">=</span>
+          <span className="text-violet-600 dark:text-violet-400">L+E: {fmt(totalLE)}</span>
+          {isBalanced && <span className="text-emerald-600">✓ Balanced</span>}
+        </div>
+      </div>
+
+      {/* Print area — two-column layout */}
+      <div id="bs-print-area">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Assets */}
+          <div className="rounded-2xl border border-blue-200 dark:border-blue-900 bg-white dark:bg-zinc-950 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900">
+              <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300">Assets</h3>
+              <p className="text-[11px] text-blue-500 dark:text-blue-500 mt-0.5">What the business owns</p>
+            </div>
+            <div className="p-5 min-h-[260px]">
+              <Section title="Current & Fixed Assets" items={data.assets} total={data.total_assets} totalLabel="Total Assets" color="text-blue-700 dark:text-blue-400" />
+            </div>
+          </div>
+
+          {/* Liabilities + Equity */}
+          <div className="rounded-2xl border border-violet-200 dark:border-violet-900 bg-white dark:bg-zinc-950 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 bg-violet-50 dark:bg-violet-950/40 border-b border-violet-100 dark:border-violet-900">
+              <h3 className="text-sm font-bold text-violet-800 dark:text-violet-300">Liabilities &amp; Equity</h3>
+              <p className="text-[11px] text-violet-500 dark:text-violet-500 mt-0.5">What the business owes &amp; owner's stake</p>
+            </div>
+            <div className="p-5 min-h-[260px] space-y-5">
+              <Section title="Liabilities" items={data.liabilities} total={data.total_liabilities} totalLabel="Total Liabilities" color="text-orange-600 dark:text-orange-400" />
+              <div className="border-t border-dashed border-gray-200 dark:border-zinc-700 pt-4">
+                <Section title="Equity" items={data.equity} total={data.total_equity} totalLabel="Total Equity" color="text-violet-700 dark:text-violet-400" />
               </div>
+            </div>
+            <div className="px-5 py-4 border-t-2 border-violet-300 dark:border-violet-700 bg-violet-50/60 dark:bg-violet-950/20 flex justify-between items-center">
+              <span className="text-sm font-bold text-violet-900 dark:text-violet-200">Total L + E</span>
+              <span className="font-mono font-bold text-violet-700 dark:text-violet-300">{fmt(totalLE)}</span>
             </div>
           </div>
         </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* ASSETS SECTION (Left Side) */}
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Assets</h3>
-          </div>
-          <div className="p-6 space-y-2 min-h-[300px]">
-            {data.assets.map((item, idx) => (
-              <div key={idx} className="flex justify-between text-sm">
-                <span className="text-zinc-700 dark:text-zinc-300">{item.account_name}</span>
-                <span className="font-mono text-zinc-900 dark:text-zinc-100">{formatCurrency(item.amount)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-4 flex justify-between items-center dark:border-zinc-800 dark:bg-zinc-900">
-            <span className="font-bold text-zinc-900 dark:text-zinc-100">Total Assets</span>
-            <span className="font-mono font-bold text-blue-700 dark:text-blue-400">{formatCurrency(data.total_assets)}</span>
-          </div>
-        </div>
-
-        {/* LIABILITIES & EQUITY SECTION (Right Side) */}
-        <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Liabilities & Equity</h3>
-          </div>
-          <div className="p-6 space-y-8 min-h-[300px]">
-            
-            {/* Liabilities */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-3 border-b border-zinc-200 dark:border-zinc-800 pb-2">Liabilities</h4>
-              <div className="space-y-2">
-                {data.liabilities.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-zinc-700 dark:text-zinc-300">{item.account_name}</span>
-                    <span className="font-mono text-zinc-900 dark:text-zinc-100">{formatCurrency(item.amount)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex justify-between border-t border-zinc-100 pt-2 text-sm font-semibold dark:border-zinc-800/50">
-                <span className="text-zinc-900 dark:text-zinc-100">Total Liabilities</span>
-                <span className="font-mono text-zinc-900 dark:text-zinc-100">{formatCurrency(data.total_liabilities)}</span>
-              </div>
-            </div>
-
-            {/* Equity */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-3 border-b border-zinc-200 dark:border-zinc-800 pb-2">Equity</h4>
-              <div className="space-y-2">
-                {data.equity.map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-zinc-700 dark:text-zinc-300">{item.account_name}</span>
-                    <span className="font-mono text-zinc-900 dark:text-zinc-100">{formatCurrency(item.amount)}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 flex justify-between border-t border-zinc-100 pt-2 text-sm font-semibold dark:border-zinc-800/50">
-                <span className="text-zinc-900 dark:text-zinc-100">Total Equity</span>
-                <span className="font-mono text-zinc-900 dark:text-zinc-100">{formatCurrency(data.total_equity)}</span>
-              </div>
-            </div>
-
-          </div>
-          <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-4 flex justify-between items-center dark:border-zinc-800 dark:bg-zinc-900">
-            <span className="font-bold text-zinc-900 dark:text-zinc-100">Total L & E</span>
-            <span className="font-mono font-bold text-blue-700 dark:text-blue-400">{formatCurrency(data.total_liabilities + data.total_equity)}</span>
-          </div>
-        </div>
-
       </div>
     </div>
   );

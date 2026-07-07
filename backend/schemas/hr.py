@@ -74,7 +74,15 @@ class EmployeeBase(BaseModel):
     designation_id: str
     join_date: date
     base_salary: float = 0.0
+    salary_type: str = "Monthly"
+    account_no: Optional[str] = None
+
+    weekend_days: List[str] = []
+    overtime_allowed: bool = False
+    standard_break_time: int = 60
+
     is_active: bool = True
+    # NOTE: created_at is NOT included here — it is server-generated
 
 class EmployeeCreate(EmployeeBase):
     pass
@@ -93,8 +101,15 @@ class EmployeeUpdate(BaseModel):
     shift_id: Optional[str] = None
     department_id: Optional[str] = None
     designation_id: Optional[str] = None
+    join_date: Optional[date] = None
     base_salary: Optional[float] = None
+    salary_type: Optional[str] = None
+    account_no: Optional[str] = None
     is_active: Optional[bool] = None
+    # Attendance rule fields
+    weekend_days: Optional[List[str]] = None
+    overtime_allowed: Optional[bool] = None
+    standard_break_time: Optional[int] = None
 
 class EmployeeResponse(BaseModel):
     id: str
@@ -112,12 +127,19 @@ class EmployeeResponse(BaseModel):
     department_id: Optional[str] = None
     designation_id: Optional[str] = None
     join_date: Optional[date] = None
-    base_salary: float = 0.0
+    base_salary: Optional[float] = 0.0
+    salary_type: Optional[str] = "Monthly"
+    account_no: Optional[str] = None
     is_active: bool = True
     created_at: datetime
+    # Attendance rule fields
+    weekend_days: List[str] = []
+    overtime_allowed: bool = False
+    standard_break_time: int = 60
 
     class Config:
         from_attributes = True
+
 
 # Shift
 class ShiftBase(BaseModel):
@@ -171,6 +193,8 @@ class AttendanceResponse(AttendanceBase):
     employee_name: Optional[str] = None
     shift_name: Optional[str] = None
     total_hours_worked: Optional[float] = None
+    break_time: Optional[float] = None
+    overtime: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -181,10 +205,18 @@ class AttendanceUpdate(BaseModel):
     status: Optional[str] = None
 
 class BulkAttendanceRow(BaseModel):
-    employee_id: str       # matches Employee.employee_id field (e.g. EMP-1001)
+    employee_id: Optional[str] = None       # matches Employee.employee_id field (e.g. EMP-1001)
+    employeeId: Optional[str] = None        # UUID from Mark Monthly
     date: date
     clock_in: Optional[str] = None    # "HH:MM" string from CSV
     clock_out: Optional[str] = None   # "HH:MM" string from CSV
+    checkInAt: Optional[str] = None
+    checkOutAt: Optional[str] = None
+    workedHour: Optional[float] = None
+    breakTime: Optional[float] = None
+    overtime: Optional[float] = None
+    status: Optional[str] = None
+    shiftId: Optional[str] = None
 
 class BulkAttendanceResponse(BaseModel):
     created: int
@@ -201,55 +233,87 @@ class AttendanceWeeklySummaryDay(BaseModel):
 class AttendanceWeeklySummaryResponse(BaseModel):
     days: List[AttendanceWeeklySummaryDay]
 
-# Leave Request
+# LeaveRequest
 class LeaveRequestBase(BaseModel):
     employee_id: str
     leave_type: str
     start_date: date
     end_date: date
     reason: str
+    status: str = "Pending"
 
 class LeaveRequestCreate(LeaveRequestBase):
     pass
 
+class LeaveRequestUpdate(BaseModel):
+    status: Optional[str] = None
+    approved_by: Optional[str] = None
+
 class LeaveRequestResponse(LeaveRequestBase):
     id: str
-    status: str
     approved_by: Optional[str] = None
     created_at: datetime
+    employee_name: Optional[str] = None
+
     class Config:
         from_attributes = True
 
 # Payroll
 class PayrollLineBase(BaseModel):
     employee_id: str
-    base_salary: float
-    allowances: float
-    deductions: float
-    net_pay: float
+    base_salary: float = 0.0
+    worked_units: Optional[str] = None
+    allowances: float = 0.0
+    deductions: float = 0.0
+    net_pay: float = 0.0
 
 class PayrollLineResponse(PayrollLineBase):
     id: str
+    employee_name: Optional[str] = None
+
     class Config:
         from_attributes = True
 
 class PayrollRunBase(BaseModel):
     month: int
     year: int
+    total_gross: float = 0.0
+    total_deductions: float = 0.0
+    total_net: float = 0.0
+    status: str = "Draft"
 
 class PayrollRunCreate(PayrollRunBase):
-    pass
+    department_id: Optional[str] = None
+
+class PayrollApprovalRequest(BaseModel):
+    override: bool = False
+    remarks: Optional[str] = None
 
 class PayrollRunResponse(PayrollRunBase):
     id: str
-    total_gross: float
-    total_deductions: float
-    total_net: float
-    status: str
+    created_by: str
+    approved_by: Optional[str] = None
+    remarks: Optional[str] = None
     created_at: datetime
-    lines: List[PayrollLineResponse]
+    lines: List[PayrollLineResponse] = []
+
     class Config:
         from_attributes = True
+
+# Holiday
+class HolidayBase(BaseModel):
+    date: date
+    name: str
+
+class HolidayCreate(HolidayBase):
+    pass
+
+class HolidayResponse(HolidayBase):
+    id: str
+
+    class Config:
+        from_attributes = True
+
 
 # Analytics
 class HRAnalyticsResponse(BaseModel):
@@ -258,3 +322,27 @@ class HRAnalyticsResponse(BaseModel):
     attendance_percent: float
     pending_leaves: int
     monthly_payroll_cost: float
+
+
+# Advance Salary
+class AdvanceSalaryBase(BaseModel):
+    employee_id: str
+    amount: float
+    request_date: date
+    deduction_month: str
+    reason: Optional[str] = None
+
+class AdvanceSalaryCreate(AdvanceSalaryBase):
+    pass
+
+class AdvanceSalaryResponse(AdvanceSalaryBase):
+    id: str
+    status: str
+    approved_by: Optional[str] = None
+    journal_entry_id: Optional[str] = None
+    created_at: datetime
+    
+    employee_name: Optional[str] = None # Added for convenience in UI
+
+    class Config:
+        from_attributes = True

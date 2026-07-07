@@ -2,51 +2,35 @@
 
 import AttendanceLogs from '@/features/hr/components/AttendanceLogs';
 import AttendanceTerminal from '@/features/hr/components/AttendanceTerminal';
+import AttendanceWeeklyChart from '@/features/hr/components/AttendanceWeeklyChart';
+import { CalendarCheck } from 'lucide-react';
 
 export default function AttendancePage() {
   return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Attendance
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Clock in/out in real-time and review the full HR attendance logs below.
-        </p>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+          <CalendarCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-gray-900 dark:text-zinc-100">Attendance Center</h2>
+          <p className="text-xs text-gray-400 dark:text-zinc-500">Clock in/out in real-time and review organizational logs</p>
+        </div>
       </div>
 
-      {/* Two-column layout: Terminal + Quick Stats */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Attendance Terminal — 1/3 width on large screens */}
         <div className="xl:col-span-1">
           <AttendanceTerminal />
         </div>
-
-        {/* Placeholder for quick stats / charts */}
-        <div className="flex items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 xl:col-span-2 dark:border-zinc-700 dark:bg-zinc-900/30">
-          <div className="text-center">
-            <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">
-              Attendance Analytics
-            </p>
-            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-600">
-              Charts and trend data — Coming Soon
-            </p>
-          </div>
+        <div className="xl:col-span-2">
+          <AttendanceWeeklyChart />
         </div>
       </div>
 
-      {/* Admin Attendance Logs */}
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-              Attendance Logs
-            </h2>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              HR view of daily clock-in records with shift and status tracking.
-            </p>
-          </div>
+      <div className="border-t border-gray-100 dark:border-zinc-800 pt-6">
+        <div className="mb-4">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-zinc-100 uppercase tracking-wider text-emerald-700">Attendance Registry</h3>
+          <p className="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">HR view of daily clock-in records with shift status</p>
         </div>
         <AttendanceLogs />
       </div>

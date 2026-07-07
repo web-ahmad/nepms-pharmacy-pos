@@ -98,9 +98,24 @@ class CashierService:
             created_at_utc=datetime.utcnow()
         )
         db.add(entry)
-        db.commit()
-        db.refresh(entry)
-        return entry
+
+        try:
+            # ── Auto-Posting (Accounting Engine) ────────────────────────
+            from services.auto_posting_service import AutoPostingService
+            auto_post = AutoPostingService(db)
+            # Generate a pseudo-reference since expenses might not have one
+            import time
+            ref = f"EXP-{int(time.time())}"
+            je = auto_post.post_expense(tenant_id, user_id, ref, abs(amount), description=notes)
+            if je:
+                entry.journal_entry_id = je.id
+                
+            db.commit()
+            db.refresh(entry)
+            return entry
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=f"Failed to post expense: {e}")
 
     # ── Inject sale entry (called from verify_complete_sale) ───────────────
 

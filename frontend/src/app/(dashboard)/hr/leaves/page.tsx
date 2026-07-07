@@ -1,25 +1,24 @@
 "use client";
 
 import ModuleGuard from '@/components/ModuleGuard';
-import { useLeaveRequests } from '@/features/hr/services/hr.api';
-import LeaveRequestTable from '@/features/hr/components/LeaveRequestTable';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import LeavesList from '@/features/hr/components/LeavesList';
+import { Palmtree } from 'lucide-react';
 
 export default function LeavesPage() {
-  const { data, isLoading } = useLeaveRequests();
-
   return (
-    <ModuleGuard moduleKey="leaves">
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Leave Management</h2>
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Request Leave
-          </Button>
+    <ModuleGuard moduleKey="hr">
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+            <Palmtree className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-gray-900 dark:text-zinc-100">Leave Applications</h2>
+            <p className="text-xs text-gray-400 dark:text-zinc-500">Track and review employee vacation and sick leave requests</p>
+          </div>
         </div>
-        <LeaveRequestTable data={data!} isLoading={isLoading} />
+        
+        <LeavesList />
       </div>
     </ModuleGuard>
   );

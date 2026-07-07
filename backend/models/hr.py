@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Float, ForeignKey, DateTime, Boolean, Date
+from sqlalchemy import Column, String, Integer, Float, ForeignKey, DateTime, Boolean, Date, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -48,6 +48,14 @@ class Employee(Base):
     designation_id = Column(String, ForeignKey("designations.id"))
     join_date = Column(Date)
     base_salary = Column(Float, default=0.0)
+    salary_type = Column(String, default="Monthly") # Monthly, Hourly
+    account_no = Column(String, nullable=True)
+    
+    # Custom Attendance Rules
+    weekend_days = Column(JSON, default=list) # e.g. ["Sunday", "Saturday"]
+    overtime_allowed = Column(Boolean, default=False)
+    standard_break_time = Column(Integer, default=60) # minutes
+    
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -108,6 +116,8 @@ class PayrollRun(Base):
     total_net = Column(Float, default=0.0)
     status = Column(String, default="Draft") # Draft, Paid
     journal_entry_id = Column(String, nullable=True) # Linked to accounting
+    remarks = Column(String, nullable=True)
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)
     created_by = Column(String, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -119,9 +129,33 @@ class PayrollLine(Base):
     payroll_run_id = Column(String, ForeignKey("payroll_runs.id"))
     employee_id = Column(String, ForeignKey("employees.id"))
     base_salary = Column(Float, default=0.0)
+    worked_units = Column(String, nullable=True)
     allowances = Column(Float, default=0.0)
     deductions = Column(Float, default=0.0)
     net_pay = Column(Float, default=0.0)
 
     payroll_run = relationship("PayrollRun", back_populates="lines")
     employee = relationship("Employee", back_populates="payroll_lines")
+
+class Holiday(Base):
+    __tablename__ = "holidays"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
+    date = Column(Date)
+    name = Column(String)
+
+class AdvanceSalary(Base):
+    __tablename__ = "advance_salaries"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
+    employee_id = Column(String, ForeignKey("employees.id"))
+    amount = Column(Float, default=0.0)
+    request_date = Column(Date)
+    deduction_month = Column(String) # e.g., "07-2026"
+    reason = Column(String, nullable=True)
+    status = Column(String, default="Pending") # Pending, Approved, Rejected, Paid
+    approved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    journal_entry_id = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    employee = relationship("Employee")

@@ -38,6 +38,7 @@ class CashLedgerEntry(BaseModel):
     notes = Column(Text, nullable=True)
 
     created_at_utc = Column(DateTime, nullable=True)   # explicit UTC stamp (created_at from base is fine too)
+    journal_entry_id = Column(String(36), ForeignKey("journal_entries.id"), nullable=True)
 
     session = relationship("CashSession", back_populates="ledger_entries")
     sale = relationship("Sale", foreign_keys=[sale_id], lazy="selectin")

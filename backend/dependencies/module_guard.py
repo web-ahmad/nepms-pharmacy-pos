@@ -33,7 +33,7 @@ def require_module(module_key: str):
         db: Session = Depends(get_db),
     ) -> User:
         # Super Admin and Owner always have access
-        if current_user.role and ("super" in current_user.role.name.lower() or "owner" in current_user.role.name.lower()):
+        if current_user.is_super_admin or (current_user.role and ("super" in current_user.role.name.lower() or "owner" in current_user.role.name.lower())):
             return current_user
 
         mod = (

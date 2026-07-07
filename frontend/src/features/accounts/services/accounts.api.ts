@@ -111,3 +111,31 @@ export const useBalanceSheet = () => {
     }
   });
 };
+
+export const useDashboardStats = () => {
+  return useQuery({
+    queryKey: ['accounts', 'dashboard-stats'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/accounts/dashboard-stats');
+      return res.data as import('../types/accounts').DashboardStatsResponse;
+    }
+  });
+};
+
+export const useForceRebuildAccounting = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.post('/api/v1/accounts/force-rebuild');
+      return res.data as {
+        message: string;
+        synced: { sales: number; expenses: number; payroll: number; errors: string[] };
+        accounts_recalculated: number;
+      };
+    },
+    onSuccess: () => {
+      // Invalidate all accounting queries so the dashboard refreshes
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    }
+  });
+};

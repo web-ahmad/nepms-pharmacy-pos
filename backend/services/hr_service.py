@@ -5,7 +5,7 @@ from datetime import datetime, date
 from repositories.hr import HRRepository
 from schemas.hr import (
     DepartmentCreate, EmployeeCreate, EmployeeUpdate, AttendanceCreate, AttendanceUpdate,
-    LeaveRequestCreate, ShiftCreate, PayrollRunCreate,
+    LeaveRequestCreate, ShiftCreate, PayrollRunCreate, AdvanceSalaryCreate,
     ClockInRequest, ClockOutRequest,
     BulkAttendanceRow, BulkAttendanceResponse, AttendanceWeeklySummaryResponse
 )
@@ -102,9 +102,12 @@ class HRService:
     def get_attendances(self, tenant_id: str):
         return self.repo.get_attendances(tenant_id)
 
-    def get_attendance_logs(self, tenant_id: str, target_date: date = None):
+    def get_attendance_logs(
+        self, tenant_id: str, target_date: date = None,
+        employee_id: str = None, month: int = None, year: int = None
+    ):
         """Return enriched attendance logs (with employee name, shift, hours)."""
-        return self.repo.get_attendances_enriched(tenant_id, target_date)
+        return self.repo.get_attendances_enriched(tenant_id, target_date, employee_id, month, year)
 
     def get_today_attendance(self, tenant_id: str, employee_id: str):
         """Fetch today's attendance record for the given employee."""
@@ -136,8 +139,11 @@ class HRService:
         return rec
 
     def bulk_create_attendance(self, tenant_id: str, rows: list):
-        created, skipped, errors = self.repo.bulk_create_attendance(tenant_id, rows)
-        return {"created": created, "skipped": skipped, "errors": errors}
+        res = self.repo.bulk_create_attendance(tenant_id, rows)
+        return res
+
+    def delete_monthly_attendance_batch(self, tenant_id: str, employee_id: str, month: int, year: int):
+        return self.repo.delete_monthly_attendance_batch(tenant_id, employee_id, month, year)
 
     def get_weekly_summary(self, tenant_id: str):
         days = self.repo.get_weekly_summary(tenant_id)
@@ -148,6 +154,25 @@ class HRService:
 
     def create_leave(self, tenant_id: str, obj_in: LeaveRequestCreate):
         return self.repo.create_leave(tenant_id, obj_in)
+
+    def reject_leave(self, tenant_id: str, user_id: str, leave_id: str):
+        leave = self.repo.get_leave(tenant_id, leave_id)
+        if not leave:
+            raise HTTPException(404, "Leave not found")
+        
+        updated = self.repo.update_leave_status(leave, "Rejected", user_id)
+        
+        from models.audit import AuditLog
+        self.db.add(AuditLog(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            action="reject_leave",
+            entity_type="LeaveRequest",
+            entity_id=leave_id,
+            new_value={"status": "Rejected"}
+        ))
+        self.db.commit()
+        return updated
 
     def approve_leave(self, tenant_id: str, user_id: str, leave_id: str):
         leave = self.repo.get_leave(tenant_id, leave_id)
@@ -160,10 +185,10 @@ class HRService:
         self.db.add(AuditLog(
             tenant_id=tenant_id,
             user_id=user_id,
-            action="Approve Leave",
+            action="approve_leave",
             entity_type="LeaveRequest",
             entity_id=updated.id,
-            details=f"Approved leave for {leave.employee_id}"
+            new_value={"status": "Approved"}
         ))
         self.db.commit()
         return updated
@@ -189,42 +214,133 @@ class HRService:
             raise HTTPException(404, "Payroll run not found")
         return run
 
-    def run_payroll(self, tenant_id: str, user_id: str, obj_in: PayrollRunCreate):
-        employees = self.repo.get_employees(tenant_id)
-        run = self.repo.create_payroll_run(tenant_id, user_id, obj_in, employees)
+    def finalize_payroll(self, tenant_id: str, user_id: str, run_id: str):
+        run = self.repo.finalize_payroll_run(tenant_id, run_id)
         
-        # Auto-post to Accounting
-        # User defined:
-        # DR Salary Expense
-        # CR Payroll Payable
-        
-        try:
-            exp_acc = self.auto_posting._get_account_id(tenant_id, "5030") # Using 5030 Operating Expenses, but ideally 5040 Salary
-            pay_acc = self.auto_posting._get_account_id(tenant_id, "2000") # Using 2000 AP, ideally 2020 Payroll Payable
-            
-            entry = JournalEntryCreate(
-                reference=f"PAYROLL-{run.month}-{run.year}",
-                description=f"Auto Post: Payroll generation {run.month}/{run.year}",
-                lines=[
-                    JournalEntryLineCreate(account_id=exp_acc, debit=run.total_gross, credit=0),
-                    JournalEntryLineCreate(account_id=pay_acc, debit=0, credit=run.total_gross)
-                ]
-            )
-            self.auto_posting.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
-        except Exception as e:
-            print(f"Warning: Failed to auto post payroll: {e}")
+        # Trigger accounting auto-post hook now that it is Paid!
+        je = self.auto_posting.post_payroll(
+            tenant_id, 
+            user_id, 
+            f"PAYROLL-{run.month}-{run.year}", 
+            run.total_net, 
+            description=f"Auto Post: Payroll run disbursed {run.month}/{run.year}"
+        )
+        if je:
+            run.journal_entry_id = je.id
+            self.db.add(run)
             
         from models.audit import AuditLog
         self.db.add(AuditLog(
             tenant_id=tenant_id,
             user_id=user_id,
-            action="Run Payroll",
+            action="Paid Payroll",
             entity_type="PayrollRun",
             entity_id=run.id,
-            details=f"Generated payroll for {run.month}/{run.year} - Net: {run.total_net}"
+            new_value={"message": f"Marked payroll as Paid for {run.month}/{run.year}"}
         ))
         self.db.commit()
         return run
 
+    def submit_payroll(self, tenant_id: str, user_id: str, run_id: str):
+        run = self.repo.get_payroll_run(tenant_id, run_id)
+        if not run:
+            raise HTTPException(404, "Payroll run not found")
+        run.status = "Pending Approval"
+        self.db.add(run)
+        self.db.commit()
+        return run
+
+    def approve_payroll(self, tenant_id: str, user_id: str, run_id: str, override: bool = False, remarks: str = None):
+        run = self.repo.get_payroll_run(tenant_id, run_id)
+        if not run:
+            raise HTTPException(404, "Payroll run not found")
+        run.status = "Approved"
+        run.approved_by = user_id
+        if remarks:
+            run.remarks = remarks
+        self.db.add(run)
+        self.db.commit()
+        return run
+
+    def reject_payroll(self, tenant_id: str, user_id: str, run_id: str):
+        run = self.repo.get_payroll_run(tenant_id, run_id)
+        if not run:
+            raise HTTPException(404, "Payroll run not found")
+        run.status = "Draft"
+        self.db.add(run)
+        self.db.commit()
+        return run
+
+    def get_payroll_summary(self, tenant_id: str):
+        return self.repo.get_payroll_summary(tenant_id)
+
+    def preview_payroll(self, tenant_id: str, month: int, year: int, department_id: str = None):
+        return self.repo.calculate_payroll_lines(tenant_id, month, year, department_id)
+
+    def run_payroll(self, tenant_id: str, user_id: str, obj_in: PayrollRunCreate):
+        try:
+            employees = self.repo.get_employees(tenant_id)
+            run = self.repo.create_payroll_run(tenant_id, user_id, obj_in, employees)
+            
+            # Auto-post to Accounting REMOVED from initial run (delayed to final payment step)
+            
+            from models.audit import AuditLog
+            self.db.add(AuditLog(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                action="Run Payroll",
+                entity_type="PayrollRun",
+                entity_id=run.id,
+                new_value={"message": f"Ran payroll for {run.month}/{run.year}"}
+            ))
+            self.db.commit()
+            return run
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(status_code=400, detail=str(e))
+
     def get_analytics(self, tenant_id: str):
         return self.repo.get_analytics(tenant_id)
+
+    # Advance Salary Methods
+    def get_advances(self, tenant_id: str):
+        return self.repo.get_advances(tenant_id)
+
+    def create_advance(self, tenant_id: str, obj_in: AdvanceSalaryCreate):
+        return self.repo.create_advance(tenant_id, obj_in)
+
+    def approve_advance(self, tenant_id: str, user_id: str, advance_id: str):
+        adv = self.repo.get_advance(tenant_id, advance_id)
+        if not adv:
+            raise HTTPException(404, "Advance Salary not found")
+        if adv.status == "Paid":
+            raise HTTPException(400, "Advance Salary is already paid")
+            
+        adv.status = "Paid"
+        adv.approved_by = user_id
+        
+        # Trigger accounting hook
+        je = self.auto_posting.post_advance_salary(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            reference=f"ADV-{adv.id.split('-')[0].upper()}",
+            amount=adv.amount,
+            description=f"Auto Post: Advance Salary disbursed for {adv.deduction_month}"
+        )
+        if je:
+            adv.journal_entry_id = je.id
+            
+        from models.audit import AuditLog
+        self.db.add(AuditLog(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            action="Approve Advance Salary",
+            entity_type="AdvanceSalary",
+            entity_id=adv.id,
+            new_value={"status": "Paid"}
+        ))
+        
+        self.db.add(adv)
+        self.db.commit()
+        self.db.refresh(adv)
+        return adv

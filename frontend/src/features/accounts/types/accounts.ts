@@ -7,7 +7,7 @@ export interface Account {
   category: AccountCategory;
   is_active: boolean;
   is_system: boolean;
-  balance: number;
+  current_balance: number;
 }
 
 export interface JournalEntryLine {
@@ -37,6 +37,9 @@ export interface LedgerRow {
   debit: number;
   credit: number;
   balance: number;
+  status?: string;
+  source_id?: string;
+  created_by_name?: string;
 }
 
 export interface LedgerResponse {
@@ -82,4 +85,15 @@ export interface BalanceSheetResponse {
   total_assets: number;
   total_liabilities: number;
   total_equity: number;
+}
+
+export interface DashboardStatsResponse {
+  total_revenue: number;
+  total_expenses: number;
+  net_profit: number;
+  total_assets: number;
+  cash_balance: number;
+  bank_balance: number;
+  ar_balance: number;
+  ap_balance: number;
 }

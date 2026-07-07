@@ -24,6 +24,7 @@ class Sale(BaseModel):
     
     status = Column(String(50), default="Completed")  # Held, Completed, Voided, Partially Returned, Fully Returned
     notes = Column(Text, nullable=True)
+    journal_entry_id = Column(String(36), ForeignKey("journal_entries.id"), nullable=True)
     
     items = relationship("SaleItem", back_populates="sale", lazy="selectin")
     returns = relationship("SaleReturn", back_populates="sale", lazy="selectin")

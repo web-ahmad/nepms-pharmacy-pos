@@ -27,6 +27,11 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
   
   const [username, setUsername] = useState(initialData?.username || '');
 
+  // Attendance Rules
+  const [weekendDays, setWeekendDays] = useState<string[]>(initialData?.weekend_days || []);
+  const [overtimeAllowed, setOvertimeAllowed] = useState(initialData?.overtime_allowed || false);
+  const [standardBreakTime, setStandardBreakTime] = useState(initialData?.standard_break_time || 60);
+
   const { data: departments } = useDepartments();
   const { data: designations } = useDesignations();
   const { data: shifts } = useShifts();
@@ -72,6 +77,9 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
         designation_id: designationId,
         shift_id: shiftId,
         join_date: joinDate,
+        weekend_days: weekendDays,
+        overtime_allowed: overtimeAllowed,
+        standard_break_time: standardBreakTime,
         is_active: initialData ? initialData.is_active : true,
       };
 
@@ -182,6 +190,39 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Date of Joining <span className="text-red-500">*</span></label>
               <input type="date" required value={joinDate} onChange={e => setJoinDate(e.target.value)} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100 border-b pb-2 dark:border-zinc-800">Attendance Rules</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Standard Break Time (Minutes)</label>
+              <input type="number" min="0" required value={standardBreakTime} onChange={e => setStandardBreakTime(parseInt(e.target.value) || 0)} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+            </div>
+            <div className="flex items-center gap-2 pt-6">
+              <input type="checkbox" id="overtimeAllowed" checked={overtimeAllowed} onChange={e => setOvertimeAllowed(e.target.checked)} className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900" />
+              <label htmlFor="overtimeAllowed" className="text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer">Overtime Allowed</label>
+            </div>
+            <div className="col-span-2">
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Custom Weekend Days</label>
+              <div className="flex flex-wrap gap-3">
+                {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
+                  <label key={day} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer bg-zinc-50 dark:bg-zinc-900/50 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800">
+                    <input 
+                      type="checkbox" 
+                      checked={weekendDays.includes(day)}
+                      onChange={(e) => {
+                        if (e.target.checked) setWeekendDays([...weekendDays, day]);
+                        else setWeekendDays(weekendDays.filter(d => d !== day));
+                      }}
+                      className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900" 
+                    />
+                    {day}
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         </div>

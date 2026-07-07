@@ -168,6 +168,24 @@ class SalesService:
                         db.add(ledger_debit)
                     db.add(customer)
 
+            # ── Auto-Posting (Accounting Engine) ────────────────────────
+            if not checkout_in.hold_sale and status != "Pending Verification":
+                from services.auto_posting_service import AutoPostingService
+                auto_post = AutoPostingService(db)
+                je = None
+                if checkout_in.payment_method == "Credit" or sale.amount_paid < sale.total_amount:
+                    if sale.amount_paid >= sale.total_amount:
+                        je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount)
+                    else:
+                        je = auto_post.post_credit_sale(tenant_id, user_id, invoice_num, sale.total_amount)
+                        if sale.amount_paid > 0:
+                            auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{invoice_num}", sale.amount_paid)
+                else:
+                    je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount)
+                
+                if je:
+                    sale.journal_entry_id = je.id
+
             db.commit()
             db.refresh(sale)
             return sale
@@ -295,6 +313,23 @@ class SalesService:
                 )
             except Exception:
                 pass  # Never block a sale because of cashier ledger failure
+
+            # ── Auto-Posting (Accounting Engine) ────────────────────────
+            from services.auto_posting_service import AutoPostingService
+            auto_post = AutoPostingService(db)
+            je = None
+            if payment_method == "Credit" or amount_paid < sale.total_amount:
+                if amount_paid >= sale.total_amount:
+                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+                else:
+                    je = auto_post.post_credit_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+                    if amount_paid > 0:
+                        auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{sale.invoice_number}", amount_paid)
+            else:
+                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+            
+            if je:
+                sale.journal_entry_id = je.id
 
             db.commit()
             db.refresh(sale)

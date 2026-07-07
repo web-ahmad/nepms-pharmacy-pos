@@ -1,7 +1,8 @@
 import { Department } from '../types/hr';
 import { useEmployees } from '../services/hr.api';
-import { Building2, Users, MoreVertical, Edit2, Ban, CheckCircle } from 'lucide-react';
+import { Building2, Users, Edit2, Ban, CheckCircle, MoreVertical } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
 
 interface DepartmentsGridProps {
   data: Department[];
@@ -10,26 +11,37 @@ interface DepartmentsGridProps {
   onToggleStatus: (dept: Department) => void;
 }
 
+const DEPT_GRADIENTS = [
+  'from-emerald-500 to-teal-600',
+  'from-blue-500 to-indigo-600',
+  'from-violet-500 to-purple-600',
+  'from-orange-500 to-amber-600',
+  'from-rose-500 to-pink-600',
+  'from-cyan-500 to-sky-600',
+];
+
 export default function DepartmentsGrid({ data, isLoading, onEdit, onToggleStatus }: DepartmentsGridProps) {
   const { data: employees } = useEmployees();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  // Close menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => setOpenMenuId(null);
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    const close = () => setOpenMenuId(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
   }, []);
+
+  const exportColumns: ExportColumn[] = [
+    { header: 'Name', accessorKey: 'name' },
+    { header: 'Description', accessorKey: 'description' },
+    { header: 'Employees', accessorKey: 'employee_count' },
+    { header: 'Status', accessorKey: (row: Department) => row.is_active ? 'Active' : 'Inactive' }
+  ];
 
   if (isLoading) {
     return (
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="animate-pulse rounded-xl border border-zinc-200 p-6 dark:border-zinc-800">
-            <div className="h-6 w-1/2 rounded bg-zinc-200 dark:bg-zinc-800 mb-4" />
-            <div className="h-4 w-full rounded bg-zinc-100 dark:bg-zinc-900 mb-2" />
-            <div className="h-4 w-2/3 rounded bg-zinc-100 dark:bg-zinc-900" />
-          </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 animate-pulse">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-48 rounded-2xl bg-gray-100 dark:bg-zinc-800" />
         ))}
       </div>
     );
@@ -37,101 +49,101 @@ export default function DepartmentsGrid({ data, isLoading, onEdit, onToggleStatu
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
-        <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full mb-4">
-          <Building2 size={32} className="text-blue-600 dark:text-blue-400" />
+      <div className="flex flex-col items-center justify-center py-20 rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/10 gap-3">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/40">
+          <Building2 className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
         </div>
-        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">No Departments Found</h3>
-        <p className="text-sm text-zinc-500 mt-1 max-w-sm text-center">
-          Create departments to organize your workforce efficiently.
-        </p>
+        <h3 className="text-base font-bold text-gray-700 dark:text-zinc-300">No Departments Yet</h3>
+        <p className="text-sm text-gray-400 text-center max-w-xs">Create departments to organise your workforce.</p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {data.map(dept => {
-        const head = employees?.find(e => e.id === dept.head_id);
-        const headInitials = head ? `${head.first_name[0]}${head.last_name[0]}`.toUpperCase() : '';
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <span className="text-xs text-gray-400 dark:text-zinc-500">{data.length} departments</span>
+        <div className="flex gap-2">
+          <DataExportMenu 
+            title="Departments Directory" 
+            data={data} 
+            columns={exportColumns} 
+            fileName="departments"
+          />
+        </div>
+      </div>
 
-        return (
-          <div key={dept.id} className={`group relative flex flex-col rounded-xl border p-6 shadow-sm transition-all hover:shadow-md ${dept.is_active ? 'border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950' : 'border-zinc-200 bg-zinc-50 opacity-75 dark:border-zinc-800 dark:bg-zinc-900'}`}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${dept.is_active ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'bg-zinc-200 text-zinc-500 dark:bg-zinc-800'}`}>
-                  <Building2 size={24} />
-                </div>
-                <div>
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-50 text-lg leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {dept.name}
-                  </h3>
-                  {!dept.is_active && <span className="text-xs font-medium text-red-500">Inactive</span>}
-                </div>
-              </div>
-              
-              <div className="relative inline-block text-left">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenMenuId(openMenuId === dept.id ? null : dept.id);
-                  }} 
-                  className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-                >
-                  <MoreVertical size={20} />
-                </button>
-                {openMenuId === dept.id && (
-                  <div className="absolute right-0 mt-2 w-48 origin-top-right divide-y divide-zinc-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:divide-zinc-800 dark:bg-zinc-900 dark:ring-white/10 z-10">
-                    <div className="px-1 py-1">
-                      <button 
-                        onClick={() => { setOpenMenuId(null); onEdit(dept); }} 
-                        className="text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-300 group flex w-full items-center rounded-md px-2 py-2 text-sm"
-                      >
-                        <Edit2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Edit
-                      </button>
+      <div id="dept-print-area" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {data.map((dept, idx) => {
+          const head = employees?.find(e => e.id === dept.head_id);
+          const headInitials = head ? `${head.first_name[0]}${head.last_name[0]}`.toUpperCase() : '?';
+          const gradient = DEPT_GRADIENTS[idx % DEPT_GRADIENTS.length];
+
+          return (
+            <div key={dept.id} className={`group relative flex flex-col rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg transition-all duration-200 ${dept.is_active ? 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950' : 'border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 opacity-70'}`}>
+              {/* Top gradient strip */}
+              <div className={`h-1.5 w-full bg-gradient-to-r ${gradient}`} />
+
+              <div className="flex flex-col flex-1 p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-sm`}>
+                      <Building2 className="h-5 w-5" />
                     </div>
-                    <div className="px-1 py-1">
-                      <button 
-                        onClick={() => { setOpenMenuId(null); onToggleStatus(dept); }} 
-                        className={`${dept.is_active ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 dark:text-red-400' : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 dark:text-green-400'} group flex w-full items-center rounded-md px-2 py-2 text-sm`}
-                      >
-                        {dept.is_active ? <Ban className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
-                        {dept.is_active ? 'Deactivate' : 'Activate'}
-                      </button>
+                    <div>
+                      <h3 className="font-bold text-gray-900 dark:text-zinc-100 leading-tight group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">
+                        {dept.name}
+                      </h3>
+                      {!dept.is_active && <span className="text-[10px] font-semibold text-red-500">Inactive</span>}
                     </div>
                   </div>
+
+                  {/* Menu */}
+                  <div className="relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === dept.id ? null : dept.id); }}
+                      className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                    {openMenuId === dept.id && (
+                      <div className="absolute right-0 mt-1 w-40 rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg z-20">
+                        <button onClick={() => { setOpenMenuId(null); onEdit(dept); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-zinc-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 rounded-t-xl transition-colors">
+                          <Edit2 className="h-3.5 w-3.5" /> Edit
+                        </button>
+                        <button onClick={() => { setOpenMenuId(null); onToggleStatus(dept); }} className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-b-xl transition-colors ${dept.is_active ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}>
+                          {dept.is_active ? <Ban className="h-3.5 w-3.5" /> : <CheckCircle className="h-3.5 w-3.5" />}
+                          {dept.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {dept.description && (
+                  <p className="text-xs text-gray-500 dark:text-zinc-400 line-clamp-2 mb-3">{dept.description}</p>
                 )}
-              </div>
-            </div>
 
-            {dept.description && (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-4">
-                {dept.description}
-              </p>
-            )}
-
-            <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-zinc-800/50 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                  {head ? headInitials : '?'}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Department Head</span>
-                  <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{head ? `${head.first_name} ${head.last_name}` : 'Not Assigned'}</span>
+                <div className="mt-auto pt-3 border-t border-gray-100 dark:border-zinc-800 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                      {headInitials}
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400 dark:text-zinc-500">Head</p>
+                      <p className="text-xs font-medium text-gray-800 dark:text-zinc-200">{head ? `${head.first_name} ${head.last_name}` : 'Not Assigned'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-lg bg-gray-50 dark:bg-zinc-900 px-2.5 py-1.5">
+                    <Users className="h-3.5 w-3.5 text-emerald-500" />
+                    <span className="text-xs font-semibold text-gray-700 dark:text-zinc-300">{dept.employee_count || 0} Employees</span>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900/50">
-                <Users size={16} className="text-blue-500" />
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                  {dept.employee_count || 0} Employees
-                </span>
-              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

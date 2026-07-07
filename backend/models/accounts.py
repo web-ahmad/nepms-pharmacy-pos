@@ -22,6 +22,7 @@ class Account(Base):
     category = Column(Enum(AccountCategory))
     is_active = Column(Boolean, default=True)
     is_system = Column(Boolean, default=False) # True if it's a default account that can't be deleted
+    current_balance = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     journal_lines = relationship("JournalEntryLine", back_populates="account")

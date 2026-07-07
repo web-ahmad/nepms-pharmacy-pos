@@ -52,6 +52,11 @@ app.add_middleware(
 app.include_router(api_router, prefix="/api/v1")
 
 
+@app.on_event("startup")
+def startup_event():
+    from core.sync import run_historical_sync
+    run_historical_sync()
+
 @app.get("/")
 def read_root():
     return {"status": "ok", "message": "NEPMS API is running."}

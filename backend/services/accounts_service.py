@@ -15,6 +15,7 @@ from models.accounts import AccountCategory
 
 class AccountsService:
     def __init__(self, db: Session):
+        self.db = db
         self.repo = AccountsRepository(db)
 
     def get_chart_of_accounts(self, tenant_id: str):
@@ -78,31 +79,33 @@ class AccountsService:
         return self.repo.create_journal_entry(tenant_id, user_id, obj_in, status)
 
     def get_trial_balance(self, tenant_id: str) -> TrialBalanceResponse:
-        rows = self.repo.get_trial_balance(tenant_id)
+        accounts = self.repo.get_trial_balance(tenant_id)
         
         parsed_rows = []
-        total_debit = 0
-        total_credit = 0
+        total_debit = 0.0
+        total_credit = 0.0
         
-        for row in rows:
-            td = row.total_debit or 0.0
-            tc = row.total_credit or 0.0
+        for acc in accounts:
+            bal = acc.current_balance or 0.0
+            final_debit = 0.0
+            final_credit = 0.0
             
-            # Usually trial balance just outputs the absolute net balance per account
-            net_bal = td - tc
-            final_debit = 0
-            final_credit = 0
-            
-            if net_bal > 0:
-                final_debit = net_bal
-            elif net_bal < 0:
-                final_credit = abs(net_bal)
-                
+            if acc.category in [AccountCategory.ASSET, AccountCategory.EXPENSE]:
+                if bal > 0:
+                    final_debit = bal
+                elif bal < 0:
+                    final_credit = abs(bal)
+            else: # LIABILITY, EQUITY, REVENUE
+                if bal > 0:
+                    final_credit = bal
+                elif bal < 0:
+                    final_debit = abs(bal)
+                    
             if final_debit > 0 or final_credit > 0:
                 parsed_rows.append({
-                    "account_code": row.code,
-                    "account_name": row.name,
-                    "category": row.category,
+                    "account_code": acc.code,
+                    "account_name": acc.name,
+                    "category": acc.category,
                     "debit": final_debit,
                     "credit": final_credit
                 })
@@ -144,6 +147,11 @@ class AccountsService:
         tot_debit = 0.0
         tot_credit = 0.0
         
+        # Pre-fetch payroll runs status to avoid N+1 queries
+        from models.hr import PayrollRun
+        payroll_runs = self.db.query(PayrollRun).filter(PayrollRun.tenant_id == tenant_id).all()
+        payroll_status_map = {f"PAYROLL-{r.month}-{r.year}": r.status for r in payroll_runs}
+        
         for r in rows:
             debit = r.debit or 0.0
             credit = r.credit or 0.0
@@ -151,6 +159,17 @@ class AccountsService:
             tot_credit += credit
             # Abstract running balance (usually absolute difference depending on account type, but we'll do Net Debit logic)
             running_bal += (debit - credit)
+            
+            # Map status
+            row_status = None
+            if r.reference:
+                if r.reference.startswith("PAYROLL-"):
+                    pay_status = payroll_status_map.get(r.reference)
+                    row_status = "Paid" if pay_status == "Paid" else "Pending"
+                elif r.reference.startswith("EXP-"):
+                    row_status = "Paid"
+                elif r.reference.startswith("INV-"):
+                    row_status = "Paid"
             
             parsed_rows.append({
                 "date": r.date,
@@ -160,7 +179,10 @@ class AccountsService:
                 "account_name": r.account_name,
                 "debit": debit,
                 "credit": credit,
-                "balance": running_bal
+                "balance": running_bal,
+                "status": row_status,
+                "source_id": getattr(r, "source_id", None),
+                "created_by_name": getattr(r, "created_by_name", "System")
             })
             
         return {
@@ -173,3 +195,47 @@ class AccountsService:
         
     def get_journal_entries(self, tenant_id: str):
         return self.repo.get_journal_entries(tenant_id)
+
+    def get_dashboard_stats(self, tenant_id: str):
+        accounts = self.repo.get_accounts(tenant_id)
+        
+        total_revenue = 0.0
+        total_expenses = 0.0
+        total_assets = 0.0
+        cash_balance = 0.0
+        bank_balance = 0.0
+        ar_balance = 0.0
+        ap_balance = 0.0
+        
+        for acc in accounts:
+            bal = acc.current_balance or 0.0
+            
+            if acc.category == AccountCategory.REVENUE:
+                total_revenue += bal
+            elif acc.category == AccountCategory.EXPENSE:
+                total_expenses += bal
+            elif acc.category == AccountCategory.ASSET:
+                total_assets += bal
+                if acc.code == "1000":
+                    cash_balance = bal
+                elif acc.code == "1010":
+                    bank_balance = bal
+                elif acc.code == "1030":
+                    ar_balance += bal
+            elif acc.category == AccountCategory.LIABILITY:
+                if acc.code == "2000":
+                    ap_balance += bal
+
+        net_profit = total_revenue - total_expenses
+        
+        from schemas.accounts import DashboardStatsResponse
+        return DashboardStatsResponse(
+            total_revenue=total_revenue,
+            total_expenses=total_expenses,
+            net_profit=net_profit,
+            total_assets=total_assets,
+            cash_balance=cash_balance,
+            bank_balance=bank_balance,
+            ar_balance=ar_balance,
+            ap_balance=ap_balance
+        )

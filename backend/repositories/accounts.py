@@ -1,6 +1,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from models.accounts import Account, JournalEntry, JournalEntryLine, AccountCategory
+from models.hr import PayrollRun
+from models.cash_register import CashLedgerEntry
+from models.sales import Sale
+from models.users import User
 from schemas.accounts import AccountCreate, JournalEntryCreate
 from typing import List
 from datetime import datetime
@@ -69,53 +73,47 @@ class AccountsRepository:
             )
             self.db.add(db_line)
             
+            # Update the account's current_balance
+            account = self.db.query(Account).filter(Account.id == line.account_id).with_for_update().first()
+            if account:
+                if account.category in [AccountCategory.ASSET, AccountCategory.EXPENSE]:
+                    account.current_balance = (account.current_balance or 0.0) + line.debit - line.credit
+                else: # LIABILITY, EQUITY, REVENUE
+                    account.current_balance = (account.current_balance or 0.0) + line.credit - line.debit
+                    
         self.db.commit()
         self.db.refresh(db_obj)
         return db_obj
 
     def get_trial_balance(self, tenant_id: str):
         """
-        Returns sums of all debits and credits for every account.
+        Returns trial balance based on current_balance.
         """
-        query = self.db.query(
-            Account.code,
-            Account.name,
-            Account.category,
-            func.sum(JournalEntryLine.debit).label('total_debit'),
-            func.sum(JournalEntryLine.credit).label('total_credit')
-        ).outerjoin(JournalEntryLine, Account.id == JournalEntryLine.account_id)\
-         .outerjoin(JournalEntry, JournalEntryLine.journal_entry_id == JournalEntry.id)\
-         .filter(
-             Account.tenant_id == tenant_id,
-             # Ensure we only calculate approved entries or un-joined accounts
-             (JournalEntry.status == 'Approved') | (JournalEntry.id == None)
-         ).group_by(Account.id, Account.code, Account.name, Account.category)
-         
-        return query.order_by(Account.code).all()
+        query = self.db.query(Account).filter(Account.tenant_id == tenant_id, Account.current_balance != 0)
+        accounts = query.order_by(Account.code).all()
+        
+        # We need to adapt it so the service can still process it in its current way, or update the service as well.
+        # It's better to update the service directly, but let's change what the repo returns to just the accounts.
+        return accounts
         
     def get_profit_and_loss(self, tenant_id: str):
         """
-        Calculates Revenue and Expense balances.
+        Calculates Revenue and Expense balances based on current_balance.
         """
-        tb = self.get_trial_balance(tenant_id)
+        accounts = self.get_trial_balance(tenant_id)
         revenue = []
         expenses = []
-        total_rev = 0
-        total_exp = 0
+        total_rev = 0.0
+        total_exp = 0.0
         
-        for row in tb:
-            td = row.total_debit or 0.0
-            tc = row.total_credit or 0.0
+        for acc in accounts:
+            bal = acc.current_balance or 0.0
             
-            if row.category == AccountCategory.REVENUE:
-                # Normal balance = Credit
-                bal = tc - td
-                revenue.append({"account_name": row.name, "amount": bal})
+            if acc.category == AccountCategory.REVENUE:
+                revenue.append({"account_name": acc.name, "amount": bal})
                 total_rev += bal
-            elif row.category == AccountCategory.EXPENSE:
-                # Normal balance = Debit
-                bal = td - tc
-                expenses.append({"account_name": row.name, "amount": bal})
+            elif acc.category == AccountCategory.EXPENSE:
+                expenses.append({"account_name": acc.name, "amount": bal})
                 total_exp += bal
                 
         return {
@@ -127,29 +125,25 @@ class AccountsRepository:
         }
         
     def get_balance_sheet(self, tenant_id: str):
-        tb = self.get_trial_balance(tenant_id)
+        accounts = self.get_trial_balance(tenant_id)
         assets = []
         liabilities = []
         equity = []
-        tot_ast = 0
-        tot_lia = 0
-        tot_equ = 0
+        tot_ast = 0.0
+        tot_lia = 0.0
+        tot_equ = 0.0
         
-        for row in tb:
-            td = row.total_debit or 0.0
-            tc = row.total_credit or 0.0
+        for acc in accounts:
+            bal = acc.current_balance or 0.0
             
-            if row.category == AccountCategory.ASSET:
-                bal = td - tc
-                assets.append({"account_name": row.name, "amount": bal})
+            if acc.category == AccountCategory.ASSET:
+                assets.append({"account_name": acc.name, "amount": bal})
                 tot_ast += bal
-            elif row.category == AccountCategory.LIABILITY:
-                bal = tc - td
-                liabilities.append({"account_name": row.name, "amount": bal})
+            elif acc.category == AccountCategory.LIABILITY:
+                liabilities.append({"account_name": acc.name, "amount": bal})
                 tot_lia += bal
-            elif row.category == AccountCategory.EQUITY:
-                bal = tc - td
-                equity.append({"account_name": row.name, "amount": bal})
+            elif acc.category == AccountCategory.EQUITY:
+                equity.append({"account_name": acc.name, "amount": bal})
                 tot_equ += bal
                 
         # To balance the sheet, we must add Net Profit to Equity (Retained Earnings)
@@ -177,9 +171,16 @@ class AccountsRepository:
             JournalEntryLine.description.label("line_desc"),
             Account.name.label("account_name"),
             JournalEntryLine.debit,
-            JournalEntryLine.credit
+            JournalEntryLine.credit,
+            JournalEntry.status.label("journal_status"),
+            func.coalesce(PayrollRun.id, CashLedgerEntry.id, Sale.id).label("source_id"),
+            User.full_name.label("created_by_name")
         ).join(JournalEntryLine, JournalEntry.id == JournalEntryLine.journal_entry_id)\
          .join(Account, Account.id == JournalEntryLine.account_id)\
+         .outerjoin(PayrollRun, PayrollRun.journal_entry_id == JournalEntry.id)\
+         .outerjoin(CashLedgerEntry, CashLedgerEntry.journal_entry_id == JournalEntry.id)\
+         .outerjoin(Sale, Sale.journal_entry_id == JournalEntry.id)\
+         .outerjoin(User, User.id == JournalEntry.created_by)\
          .filter(
              JournalEntry.tenant_id == tenant_id,
              JournalEntry.status == 'Approved'

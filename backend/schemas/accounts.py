@@ -15,10 +15,20 @@ class AccountResponse(AccountBase):
     id: str
     is_active: bool
     is_system: bool
-    balance: float = 0.0
+    current_balance: float = 0.0
     
     class Config:
         from_attributes = True
+
+class DashboardStatsResponse(BaseModel):
+    total_revenue: float
+    total_expenses: float
+    net_profit: float
+    total_assets: float
+    cash_balance: float
+    bank_balance: float
+    ar_balance: float
+    ap_balance: float
 
 class JournalEntryLineBase(BaseModel):
     account_id: str
@@ -61,6 +71,9 @@ class LedgerRow(BaseModel):
     debit: float
     credit: float
     balance: float
+    status: Optional[str] = None
+    source_id: Optional[str] = None
+    created_by_name: Optional[str] = None
 
 class LedgerResponse(BaseModel):
     account_name: Optional[str]

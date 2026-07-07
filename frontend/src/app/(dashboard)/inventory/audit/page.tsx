@@ -152,13 +152,12 @@ export default function AuditSessionsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                          session.status === 'Completed'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
-                            : session.status === 'Pending Approval'
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${session.status === 'Completed'
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+                          : session.status === 'Pending Approval'
                             ? 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
                             : 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'
-                        }`}
+                          }`}
                       >
                         {session.status}
                       </span>
@@ -171,8 +170,8 @@ export default function AuditSessionsPage() {
                         {session.status === 'Completed'
                           ? 'View Report'
                           : session.status === 'Pending Approval'
-                          ? '⚡ Review & Approve'
-                          : 'Continue Audit'}
+                            ? ' Review & Approve'
+                            : 'Continue Audit'}
                         <ChevronRight className="w-4 h-4 ml-1" />
                       </button>
                     </td>
@@ -288,11 +287,10 @@ export default function AuditSessionsPage() {
                             <button
                               key={rack}
                               onClick={() => toggleRack(rack)}
-                              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${
-                                isSelected
-                                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                                  : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300'
-                              }`}
+                              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors ${isSelected
+                                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                                : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300'
+                                }`}
                             >
                               {isSelected ? (
                                 <CheckSquare className="w-4 h-4 text-blue-600 flex-shrink-0" />
