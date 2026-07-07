@@ -150,7 +150,8 @@ class AutoPostingService:
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
     def post_advance_salary(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Advance Salary Disbursed"):
-        advance_rec_acc = self._get_or_create_account(tenant_id, "1040", "Advance Salary Receivable", "ASSET")
+        from models.accounts import AccountCategory
+        advance_rec_acc = self._get_or_create_account(tenant_id, "1040", "Advance Salary Receivable", AccountCategory.ASSET)
         cash_acc = self._get_account_id(tenant_id, "1000")
         
         entry = JournalEntryCreate(

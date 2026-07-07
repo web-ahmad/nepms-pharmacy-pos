@@ -132,6 +132,7 @@ class PayrollLine(Base):
     worked_units = Column(String, nullable=True)
     allowances = Column(Float, default=0.0)
     deductions = Column(Float, default=0.0)
+    deductions_breakdown = Column(JSON, nullable=True)
     net_pay = Column(Float, default=0.0)
 
     payroll_run = relationship("PayrollRun", back_populates="lines")

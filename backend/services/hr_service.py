@@ -278,6 +278,18 @@ class HRService:
         return self.repo.calculate_payroll_lines(tenant_id, month, year, department_id)
 
     def run_payroll(self, tenant_id: str, user_id: str, obj_in: PayrollRunCreate):
+        from models.hr import PayrollRun
+        existing_run = self.db.query(PayrollRun).filter(
+            PayrollRun.tenant_id == tenant_id,
+            PayrollRun.month == obj_in.month,
+            PayrollRun.year == obj_in.year
+        ).first()
+        if existing_run:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Payroll for {obj_in.month:02d}-{obj_in.year} already exists. Please edit the existing draft or review the finalized run."
+            )
+
         try:
             employees = self.repo.get_employees(tenant_id)
             run = self.repo.create_payroll_run(tenant_id, user_id, obj_in, employees)

@@ -714,6 +714,7 @@ class HRRepository:
 
                 # Add advance deductions
                 emp_advance_deduction = advances_by_emp.get(emp.id, 0.0)
+                absent_deductions = deductions
                 deductions += emp_advance_deduction
 
                 net = round(max(base - deductions + allowances, 0.0), 2)
@@ -726,6 +727,10 @@ class HRRepository:
                     "worked_units": worked_units,
                     "allowances": allowances,
                     "deductions": deductions,
+                    "deductions_breakdown": {
+                        "absent_amount": round(absent_deductions, 2),
+                        "advance_recovery": round(emp_advance_deduction, 2)
+                    },
                     "net_pay": net,
                 })
 
@@ -764,6 +769,7 @@ class HRRepository:
                 worked_units=cl["worked_units"],
                 allowances=cl["allowances"],
                 deductions=cl["deductions"],
+                deductions_breakdown=cl.get("deductions_breakdown"),
                 net_pay=cl["net_pay"]
             )
             self.db.add(line)

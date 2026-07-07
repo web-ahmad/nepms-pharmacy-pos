@@ -164,7 +164,12 @@ export default function PayrollDetailsPage() {
                   <table>
                     <thead><tr><th>Deductions</th><th class="text-right">Amount (PKR)</th></tr></thead>
                     <tbody>
-                      <tr><td>Absent Deductions</td><td class="text-right amount">${(line.deductions || 0).toLocaleString()}</td></tr>
+                      ${line.deductions_breakdown ? `
+                        <tr><td>Absent Deductions</td><td class="text-right amount">${(line.deductions_breakdown.absent_amount || 0).toLocaleString()}</td></tr>
+                        ${line.deductions_breakdown.advance_recovery > 0 ? `<tr><td>Advance Recovery</td><td class="text-right amount">${line.deductions_breakdown.advance_recovery.toLocaleString()}</td></tr>` : ''}
+                      ` : `
+                        <tr><td>Absent Deductions</td><td class="text-right amount">${(line.deductions || 0).toLocaleString()}</td></tr>
+                      `}
                       <tr class="totals-row"><td>Total Deductions</td><td class="text-right">${(line.deductions || 0).toLocaleString()}</td></tr>
                     </tbody>
                   </table>

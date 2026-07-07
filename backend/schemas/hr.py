@@ -265,6 +265,7 @@ class PayrollLineBase(BaseModel):
     worked_units: Optional[str] = None
     allowances: float = 0.0
     deductions: float = 0.0
+    deductions_breakdown: Optional[dict] = None
     net_pay: float = 0.0
 
 class PayrollLineResponse(PayrollLineBase):
