@@ -4,10 +4,9 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Download, FileText, Printer, FileSpreadsheet } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
+import { GlobalPrintTemplate } from '@/components/shared/GlobalPrintTemplate';
 
 export interface ExportColumn {
   header: string;
@@ -26,59 +25,16 @@ export function DataExportMenu({ title, data, columns, fileName }: DataExportMen
   const exportFileName = fileName || safeTitle.replace(/\s+/g, '_').toLowerCase();
 
   const handlePrint = () => {
-    try {
-      const doc = new jsPDF('p', 'pt', 'a4');
-      doc.setFontSize(18);
-      doc.text(safeTitle, 40, 40);
-      
-      const head = [columns.map(col => col.header)];
-      const body = data.map(row => 
-        columns.map(col => typeof col.accessorKey === 'function' ? col.accessorKey(row) : row[col.accessorKey] ?? '-')
-      );
-
-      autoTable(doc, {
-        startY: 60,
-        head,
-        body,
-        theme: 'grid',
-        headStyles: { fillColor: [5, 150, 105] }, // emerald-600
-        styles: { fontSize: 10, cellPadding: 4 },
-      });
-
-      doc.autoPrint();
-      window.open(doc.output('bloburl'), '_blank');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to generate print document');
-    }
+    // The print template is already rendered in the DOM but hidden.
+    // window.print() will trigger the @media print CSS which shows the template and hides the app.
+    setTimeout(() => {
+      window.print();
+    }, 100);
   };
 
   const handleExportPDF = () => {
-    try {
-      const doc = new jsPDF('p', 'pt', 'a4');
-      doc.setFontSize(18);
-      doc.text(title, 40, 40);
-      
-      const head = [columns.map(col => col.header)];
-      const body = data.map(row => 
-        columns.map(col => typeof col.accessorKey === 'function' ? col.accessorKey(row) : row[col.accessorKey] ?? '-')
-      );
-
-      autoTable(doc, {
-        startY: 60,
-        head,
-        body,
-        theme: 'grid',
-        headStyles: { fillColor: [5, 150, 105] }, // emerald-600
-        styles: { fontSize: 10, cellPadding: 4 },
-      });
-
-      doc.save(`${exportFileName}.pdf`);
-      toast.success('PDF Exported Successfully');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to export PDF');
-    }
+    toast.success('Please select "Save as PDF" in the print dialog.');
+    handlePrint();
   };
 
   const handleExportCSV = () => {
@@ -123,6 +79,37 @@ export function DataExportMenu({ title, data, columns, fileName }: DataExportMen
           <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export CSV
         </button>
       </PopoverContent>
+
+      {/* Hidden print template */}
+      <GlobalPrintTemplate 
+        title={title}
+        metadata={[
+          { label: 'Date Exported', value: new Date().toLocaleDateString() },
+          { label: 'Records', value: data.length }
+        ]}
+      >
+        <table>
+          <thead>
+            <tr>
+              {columns.map((col, idx) => (
+                <th key={idx}>{col.header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, rIdx) => (
+              <tr key={rIdx}>
+                {columns.map((col, cIdx) => (
+                  <td key={cIdx}>
+                    {typeof col.accessorKey === 'function' ? col.accessorKey(row) : row[col.accessorKey] ?? '-'}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </GlobalPrintTemplate>
+
     </Popover>
   );
 }

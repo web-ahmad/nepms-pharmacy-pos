@@ -105,7 +105,8 @@ class PurchaseReturn(BaseModel):
     __tablename__ = "purchase_returns"
     
     return_number = Column(String(100), unique=True, index=True)
-    grn_id = Column(String(36), ForeignKey("grns.id"))
+    po_id = Column(String(36), ForeignKey("purchase_orders.id"), nullable=True)
+    grn_id = Column(String(36), ForeignKey("grns.id"), nullable=True)
     supplier_id = Column(String(36), ForeignKey("suppliers.id"))
     branch_id = Column(String(36), ForeignKey("branches.id"))
     
@@ -113,6 +114,25 @@ class PurchaseReturn(BaseModel):
     total_amount = Column(Float, default=0.0)
     reason = Column(String(255))
     status = Column(String(50), default="Draft") # Draft, Completed
+
+    items = relationship("PurchaseReturnItem", back_populates="purchase_return")
+    supplier = relationship("Supplier")
+
+class PurchaseReturnItem(BaseModel):
+    __tablename__ = "purchase_return_items"
+
+    purchase_return_id = Column(String(36), ForeignKey("purchase_returns.id"))
+    medicine_id = Column(String(36), ForeignKey("medicines.id"))
+    
+    quantity_returned = Column(Integer, nullable=False, default=1)
+    unit_price = Column(Float, default=0.0)
+    
+    purchase_return = relationship("PurchaseReturn", back_populates="items")
+    medicine = relationship("Medicine", foreign_keys=[medicine_id], lazy="joined")
+    
+    @property
+    def medicine_name(self) -> Optional[str]:
+        return self.medicine.name if self.medicine else None
 
 class SupplierLedger(BaseModel):
     __tablename__ = "supplier_ledger"

@@ -99,7 +99,10 @@ export default function PurchaseDashboardPage() {
             </Link>
             <Link href="/purchase/orders" className="flex flex-col items-center justify-center p-6 rounded-lg border border-zinc-200 hover:border-amber-500 hover:bg-amber-50 dark:border-zinc-800 dark:hover:border-amber-500 dark:hover:bg-amber-900/20 transition-colors text-center">
               <Package className="h-8 w-8 text-amber-600 dark:text-amber-400 mb-2" />
-              <span className="font-medium text-zinc-900 dark:text-zinc-100">Process GRN</span>
+              <span className="font-medium text-zinc-900 dark:text-zinc-100">All POs</span>
+            </Link>
+            <Link href="/purchase/returns" className="col-span-2 flex flex-col items-center justify-center p-4 rounded-lg border border-zinc-200 hover:border-purple-500 hover:bg-purple-50 dark:border-zinc-800 dark:hover:border-purple-500 dark:hover:bg-purple-900/20 transition-colors text-center">
+              <span className="font-medium text-zinc-900 dark:text-zinc-100">Manage PO Returns</span>
             </Link>
           </div>
         </div>

@@ -508,3 +508,84 @@ class PurchaseService:
         db.commit()
         db.refresh(payment)
         return payment
+
+    @staticmethod
+    def create_purchase_return(db: Session, return_in: 'PurchaseReturnCreate', tenant_id: str, branch_id: str, user_id: str) -> 'PurchaseReturn':
+        from models.purchase import PurchaseReturn, PurchaseReturnItem
+        from services.inventory_service import InventoryService
+        
+        return_num = f"PR-{uuid.uuid4().hex[:6].upper()}"
+        
+        db_pr = PurchaseReturn(
+            return_number=return_num,
+            po_id=return_in.po_id,
+            grn_id=return_in.grn_id,
+            supplier_id=return_in.supplier_id,
+            branch_id=branch_id,
+            tenant_id=tenant_id,
+            return_date=date.today(),
+            total_amount=return_in.total_amount,
+            reason=return_in.reason,
+            status="Completed"
+        )
+        db.add(db_pr)
+        db.commit()
+        db.refresh(db_pr)
+        
+        for item in return_in.items:
+            db_item = PurchaseReturnItem(
+                purchase_return_id=db_pr.id,
+                medicine_id=item.medicine_id,
+                quantity_returned=item.quantity_returned,
+                unit_price=item.unit_price,
+                tenant_id=tenant_id
+            )
+            db.add(db_item)
+            
+            # Deduct inventory using FEFO logic
+            InventoryService.allocate_fefo(
+                db=db,
+                tenant_id=tenant_id,
+                branch_id=branch_id,
+                medicine_id=item.medicine_id,
+                quantity_required=item.quantity_returned,
+                user_id=user_id,
+                reference_id=db_pr.id,
+                movement_type="Purchase Return"
+            )
+
+        # Update Supplier Balance
+        supplier = db.query(Supplier).filter(Supplier.id == return_in.supplier_id, Supplier.tenant_id == tenant_id).first()
+        if supplier:
+            # Return means they owe us money / our payable reduces
+            supplier.current_balance -= return_in.total_amount
+            db.add(supplier)
+            
+            # Ledger Entry
+            ledger = SupplierLedger(
+                supplier_id=supplier.id,
+                tenant_id=tenant_id,
+                branch_id=branch_id,
+                transaction_date=date.today(),
+                transaction_type="Purchase Return",
+                reference_id=db_pr.id,
+                debit=return_in.total_amount, # Reduces payable
+                credit=0.0,
+                balance_after=supplier.current_balance,
+                notes=f"PO Return: {db_pr.return_number}"
+            )
+            db.add(ledger)
+        
+        # --- Auto Posting ---
+        from services.auto_posting_service import AutoPostingService
+        auto_post = AutoPostingService(db)
+        auto_post.post_purchase_return(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            reference=db_pr.return_number,
+            amount=return_in.total_amount
+        )
+            
+        db.commit()
+        db.refresh(db_pr)
+        return db_pr

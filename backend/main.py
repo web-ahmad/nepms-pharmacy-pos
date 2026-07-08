@@ -15,6 +15,7 @@ class ExceptionMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=500, content={"detail": "Internal Server Error", "error": str(e)})
 
 from api.v1.api import api_router
+
 import core.audit # Registers SQLAlchemy event listeners
 
 tags_metadata = [

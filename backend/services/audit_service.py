@@ -46,7 +46,7 @@ class AuditService:
                 tenant_id=log.tenant_id,
                 branch_id=log.branch_id,
                 user_id=log.user_id,
-                user_name=user.name if user else "System",
+                user_name=user.full_name if user else "System",
                 created_at=log.created_at,
                 action=log.action,
                 entity_type=log.entity_type,

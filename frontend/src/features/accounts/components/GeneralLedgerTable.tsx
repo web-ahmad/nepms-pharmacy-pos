@@ -1,16 +1,30 @@
 import { LedgerResponse } from '../types/accounts';
-import { Printer, X, Receipt } from 'lucide-react';
 import { format } from 'date-fns';
 import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
 import Link from 'next/link';
-import { useState } from 'react';
+import { getReferenceLink } from '@/utils/auditUtils';
+import { useMemo } from 'react';
 
-interface Props { data: LedgerResponse; isLoading: boolean; }
+interface Props { 
+  data: LedgerResponse; 
+  isLoading: boolean;
+  searchRef?: string;
+}
 
 const fmt = (v: number) => new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 }).format(v);
 
-export default function GeneralLedgerTable({ data, isLoading }: Props) {
-  const [viewingExpense, setViewingExpense] = useState<any | null>(null);
+export default function GeneralLedgerTable({ data, isLoading, searchRef = '' }: Props) {
+  
+  const filteredRows = useMemo(() => {
+    if (!data?.rows) return [];
+    if (!searchRef) return data.rows;
+    const q = searchRef.toLowerCase();
+    return data.rows.filter(row => 
+      (row.reference && row.reference.toLowerCase().includes(q)) || 
+      (row.line_desc && row.line_desc.toLowerCase().includes(q)) ||
+      (row.journal_desc && row.journal_desc.toLowerCase().includes(q))
+    );
+  }, [data, searchRef]);
 
   if (isLoading) {
     return (
@@ -31,24 +45,27 @@ export default function GeneralLedgerTable({ data, isLoading }: Props) {
 
   const renderReferenceLink = (row: any) => {
     const ref = row.reference || '';
-    if (ref.startsWith('PAYROLL-') && row.source_id) {
+    if (!ref) return <span className="font-mono text-gray-500 dark:text-zinc-500">—</span>;
+
+    const link = getReferenceLink(ref);
+    if (link) {
       return (
-        <Link href={`/hr/payroll/${row.source_id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold font-mono">
+        <Link href={link} className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold font-mono whitespace-nowrap">
           {ref}
         </Link>
       );
     }
-    if (ref.startsWith('EXP-') && row.source_id) {
+    
+    // Fallbacks that are not in getReferenceLink yet
+    if (ref.startsWith('PAYROLL-') && row.source_id) {
       return (
-        <button
-          onClick={() => setViewingExpense(row)}
-          className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold font-mono text-left"
-        >
+        <Link href={`/hr/payroll/${row.source_id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold font-mono whitespace-nowrap">
           {ref}
-        </button>
+        </Link>
       );
     }
-    return <span className="font-mono text-gray-500 dark:text-zinc-500">{ref || '—'}</span>;
+
+    return <span className="font-mono text-gray-500 dark:text-zinc-500 whitespace-nowrap">{ref}</span>;
   };
 
   const exportColumns: ExportColumn[] = [
@@ -79,10 +96,10 @@ export default function GeneralLedgerTable({ data, isLoading }: Props) {
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400 dark:text-zinc-500">{data.rows.length} entries</span>
+        <span className="text-xs text-gray-400 dark:text-zinc-500">{filteredRows.length} entries</span>
         <DataExportMenu 
           title="General Ledger Report" 
-          data={data.rows} 
+          data={filteredRows} 
           columns={exportColumns} 
           fileName="general_ledger"
         />
@@ -99,7 +116,7 @@ export default function GeneralLedgerTable({ data, isLoading }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/80">
-              {data.rows.map((row, i) => (
+              {filteredRows.map((row, i) => (
                 <tr key={i} className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">
                     {format(new Date(row.date), 'dd MMM yyyy')}
@@ -119,6 +136,8 @@ export default function GeneralLedgerTable({ data, isLoading }: Props) {
                   <td className="px-4 py-3 text-center whitespace-nowrap">
                     {row.status === 'Paid' ? (
                       <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>
+                    ) : row.status === 'Posted' || row.status === 'Approved' ? (
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{row.status}</span>
                     ) : row.status === 'Pending' ? (
                       <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Pending</span>
                     ) : (
@@ -148,62 +167,6 @@ export default function GeneralLedgerTable({ data, isLoading }: Props) {
           </table>
         </div>
       </div>
-
-      {/* Expense Details Dialog */}
-      {viewingExpense && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-2xl max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-zinc-800 bg-emerald-50 dark:bg-emerald-950/40">
-              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-400">
-                <Receipt size={18} />
-                <span className="font-bold text-sm">Expense Receipt</span>
-              </div>
-              <button 
-                onClick={() => setViewingExpense(null)} 
-                className="p-1 rounded-lg text-gray-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="text-center pb-4 border-b border-dashed border-gray-100 dark:border-zinc-800">
-                <p className="text-xs text-gray-400">Reference</p>
-                <p className="text-lg font-mono font-bold text-gray-900 dark:text-zinc-100 mt-0.5">{viewingExpense.reference}</p>
-                <span className="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-50 text-emerald-700 mt-2">Paid</span>
-              </div>
-
-              <div className="space-y-2.5 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Date</span>
-                  <span className="font-medium text-gray-900 dark:text-zinc-100">{format(new Date(viewingExpense.date), 'dd MMM yyyy HH:mm')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Account</span>
-                  <span className="font-medium text-gray-900 dark:text-zinc-100">{viewingExpense.account_name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Description</span>
-                  <span className="font-medium text-gray-900 dark:text-zinc-100 text-right max-w-[200px] truncate">{viewingExpense.line_desc || viewingExpense.journal_desc}</span>
-                </div>
-                <div className="flex justify-between pt-3 border-t border-dashed border-gray-100 dark:border-zinc-800">
-                  <span className="text-gray-900 dark:text-zinc-100 font-bold">Total Payout</span>
-                  <span className="font-mono font-bold text-emerald-600">{fmt(viewingExpense.debit || viewingExpense.credit || 0)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="px-6 py-4 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-zinc-800 flex justify-end">
-              <button 
-                onClick={() => setViewingExpense(null)} 
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

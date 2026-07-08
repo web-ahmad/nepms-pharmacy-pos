@@ -2,9 +2,20 @@
 import { useLedger } from '@/features/accounts/services/accounts.api';
 import GeneralLedgerTable from '@/features/accounts/components/GeneralLedgerTable';
 import { BookOpen } from 'lucide-react';
+import AccountingFilterBar from '@/features/accounts/components/AccountingFilterBar';
+import { useState } from 'react';
 
 export default function GeneralLedgerPage() {
-  const { data, isLoading, refetch } = useLedger({});
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [searchRef, setSearchRef] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+
+  const { data, isLoading, refetch } = useLedger({
+    start_date: dateRange.start || undefined,
+    end_date: dateRange.end || undefined,
+    account_id: selectedAccountId || undefined,
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -19,7 +30,18 @@ export default function GeneralLedgerPage() {
         </div>
         <button onClick={() => refetch()} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">↻ Refresh</button>
       </div>
-      <GeneralLedgerTable data={data!} isLoading={isLoading} />
+
+      <AccountingFilterBar
+        dateRange={dateRange}
+        setDateRange={setDateRange}
+        searchRef={searchRef}
+        setSearchRef={setSearchRef}
+        showAccountFilter={true}
+        selectedAccountId={selectedAccountId}
+        setSelectedAccountId={setSelectedAccountId}
+      />
+
+      <GeneralLedgerTable data={data!} isLoading={isLoading} searchRef={searchRef} />
     </div>
   );
 }

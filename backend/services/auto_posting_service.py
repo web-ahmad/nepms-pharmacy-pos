@@ -140,6 +140,20 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
+    def post_purchase_return(self, tenant_id: str, user_id: str, reference: str, amount: float):
+        ap_acc = self._get_account_id(tenant_id, "2000") # Accounts Payable
+        pr_acc = self._get_account_id(tenant_id, "5000") # Purchase Returns
+        
+        entry = JournalEntryCreate(
+            reference=reference,
+            description=f"Auto Post: Purchase Return Debit Note",
+            lines=[
+                JournalEntryLineCreate(account_id=ap_acc, debit=amount, credit=0), # Debit AP (reduce liability)
+                JournalEntryLineCreate(account_id=pr_acc, debit=0, credit=amount) # Credit Purchase Returns
+            ]
+        )
+        return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
+
     def post_payroll(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Auto Post: Payroll"):
         salary_exp_acc = self._get_account_id(tenant_id, "5030") # using 5030 as general expense
         cash_acc = self._get_account_id(tenant_id, "1000")
@@ -269,3 +283,34 @@ class AutoPostingService:
             self.accounts_svc.create_journal_entry(tenant_id, user_id, entry_restock)
             
         return je_refund
+
+    def post_expense_voucher(self, tenant_id: str, user_id: str, reference: str, amount: float, category_id: str, payment_method: str = "Cash"):
+        from models.accounts import AccountCategory
+        if payment_method and payment_method.lower() in ['bank transfer', 'card', 'credit card', 'bank']:
+            asset_acc = self._get_or_create_account(tenant_id, "1010", "Bank", AccountCategory.ASSET)
+        else:
+            asset_acc = self._get_account_id(tenant_id, "1000")
+            
+        entry = JournalEntryCreate(
+            reference=reference,
+            description=f"Auto Post: Expense Voucher ({payment_method})",
+            lines=[
+                JournalEntryLineCreate(account_id=category_id, debit=amount, credit=0),
+                JournalEntryLineCreate(account_id=asset_acc, debit=0, credit=amount)
+            ]
+        )
+        return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
+
+    def post_petty_cash(self, tenant_id: str, user_id: str, reference: str, amount: float, category_id: str):
+        from models.accounts import AccountCategory
+        petty_cash_acc = self._get_or_create_account(tenant_id, "1005", "Petty Cash", AccountCategory.ASSET)
+            
+        entry = JournalEntryCreate(
+            reference=reference,
+            description="Auto Post: Petty Cash Dispense",
+            lines=[
+                JournalEntryLineCreate(account_id=category_id, debit=amount, credit=0),
+                JournalEntryLineCreate(account_id=petty_cash_acc, debit=0, credit=amount)
+            ]
+        )
+        return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)

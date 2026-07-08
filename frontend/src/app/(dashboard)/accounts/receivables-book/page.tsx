@@ -6,7 +6,8 @@ import { format } from 'date-fns';
 import { Receipt, Printer, X } from 'lucide-react';
 import { DataExportMenu } from '@/components/ui/DataExportMenu';
 import Link from 'next/link';
-import ReturnDetailsModal from '@/features/sales/components/ReturnDetailsModal';
+import AccountingFilterBar from '@/features/accounts/components/AccountingFilterBar';
+import { getReferenceLink } from '@/utils/auditUtils';
 
 const fmt = (v: number) => new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 }).format(v);
 
@@ -14,21 +15,27 @@ export default function ReceivablesBookPage() {
   const { data: accounts } = useChartAccounts();
   const arAccount = useMemo(() => accounts?.find(a => a.name === 'Accounts Receivable' || a.code === '1030'), [accounts]);
   
-  const [selectedReturnRef, setSelectedReturnRef] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [searchRef, setSearchRef] = useState('');
 
   const { data, isLoading } = useLedger({
-    account_id: arAccount?.id
+    account_id: arAccount?.id,
+    start_date: dateRange.start || undefined,
+    end_date: dateRange.end || undefined,
   });
 
   const totalReceivables = data?.closing_balance || 0;
 
-  const getRefLink = (ref: string, desc: string) => {
-    if (!ref) return '#';
-    if (ref.startsWith('INV-') || ref.startsWith('POS-')) return `/sales?invoice=${ref}`;
-    if (ref.startsWith('PO-')) return `/purchase/invoices/${ref}`;
-    if (desc.includes('purchase') || desc.includes('supplier')) return `/purchase/invoices/${ref}`;
-    return '#';
-  };
+  const filteredRows = useMemo(() => {
+    if (!data?.rows) return [];
+    if (!searchRef) return data.rows;
+    const q = searchRef.toLowerCase();
+    return data.rows.filter(row => 
+      (row.reference && row.reference.toLowerCase().includes(q)) || 
+      (row.line_desc && row.line_desc.toLowerCase().includes(q)) ||
+      (row.journal_desc && row.journal_desc.toLowerCase().includes(q))
+    );
+  }, [data, searchRef]);
 
   return (
     <div className="space-y-6">
@@ -40,6 +47,12 @@ export default function ReceivablesBookPage() {
         <div className="animate-pulse h-48 w-full rounded-xl bg-zinc-100 dark:bg-zinc-900" />
       ) : (
         <div className="space-y-6">
+          <AccountingFilterBar
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            searchRef={searchRef}
+            setSearchRef={setSearchRef}
+          />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 shadow-sm">
               <h3 className="text-sm font-medium text-gray-500 dark:text-zinc-400">Total Receivables</h3>
@@ -56,7 +69,7 @@ export default function ReceivablesBookPage() {
                 <h3 className="font-semibold">A/R Ledger</h3>
               </div>
               <DataExportMenu 
-                data={data?.rows || []} 
+                data={filteredRows} 
                 title="Receivables Book"
                 fileName="Receivables_Book"
                 columns={[
@@ -83,31 +96,28 @@ export default function ReceivablesBookPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                  {data?.rows.length === 0 ? (
+                  {filteredRows.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-zinc-400">
                         No receivable entries found.
                       </td>
                     </tr>
                   ) : (
-                    data?.rows.map((row: any, idx: number) => (
+                    filteredRows.map((row: any, idx: number) => {
+                      const link = getReferenceLink(row.reference);
+                      return (
                       <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
                         <td className="px-4 py-3 text-gray-600 dark:text-zinc-300">
                           {format(new Date(row.date), 'MMM dd, yyyy')}
                         </td>
                         <td className="px-4 py-3 text-gray-900 dark:text-zinc-100 font-mono text-xs">
                           {row.reference ? (
-                            row.reference.startsWith('RET-') ? (
-                              <button 
-                                onClick={() => setSelectedReturnRef(row.reference)} 
-                                className="text-blue-600 hover:underline font-semibold cursor-pointer dark:text-blue-400 text-left"
-                              >
-                                {row.reference}
-                              </button>
-                            ) : (
-                              <Link href={getRefLink(row.reference, (row.line_desc || row.journal_desc || '').toLowerCase())} className="text-blue-600 hover:underline font-semibold cursor-pointer dark:text-blue-400">
+                            link ? (
+                              <Link href={link} className="text-blue-600 hover:underline font-semibold cursor-pointer dark:text-blue-400">
                                 {row.reference}
                               </Link>
+                            ) : (
+                              <span className="text-gray-900 dark:text-zinc-100">{row.reference}</span>
                             )
                           ) : '—'}
                         </td>
@@ -124,7 +134,8 @@ export default function ReceivablesBookPage() {
                           {fmt(row.balance)}
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -132,11 +143,6 @@ export default function ReceivablesBookPage() {
           </div>
         </div>
       )}
-
-      <ReturnDetailsModal 
-        returnNumber={selectedReturnRef}
-        onClose={() => setSelectedReturnRef(null)}
-      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { JournalEntry } from '../types/accounts';
 import { Printer, CheckCircle, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
+import Link from 'next/link';
 
 interface Props { data: JournalEntry[]; isLoading: boolean; }
 
@@ -66,7 +67,25 @@ export default function JournalTable({ data, isLoading }: Props) {
                       {format(new Date(j.date), 'dd MMM yyyy')}
                     </td>
                     <td className="px-5 py-3.5 font-semibold text-gray-900 dark:text-zinc-100 whitespace-nowrap font-mono text-xs">
-                      {j.reference}
+                      {j.reference.startsWith('INV-') || j.reference.startsWith('POS-') ? (
+                        <Link href={`/sales?invoice=${j.reference}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                          {j.reference}
+                        </Link>
+                      ) : j.reference.startsWith('RET-') ? (
+                        <Link href={`/sales?invoice=${j.reference}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                          {j.reference}
+                        </Link>
+                      ) : j.reference.startsWith('PO-') ? (
+                        <Link href={`/purchase/invoices/${j.reference}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                          {j.reference}
+                        </Link>
+                      ) : j.reference.startsWith('EXP-') ? (
+                        <Link href={`/accounts/expenses?view_expense=${j.reference}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                          {j.reference}
+                        </Link>
+                      ) : (
+                        j.reference
+                      )}
                     </td>
                     <td className="px-5 py-3.5 text-gray-600 dark:text-zinc-400 max-w-xs truncate">{j.description}</td>
                     <td className="px-5 py-3.5 text-right font-mono text-gray-900 dark:text-zinc-100 whitespace-nowrap">{fmt(totalDebit)}</td>

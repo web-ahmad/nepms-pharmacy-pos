@@ -2,14 +2,20 @@
 
 import { useLedger, useChartAccounts } from '@/features/accounts/services/accounts.api';
 import GeneralLedgerTable from '@/features/accounts/components/GeneralLedgerTable';
-import { useMemo } from 'react';
+import AccountingFilterBar from '@/features/accounts/components/AccountingFilterBar';
+import { useMemo, useState } from 'react';
 
 export default function CashBookPage() {
   const { data: accounts } = useChartAccounts();
   const cashAccount = useMemo(() => accounts?.find(a => a.name === 'Cash' || a.code === '1000'), [accounts]);
   
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [searchRef, setSearchRef] = useState('');
+
   const { data, isLoading } = useLedger({
-    account_id: cashAccount?.id
+    account_id: cashAccount?.id,
+    start_date: dateRange.start || undefined,
+    end_date: dateRange.end || undefined,
   });
 
   return (
@@ -21,7 +27,15 @@ export default function CashBookPage() {
       {!cashAccount ? (
         <div className="animate-pulse h-48 w-full rounded-xl bg-zinc-100 dark:bg-zinc-900" />
       ) : (
-        <GeneralLedgerTable data={data!} isLoading={isLoading} />
+        <>
+          <AccountingFilterBar
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            searchRef={searchRef}
+            setSearchRef={setSearchRef}
+          />
+          <GeneralLedgerTable data={data!} isLoading={isLoading} searchRef={searchRef} />
+        </>
       )}
     </div>
   );

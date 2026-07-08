@@ -371,3 +371,46 @@ def create_payment(
     Logs payment, debits supplier balance, and updates invoice status.
     """
     return PurchaseService.add_supplier_payment(db, payment_in, tenant.tenant_id, tenant.branch_id)
+
+# --- Purchase Returns ---
+from schemas.purchase import PurchaseReturnResponse, PurchaseReturnCreate
+from models.purchase import PurchaseReturn, PurchaseReturnItem
+from sqlalchemy.orm import joinedload
+
+@router.post("/returns", response_model=PurchaseReturnResponse)
+def create_purchase_return(
+    return_in: PurchaseReturnCreate,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_tenant_context),
+    current_user: User = Depends(get_current_user)
+):
+    return PurchaseService.create_purchase_return(db, return_in, tenant.tenant_id, tenant.branch_id, current_user.id)
+
+@router.get("/returns", response_model=List[PurchaseReturnResponse])
+def get_purchase_returns(
+    po_id: str = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(get_tenant_context)
+):
+    query = db.query(PurchaseReturn).options(
+        joinedload(PurchaseReturn.items).joinedload(PurchaseReturnItem.medicine),
+        joinedload(PurchaseReturn.supplier)
+    ).filter(
+        PurchaseReturn.tenant_id == tenant.tenant_id,
+        PurchaseReturn.is_deleted == False
+    )
+    if po_id:
+        query = query.filter(PurchaseReturn.po_id == po_id)
+        
+    returns = query.order_by(PurchaseReturn.return_date.desc()).offset(skip).limit(limit).all()
+    
+    # Hydrate supplier name
+    for r in returns:
+        r.supplier_name = r.supplier.name if r.supplier else None
+        for item in r.items:
+            # We already have medicine via joinedload, but need to map it for the response model if it's dynamic
+            pass
+            
+    return returns

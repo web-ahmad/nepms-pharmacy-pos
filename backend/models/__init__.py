@@ -12,6 +12,7 @@ from .hr import Department, Designation, Employee, Shift, Attendance, LeaveReque
 from .settings import TenantSettings, SystemModule
 from .system import Notification, BackupHistory, OCRQueue
 from .cash_register import CashSession, CashLedgerEntry
+from .expenses import ExpenseVoucher
 from .master_data import (
     MasterGeneric, MasterBrand, MasterCategory, MasterManufacturer,
     MasterDosageForm, MasterStrength, MasterStrengthUnit, MasterRoute,
@@ -41,6 +42,7 @@ __all__ = [
     "TenantSettings", "SystemModule",
     "Notification", "BackupHistory", "OCRQueue",
     "CashSession", "CashLedgerEntry",
+    "ExpenseVoucher",
     "MasterGeneric", "MasterBrand", "MasterCategory", "MasterManufacturer",
     "MasterDosageForm", "MasterStrength", "MasterStrengthUnit", "MasterRoute",
     "MasterStorageCondition", "MasterTaxRule", "MasterPackaging", "MasterUnit",

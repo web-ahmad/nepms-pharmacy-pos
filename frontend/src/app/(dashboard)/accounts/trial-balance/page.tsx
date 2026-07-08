@@ -2,9 +2,18 @@
 import { useTrialBalance } from '@/features/accounts/services/accounts.api';
 import TrialBalanceTable from '@/features/accounts/components/TrialBalanceTable';
 import { Scale } from 'lucide-react';
+import AccountingFilterBar from '@/features/accounts/components/AccountingFilterBar';
+import { useState } from 'react';
 
 export default function TrialBalancePage() {
-  const { data, isLoading, refetch } = useTrialBalance();
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [searchRef, setSearchRef] = useState('');
+
+  const { data, isLoading, refetch } = useTrialBalance({
+    start_date: dateRange.start || undefined,
+    end_date: dateRange.end || undefined,
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -19,7 +28,16 @@ export default function TrialBalancePage() {
         </div>
         <button onClick={() => refetch()} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">↻ Refresh</button>
       </div>
-      <TrialBalanceTable data={data!} isLoading={isLoading} />
+      
+      <AccountingFilterBar
+        dateRange={dateRange}
+        setDateRange={setDateRange}
+        searchRef={searchRef}
+        setSearchRef={setSearchRef}
+        showAccountFilter={false}
+      />
+
+      <TrialBalanceTable data={data!} isLoading={isLoading} dateRange={dateRange} />
     </div>
   );
 }

@@ -148,19 +148,35 @@ class SupplierPaymentResponse(SupplierPaymentBase):
 
 # Purchase Return
 class PurchaseReturnBase(BaseModel):
-    grn_id: str
+    po_id: Optional[str] = None
+    grn_id: Optional[str] = None
     supplier_id: str
     total_amount: float
     reason: Optional[str] = None
 
+class PurchaseReturnItemCreate(BaseModel):
+    medicine_id: str
+    quantity_returned: int
+    unit_price: float = 0.0
+
 class PurchaseReturnCreate(PurchaseReturnBase):
-    pass
+    items: List[PurchaseReturnItemCreate]
+
+class PurchaseReturnItemResponse(BaseModel):
+    id: str
+    medicine_id: str
+    medicine_name: Optional[str] = None
+    quantity_returned: int
+    unit_price: float
+    model_config = ConfigDict(from_attributes=True)
 
 class PurchaseReturnResponse(PurchaseReturnBase):
     id: str
     return_number: str
     return_date: date
     status: str
+    items: List[PurchaseReturnItemResponse] = []
+    supplier_name: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 # Supplier Ledger

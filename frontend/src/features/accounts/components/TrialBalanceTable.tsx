@@ -1,8 +1,13 @@
 import { TrialBalanceResponse } from '../types/accounts';
 import { Printer, CheckCircle, AlertCircle, Scale } from 'lucide-react';
 import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
+import Link from 'next/link';
 
-interface Props { data: TrialBalanceResponse; isLoading: boolean; }
+interface Props { 
+  data: TrialBalanceResponse; 
+  isLoading: boolean; 
+  dateRange?: { start: string; end: string };
+}
 
 const fmt = (v: number) => new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 }).format(v);
 
@@ -14,7 +19,7 @@ const categoryColors: Record<string, string> = {
   Expense:   'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
-export default function TrialBalanceTable({ data, isLoading }: Props) {
+export default function TrialBalanceTable({ data, isLoading, dateRange }: Props) {
   if (isLoading) {
     return (
       <div className="space-y-3 animate-pulse">
@@ -82,7 +87,17 @@ export default function TrialBalanceTable({ data, isLoading }: Props) {
                 {data.rows.map((row, i) => (
                   <tr key={i} className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors">
                     <td className="px-5 py-3 font-mono text-xs font-semibold text-gray-700 dark:text-zinc-300">{row.account_code}</td>
-                    <td className="px-5 py-3 font-medium text-gray-900 dark:text-zinc-100">{row.account_name}</td>
+                    <td className="px-5 py-3 font-medium text-gray-900 dark:text-zinc-100">
+                      <Link 
+                        href={`/accounts/account-ledger/${row.account_code}?${new URLSearchParams({
+                          ...(dateRange?.start && { start_date: dateRange.start }),
+                          ...(dateRange?.end && { end_date: dateRange.end })
+                        }).toString()}`}
+                        className="text-emerald-600 hover:underline hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                      >
+                        {row.account_name}
+                      </Link>
+                    </td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${categoryColors[row.category] || 'bg-gray-100 text-gray-600'}`}>
                         {row.category}

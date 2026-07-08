@@ -8,9 +8,9 @@ import {
   useReconcileAuditItem
 } from '@/features/inventory/services/audit.api';
 import {
-  ArrowLeft, Search, Save, Send, ShieldCheck, Printer,
-  AlertTriangle, Check, CheckCircle2, XCircle, RefreshCw
+  ArrowLeft, Printer, AlertTriangle, CheckCircle2, XCircle, Search, Info, Save, Send, ShieldCheck, RefreshCw
 } from 'lucide-react';
+import { GlobalPrintTemplate } from '@/components/shared/GlobalPrintTemplate';
 import { format } from 'date-fns';
 
 export default function AuditSessionDetailPage() {
@@ -512,78 +512,48 @@ export default function AuditSessionDetailPage() {
       </div>
 
       {/* Printable Template (Only visible during print) */}
-      <div id="print-section" className="hidden print:block bg-white text-black p-8 font-sans w-full min-h-screen text-[13px]">
-
-        {/* ── Page Header ── */}
-        <div className="flex justify-between items-start border-b-2 border-black pb-5 mb-6">
+      <GlobalPrintTemplate
+        title="PHYSICAL AUDIT REPORT"
+        metadata={[
+          { label: 'Audit Date', value: format(new Date(), 'PPP') },
+          { label: 'Auditor Name', value: session.name },
+          { label: 'Total Items Audited', value: session.items.length },
+          { label: 'Session ID', value: session.id.substring(0, 8).toUpperCase() },
+          { label: 'Scope', value: `${session.scope_type}: ${session.scope_value}` }
+        ]}
+      >
+        <div className="mb-6 flex gap-8">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-black">Physical Audit Report</h1>
-            <h2 className="text-base font-semibold text-gray-600 mt-1">{session.name}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">{session.scope_type}: <strong>{session.scope_value}</strong></p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Rack Total Capital</p>
+            <p className="text-sm font-bold text-zinc-900">{formatCurrency(rackTotalCapital)}</p>
           </div>
-          <div className="text-right text-sm text-black space-y-0.5">
-            <p><strong>Session ID:</strong> {session.id.substring(0, 8).toUpperCase()}</p>
-            <p><strong>Date:</strong> {format(new Date(), 'PPP')}</p>
-            <p><strong>Status:</strong> {session.status}</p>
-            <p><strong>Blind Audit:</strong> {session.is_blind ? 'Yes' : 'No'}</p>
-          </div>
-        </div>
-
-        {/* ── Rack Capital Summary Boxes ── */}
-        <div className="grid grid-cols-4 gap-4 mb-7">
-          <div className="border-2 border-black p-4 rounded-lg">
-            <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Rack Total Capital</p>
-            <p className="text-xl font-bold text-black mt-1">{formatCurrency(rackTotalCapital)}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">At purchase price</p>
-          </div>
-          <div className="border border-gray-300 p-4 rounded-lg">
-            <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Total SKUs</p>
-            <p className="text-xl font-bold text-black mt-1">{session.items.length}</p>
-            <p className="text-[10px] text-gray-400 mt-0.5">Items in scope</p>
-          </div>
-          <div className="border border-gray-300 p-4 rounded-lg">
-            <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Items Counted</p>
-            <p className="text-xl font-bold text-black mt-1">
-              {session.items.filter((i: any) => i.physical_count !== null).length}
-              <span className="text-sm font-normal text-gray-500"> / {session.items.length}</span>
-            </p>
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              {Math.round(session.items.filter((i: any) => i.physical_count !== null).length / session.items.length * 100)}% complete
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Items Counted</p>
+            <p className="text-sm font-bold text-zinc-900">
+              {session.items.filter((i: any) => i.physical_count !== null).length} / {session.items.length}
             </p>
           </div>
-          <div className={`border-2 p-4 rounded-lg ${rackTotalVariance < 0 ? 'border-red-600' : rackTotalVariance > 0 ? 'border-green-600' : 'border-gray-300'}`}>
-            <p className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Net Variance Value</p>
-            <p className={`text-xl font-bold mt-1 ${rackTotalVariance < 0 ? 'text-red-700' : rackTotalVariance > 0 ? 'text-green-700' : 'text-black'}`}>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Net Variance Value</p>
+            <p className="text-sm font-bold text-zinc-900">
               {rackTotalVariance > 0 ? '+' : ''}{formatCurrency(rackTotalVariance)}
             </p>
-            <p className="text-[10px] text-gray-400 mt-0.5">Counted items only</p>
           </div>
+          {summary && (
+            <>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-red-500">Total Shrinkage</p>
+                <p className="text-sm font-bold text-red-700">-{formatCurrency(summary.total_shrinkage_value)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-green-600">Total Surplus</p>
+                <p className="text-sm font-bold text-green-700">+{formatCurrency(summary.total_surplus_value)}</p>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* ── Shrinkage / Surplus Summary (Review mode only) ── */}
-        {summary && (
-          <div className="grid grid-cols-3 gap-4 mb-7">
-            <div className="border border-red-300 bg-red-50 p-4 rounded-lg">
-              <p className="text-[10px] uppercase font-bold text-red-500 tracking-wider">Total Shrinkage (Lost)</p>
-              <p className="text-xl font-bold text-red-700 mt-1">-{formatCurrency(summary.total_shrinkage_value)}</p>
-            </div>
-            <div className="border border-green-300 bg-green-50 p-4 rounded-lg">
-              <p className="text-[10px] uppercase font-bold text-green-600 tracking-wider">Total Surplus (Gained)</p>
-              <p className="text-xl font-bold text-green-700 mt-1">+{formatCurrency(summary.total_surplus_value)}</p>
-            </div>
-            <div className="border-2 border-black bg-black p-4 rounded-lg">
-              <p className="text-[10px] uppercase font-bold text-gray-300 tracking-wider">Net Financial Impact</p>
-              <p className="text-xl font-bold text-white mt-1">
-                {summary.total_variance_value < 0 ? '-' : summary.total_variance_value > 0 ? '+' : ''}
-                {formatCurrency(Math.abs(summary.total_variance_value))}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ── Grouped Items Table ── */}
         {(() => {
-          // Build print groups (same logic as screen)
           const printMap = new Map<string, typeof session.items>();
           [...session.items]
             .sort((a: any, b: any) => {
@@ -605,133 +575,53 @@ export default function AuditSessionDetailPage() {
           }));
 
           return (
-            <table className="w-full text-left text-xs mb-10 border-collapse">
+            <table>
               <thead>
-                <tr className="border-b-2 border-black">
-                  <th className="py-2 px-1 font-bold text-left w-[32%]">Product / Batch</th>
-                  <th className="py-2 px-1 font-bold text-center w-[8%]">Type</th>
-                  <th className="py-2 px-1 font-bold text-center w-[9%]">Sys Qty</th>
-                  <th className="py-2 px-1 font-bold text-center w-[9%]">Physical</th>
-                  <th className="py-2 px-1 font-bold text-center w-[8%]">Variance</th>
-                  <th className="py-2 px-1 font-bold text-right w-[14%]">Unit Price</th>
-                  <th className="py-2 px-1 font-bold text-right w-[14%]">Fin. Impact</th>
-                  <th className="py-2 px-1 font-bold text-center w-[6%]">Status</th>
+                <tr>
+                  <th className="text-left">Item Code</th>
+                  <th className="text-left">Medicine Name</th>
+                  <th className="text-right">System Qty</th>
+                  <th className="text-right">Physical Qty</th>
+                  <th className="text-right">Variance (Discrepancy)</th>
+                  <th className="text-left">Remarks</th>
                 </tr>
               </thead>
               <tbody>
-                {printGroups.map(({ label, items: gItems, groupValue: gVal }) => (
+                {printGroups.map(({ label, items: gItems }) => (
                   <React.Fragment key={`print-group-${label}`}>
-                    {/* Group separator row */}
-                    <tr key={`hdr-${label}`} className="bg-gray-100 border-t border-b border-gray-400">
-                      <td colSpan={8} className="py-1.5 px-2">
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold uppercase tracking-widest text-[10px] text-gray-700">
-                            ── {label.toUpperCase()}S ──
-                          </span>
-                          <span className="text-[10px] text-gray-500">{gItems.length} items</span>
-                          <span className="text-[10px] font-bold text-gray-700 border border-gray-400 px-1.5 py-0.5 rounded">
-                            Group Value: {formatCurrency(gVal)}
-                          </span>
-                          {gVal >= HIGH_VALUE_THRESHOLD && (
-                            <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 border border-orange-500 text-orange-700 rounded">
-                              !! HIGH VALUE ASSET
-                            </span>
-                          )}
-                          {(() => {
-                            const gVar = gItems.reduce((s: number, i: any) => s + (i.variance ?? 0) * i.unit_price, 0);
-                            return gVar !== 0 ? (
-                              <span className={`ml-auto text-[10px] font-bold ${gVar < 0 ? 'text-red-700' : 'text-green-700'}`}>
-                                {gVar > 0 ? '+' : ''}{formatCurrency(gVar)} variance
-                              </span>
-                            ) : null;
-                          })()}
-                        </div>
+                    <tr>
+                      <td colSpan={6} style={{ backgroundColor: '#f4f4f5', fontWeight: 'bold' }}>
+                        {label.toUpperCase()}S
                       </td>
                     </tr>
-
-                    {/* Item rows */}
                     {gItems.map((item: any) => {
                       const variance = item.variance ?? 0;
-                      const impact = variance * item.unit_price;
-                      const status = variance === 0 ? 'Matched' : variance < 0 ? 'Shortage' : 'Surplus';
                       return (
-                        <tr key={item.id} className="border-b border-gray-200">
-                          <td className="py-1.5 px-1">
-                            <div className="font-medium">{item.medicine_name}</div>
-                            <div className="text-[10px] text-gray-500">
-                              {item.strength && <span>{item.strength} </span>}
-                              {item.batch_number && <span>| Batch: {item.batch_number}</span>}
-                              {item.sku && <span> | SKU: {item.sku}</span>}
-                            </div>
+                        <tr key={item.id}>
+                          <td>{item.sku || item.id.substring(0, 8).toUpperCase()}</td>
+                          <td>
+                            {item.medicine_name}
+                            {item.strength && ` ${item.strength}`}
+                            {item.batch_number && ` (Batch: ${item.batch_number})`}
                           </td>
-                          <td className="py-1.5 px-1 text-center">
-                            <span className="text-[9px] font-bold uppercase border border-gray-400 px-1 py-0.5 rounded text-gray-600">
-                              {item.dosage_form || '—'}
-                            </span>
-                          </td>
-                          <td className="py-1.5 px-1 text-center font-medium">{item.system_quantity}</td>
-                          <td className="py-1.5 px-1 text-center font-bold">{item.physical_count ?? '—'}</td>
-                          <td className={`py-1.5 px-1 text-center font-bold ${variance < 0 ? 'text-red-700' : variance > 0 ? 'text-green-700' : 'text-gray-400'}`}>
+                          <td className="text-right">{item.system_quantity}</td>
+                          <td className="text-right font-bold">{item.physical_count ?? '—'}</td>
+                          <td className="text-right font-bold">
                             {variance !== 0 ? (variance > 0 ? '+' : '') + variance : '—'}
                           </td>
-                          <td className="py-1.5 px-1 text-right text-gray-600">{formatCurrency(item.unit_price)}</td>
-                          <td className={`py-1.5 px-1 text-right font-medium ${impact < 0 ? 'text-red-700' : impact > 0 ? 'text-green-700' : 'text-gray-400'}`}>
-                            {impact !== 0 ? (impact > 0 ? '+' : '') + formatCurrency(Math.abs(impact)) : '—'}
-                          </td>
-                          <td className="py-1.5 px-1 text-center">
-                            <span className={`text-[9px] font-bold uppercase px-1 py-0.5 rounded border ${
-                              status === 'Shortage' ? 'border-red-500 text-red-700' :
-                              status === 'Surplus'  ? 'border-green-600 text-green-700' :
-                              'border-gray-300 text-gray-500'
-                            }`}>
-                              {status}
-                            </span>
+                          <td>
+                            {variance === 0 ? 'Matched' : variance < 0 ? 'Shortage' : 'Surplus'}
                           </td>
                         </tr>
                       );
                     })}
                   </React.Fragment>
                 ))}
-
-                {/* Grand Total row */}
-                <tr className="border-t-2 border-black bg-gray-50 font-bold">
-                  <td colSpan={2} className="py-2 px-1">TOTAL</td>
-                  <td className="py-2 px-1 text-center">{session.items.reduce((s: number, i: any) => s + i.system_quantity, 0)}</td>
-                  <td className="py-2 px-1 text-center">
-                    {session.items.filter((i: any) => i.physical_count !== null).reduce((s: number, i: any) => s + (i.physical_count ?? 0), 0) || '—'}
-                  </td>
-                  <td className={`py-2 px-1 text-center ${rackTotalVariance < 0 ? 'text-red-700' : rackTotalVariance > 0 ? 'text-green-700' : ''}`}>
-                    {session.items.reduce((s: number, i: any) => s + (i.variance ?? 0), 0) || '—'}
-                  </td>
-                  <td className="py-2 px-1 text-right">{formatCurrency(rackTotalCapital)}</td>
-                  <td className={`py-2 px-1 text-right ${rackTotalVariance < 0 ? 'text-red-700' : rackTotalVariance > 0 ? 'text-green-700' : ''}`}>
-                    {rackTotalVariance !== 0 ? (rackTotalVariance > 0 ? '+' : '') + formatCurrency(Math.abs(rackTotalVariance)) : '—'}
-                  </td>
-                  <td></td>
-                </tr>
               </tbody>
             </table>
           );
         })()}
-
-        {/* ── Footer / Signatures ── */}
-        <div className="flex justify-between items-end mt-16 pt-6 border-t border-gray-300">
-          <div className="text-center w-56">
-            <div className="border-t-2 border-black pt-2 font-bold text-black text-sm">Auditor Signature</div>
-            <div className="text-xs text-gray-500 mt-2">Name: _________________________</div>
-            <div className="text-xs text-gray-500 mt-1">Date: _________________________</div>
-          </div>
-          <div className="text-center text-[10px] text-gray-400 flex flex-col items-center gap-1">
-            <p>Generated: {format(new Date(), 'PPP p')}</p>
-            <p>NEPMS Pharmacy POS — Confidential</p>
-          </div>
-          <div className="text-center w-56">
-            <div className="border-t-2 border-black pt-2 font-bold text-black text-sm">Manager / Super Admin</div>
-            <div className="text-xs text-gray-500 mt-2">Name: _________________________</div>
-            <div className="text-xs text-gray-500 mt-1">Date: _________________________</div>
-          </div>
-        </div>
-      </div>
+      </GlobalPrintTemplate>
     </>
   );
 }

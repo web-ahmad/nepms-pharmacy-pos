@@ -106,6 +106,7 @@ export default function LeaveRequestTable({ data, isLoading }: LeaveRequestTable
           </tbody>
         </table>
       </div>
+      </div>
     </div>
   );
 }

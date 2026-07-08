@@ -82,11 +82,15 @@ export const useLedger = (params: { account_id?: string; start_date?: string; en
   });
 };
 
-export const useTrialBalance = () => {
+export const useTrialBalance = (params: { start_date?: string; end_date?: string } = {}) => {
   return useQuery({
-    queryKey: ['accounts', 'trial-balance'],
+    queryKey: ['accounts', 'trial-balance', params],
     queryFn: async () => {
-      const res = await api.get('/api/v1/accounts/reports/trial-balance');
+      const query = new URLSearchParams();
+      if (params.start_date) query.append('start_date', params.start_date);
+      if (params.end_date) query.append('end_date', params.end_date);
+      
+      const res = await api.get(`/api/v1/accounts/reports/trial-balance?${query.toString()}`);
       return res.data as TrialBalanceResponse;
     }
   });

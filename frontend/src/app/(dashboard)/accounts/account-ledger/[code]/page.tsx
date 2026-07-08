@@ -8,7 +8,8 @@ import { DataExportMenu } from '@/components/ui/DataExportMenu';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import ReturnDetailsModal from '@/features/sales/components/ReturnDetailsModal';
+import AccountingFilterBar from '@/features/accounts/components/AccountingFilterBar';
+import { getReferenceLink } from '@/utils/auditUtils';
 
 const fmt = (v: number) => new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 }).format(v);
 
@@ -16,34 +17,32 @@ export default function AccountLedgerPage() {
   const params = useParams();
   const router = useRouter();
   const code = params.code as string;
-  const [selectedReturnRef, setSelectedReturnRef] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [searchRef, setSearchRef] = useState('');
   
   const { data: accounts, isLoading: accountsLoading } = useChartAccounts();
   const account = useMemo(() => accounts?.find(a => a.code === code), [accounts, code]);
   
-  const { data, isLoading: ledgerLoading } = useLedger(
-    { account_id: account?.id },
-  );
+  const { data, isLoading: ledgerLoading } = useLedger({
+    account_id: account?.id,
+    start_date: dateRange.start || undefined,
+    end_date: dateRange.end || undefined,
+  });
 
   const isLoading = accountsLoading || (account && ledgerLoading);
 
-  const getRefLink = (row: any) => {
-    if (!row.reference) return null;
-    const ref = row.reference;
-    
-    if (ref.startsWith('INV-') || ref.startsWith('POS-')) return `/sales?invoice=${ref}`;
-    if (ref.startsWith('PO-')) return `/purchase/invoices/${ref}`;
-    
-    const desc = (row.line_desc || row.journal_desc || '').toLowerCase();
-    if (desc.includes('purchase') || desc.includes('supplier')) {
-      return `/purchase/invoices/${ref}`;
-    }
-    
-    // Default fallback if we can't reliably determine
-    return null;
-  };
+  const filteredRows = useMemo(() => {
+    if (!data?.rows) return [];
+    if (!searchRef) return data.rows;
+    const q = searchRef.toLowerCase();
+    return data.rows.filter(row => 
+      (row.reference && row.reference.toLowerCase().includes(q)) || 
+      (row.line_desc && row.line_desc.toLowerCase().includes(q)) ||
+      (row.journal_desc && row.journal_desc.toLowerCase().includes(q))
+    );
+  }, [data, searchRef]);
 
-  const isLiabilityOrEquity = account?.category === 'LIABILITY' || account?.category === 'EQUITY';
+  const isLiabilityOrEquity = account?.category?.toUpperCase() === 'LIABILITY' || account?.category?.toUpperCase() === 'EQUITY';
   const displayBalance = data?.closing_balance || 0;
   // Standard accounting: asset/expense = positive debit balance. liability/equity/revenue = positive credit balance.
   // We'll just Math.abs it for the header display, but keep the raw balance logic in the table or also Math.abs it if it's a credit-normal account.
@@ -61,6 +60,12 @@ export default function AccountLedgerPage() {
         <div className="animate-pulse h-48 w-full rounded-xl bg-zinc-100 dark:bg-zinc-900" />
       ) : (
         <div className="space-y-6">
+          <AccountingFilterBar
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            searchRef={searchRef}
+            setSearchRef={setSearchRef}
+          />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-3 rounded-2xl border border-gray-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900 shadow-sm flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-2">
@@ -88,7 +93,7 @@ export default function AccountLedgerPage() {
                 <h3 className="font-semibold">Transaction History</h3>
               </div>
               <DataExportMenu 
-                data={data?.rows || []} 
+                data={filteredRows} 
                 title={`${account.name} Ledger`}
                 fileName={`${account.code}_ledger`}
                 columns={[
@@ -115,15 +120,15 @@ export default function AccountLedgerPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-zinc-800">
-                  {data?.rows?.length === 0 ? (
+                  {filteredRows.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-gray-500 dark:text-zinc-400">
                         No transactions found for this account.
                       </td>
                     </tr>
                   ) : (
-                    data?.rows?.map((row: any, idx: number) => {
-                      const href = getRefLink(row);
+                    filteredRows.map((row: any, idx: number) => {
+                      const href = getReferenceLink(row.reference);
                       return (
                         <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
                           <td className="px-4 py-3 text-gray-600 dark:text-zinc-300">
@@ -131,14 +136,7 @@ export default function AccountLedgerPage() {
                           </td>
                           <td className="px-4 py-3 text-gray-900 dark:text-zinc-100 font-mono text-xs">
                             {row.reference ? (
-                              row.reference.startsWith('RET-') ? (
-                                <button 
-                                  onClick={() => setSelectedReturnRef(row.reference)} 
-                                  className="text-blue-600 hover:underline font-semibold cursor-pointer dark:text-blue-400 text-left"
-                                >
-                                  {row.reference}
-                                </button>
-                              ) : href ? (
+                              href ? (
                                 <Link href={href} className="text-blue-600 hover:underline font-semibold cursor-pointer dark:text-blue-400">
                                   {row.reference}
                                 </Link>
@@ -169,11 +167,6 @@ export default function AccountLedgerPage() {
           </div>
         </div>
       )}
-
-      <ReturnDetailsModal 
-        returnNumber={selectedReturnRef}
-        onClose={() => setSelectedReturnRef(null)}
-      />
     </div>
   );
 }

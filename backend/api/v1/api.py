@@ -32,6 +32,11 @@ api_router.include_router(system.router, prefix="/system", tags=["system"])
 api_router.include_router(cashier.router, prefix="/cashier", tags=["cashier"])
 api_router.include_router(print.router, prefix="/print", tags=["print"])
 
+# Expenses
+from api.v1.endpoints import expenses, petty_cash_categories
+api_router.include_router(expenses.router, prefix="/expenses", tags=["expenses"])
+api_router.include_router(petty_cash_categories.router, prefix="/petty-cash-categories", tags=["petty-cash-categories"])
+
 # Master Data & Medicine
 api_router.include_router(master_data.router)
 api_router.include_router(medicine_master.router)

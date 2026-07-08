@@ -9,21 +9,28 @@ import {
   Package, RotateCcw, CreditCard, Banknote, AlertCircle
 } from 'lucide-react';
 import ReturnDetailsModal, { PaymentBadge, StockBadge } from './ReturnDetailsModal';
+import { useInvoiceSettings } from '@/features/settings/services/settings.api';
+import { generateReceiptHtml } from '@/utils/receiptGenerator';
 
 
 export default function ReturnLogs() {
   const [filters, setFilters] = useState({ start_date: '', end_date: '', cashier_id: '' });
   const { data, isLoading, isFetching, refetch } = useReturnLogs(filters);
-  const { data: invoiceSettings } = useInvoiceSettings();
   const [selectedReturn, setSelectedReturn] = useState<ReturnLog | null>(null);
 
   const handleFilterChange = (key: string, value: any) =>
     setFilters(prev => ({ ...prev, [key]: value }));
 
+  const { data: invoiceSettings } = useInvoiceSettings();
+
   const handlePrint = (log: ReturnLog) => {
-    // Print logic moved to ReturnDetailsModal, but we might want it here if clicked from list
-    // Actually, the simplest is to open the modal and let user print from there
-    setSelectedReturn(log);
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(generateReceiptHtml(
+      { ...log, subtotal: log.total_amount, amount_paid: log.total_amount } as any,
+      invoiceSettings, 'return'
+    ));
+    w.document.close();
   };
 
   const HEADERS = [

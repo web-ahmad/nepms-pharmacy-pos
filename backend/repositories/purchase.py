@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from typing import List, Tuple
 from repositories.base import CRUDBase
-from models.purchase import Supplier, PurchaseOrder, GRN, PurchaseInvoice, SupplierPayment, PurchaseReturn, SupplierLedger, POItem
-from schemas.purchase import SupplierCreate, SupplierUpdate, PurchaseOrderCreate, GRNCreate, PurchaseInvoiceCreate
+from models.purchase import Supplier, PurchaseOrder, GRN, PurchaseInvoice, SupplierPayment, PurchaseReturn, SupplierLedger, POItem, PurchaseReturnItem
+from schemas.purchase import SupplierCreate, SupplierUpdate, PurchaseOrderCreate, GRNCreate, PurchaseInvoiceCreate, PurchaseReturnCreate
 
 class CRUDSupplier(CRUDBase[Supplier, SupplierCreate, SupplierUpdate]):
     def get_ledger(self, db: Session, tenant_id: str, supplier_id: str) -> List[SupplierLedger]:
@@ -33,3 +33,13 @@ class CRUDPurchaseInvoice(CRUDBase[PurchaseInvoice, PurchaseInvoiceCreate, Purch
     pass
 
 invoice_repo = CRUDPurchaseInvoice(PurchaseInvoice)
+
+class CRUDPurchaseReturn(CRUDBase[PurchaseReturn, PurchaseReturnCreate, PurchaseReturnCreate]):
+    def get_with_items(self, db: Session, tenant_id: str, id: str) -> PurchaseReturn:
+        return db.query(PurchaseReturn).filter(
+            PurchaseReturn.tenant_id == tenant_id,
+            PurchaseReturn.id == id,
+            PurchaseReturn.is_deleted == False
+        ).first()
+
+purchase_return_repo = CRUDPurchaseReturn(PurchaseReturn)

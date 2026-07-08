@@ -166,8 +166,8 @@ class AccountsService:
                 if r.reference.startswith("PAYROLL-"):
                     pay_status = payroll_status_map.get(r.reference)
                     row_status = "Paid" if pay_status == "Paid" else "Pending"
-                elif r.reference.startswith("EXP-"):
-                    row_status = "Paid"
+                elif r.reference.startswith("EXP-") or r.reference.startswith("PC-"):
+                    row_status = "Posted"
                 elif r.reference.startswith("INV-"):
                     row_status = "Paid"
             

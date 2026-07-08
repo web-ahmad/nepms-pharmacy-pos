@@ -360,3 +360,61 @@ export const useSupplierScorecard = (supplierId: string) => {
   return { fulfillmentRate, avgLeadTime, qualityScore, overallStars, totalOrders, isLoading: false, isError: false };
 };
 
+// --- Purchase Returns ---
+
+export interface PurchaseReturnItem {
+  id?: string;
+  medicine_id: string;
+  medicine_name?: string;
+  quantity_returned: number;
+  unit_price: number;
+}
+
+export interface PurchaseReturn {
+  id: string;
+  return_number: string;
+  po_id?: string;
+  grn_id?: string;
+  supplier_id: string;
+  supplier_name?: string;
+  return_date: string;
+  total_amount: number;
+  reason?: string;
+  status: string;
+  items: PurchaseReturnItem[];
+}
+
+export interface CreatePurchaseReturnPayload {
+  po_id?: string;
+  grn_id?: string;
+  supplier_id: string;
+  total_amount: number;
+  reason?: string;
+  items: { medicine_id: string; quantity_returned: number; unit_price: number }[];
+}
+
+export const usePurchaseReturns = (poId?: string) => {
+  return useQuery({
+    queryKey: ['purchase_returns', poId],
+    queryFn: async () => {
+      const url = poId ? `/api/v1/purchase/returns?po_id=${poId}` : '/api/v1/purchase/returns';
+      const res = await api.get(url);
+      return res.data as PurchaseReturn[];
+    }
+  });
+};
+
+export const useCreatePurchaseReturn = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreatePurchaseReturnPayload) => {
+      const res = await api.post('/api/v1/purchase/returns', payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_returns'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    }
+  });
+};

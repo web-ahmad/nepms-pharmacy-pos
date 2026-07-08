@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { api } from '@/services/api';
 import { useSalesHistory, useSaleDetail, useVoidSale } from '../services/sales.api';
 import { Sale } from '../types/sales';
 import SaleReturnModal from './SaleReturnModal';
@@ -82,7 +83,23 @@ export default function SalesHistory() {
   const voidSaleMutation = useVoidSale();
   const { user } = useAuthStore();
 
+  const router = useRouter();
+
   React.useEffect(() => { if (viewId) setSelectedSaleId(viewId); }, [viewId]);
+
+  React.useEffect(() => {
+    const invoiceRef = searchParams.get('invoice');
+    if (invoiceRef) {
+      // Fetch the specific invoice by invoice_number
+      api.get(`/api/v1/sales?invoice_id=${invoiceRef}&limit=1`).then(res => {
+        if (res.data?.items?.length > 0) {
+          setSelectedSaleId(res.data.items[0].id);
+          // Optional: clear the query param so refreshing doesn't keep popping the modal
+          router.replace('/sales', { scroll: false });
+        }
+      }).catch(err => console.error("Failed to fetch invoice for deep link:", err));
+    }
+  }, [searchParams, router]);
 
   const { data: saleDetail, isLoading: isLoadingDetail, isError, error } = useSaleDetail(selectedSaleId || undefined);
 

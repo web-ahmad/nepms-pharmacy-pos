@@ -65,6 +65,7 @@ export const NAV_ITEMS = [
   { label: 'Low Stock Alerts', href: '/inventory/low-stock', icon: AlertTriangle, permission: 'inventory:view', moduleKey: 'inventory' },
   { label: 'Physical Audit', href: '/inventory/audit', icon: ClipboardList, permission: 'inventory:manage', moduleKey: 'inventory' },
   { label: 'Purchases', href: '/purchase', icon: ShoppingBag, permission: 'purchase:view', moduleKey: 'purchase_orders' },
+  { label: 'Expenses', href: '/expenses', icon: ClipboardList, permission: 'profit:view', moduleKey: 'journals' },
   { label: 'Customers', href: '/customers', icon: Users, permission: 'crm:view', moduleKey: 'customers' },
   { label: 'Prescriptions', href: '/prescriptions', icon: Stethoscope, permission: 'prescription:view', moduleKey: 'digital_rx' },
   { label: 'Analytics', href: '/analytics', icon: Activity, permission: 'analytics:view', moduleKey: 'analytics' },
