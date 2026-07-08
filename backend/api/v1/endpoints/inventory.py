@@ -205,6 +205,20 @@ def create_medicine(
             )
             db.add(movement)
             
+            # Auto Post Opening Stock to Accounting Ledger
+            cost = med.cost_per_base_unit or 0.0
+            total_value = initial_batch.current_stock * cost
+            if total_value > 0:
+                from services.auto_posting_service import AutoPostingService
+                auto_poster = AutoPostingService(db)
+                auto_poster.post_opening_stock(
+                    tenant_id=tenant.tenant_id,
+                    user_id=current_user.id,
+                    reference=f"OPENING-MED-{med.id[:8]}",
+                    amount=total_value,
+                    description=f"Opening Stock for {med.name}"
+                )
+            
         db.commit()
         db.refresh(med)
         return med

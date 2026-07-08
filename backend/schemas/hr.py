@@ -347,3 +347,32 @@ class AdvanceSalaryResponse(AdvanceSalaryBase):
 
     class Config:
         from_attributes = True
+
+# Payroll Settings
+class PayrollSettingBase(BaseModel):
+    employee_id: str
+    grace_period_mins: Optional[int] = 15
+    ot_type: Optional[str] = "FIXED_AMOUNT"
+    ot_rate: Optional[float] = 0.0
+    ut_type: Optional[str] = "FIXED_AMOUNT"
+    ut_rate: Optional[float] = 0.0
+    bonus_amount: Optional[float] = 0.0
+
+class PayrollSettingCreate(PayrollSettingBase):
+    pass
+
+class PayrollSettingUpdate(BaseModel):
+    grace_period_mins: Optional[int] = None
+    ot_type: Optional[str] = None
+    ot_rate: Optional[float] = None
+    ut_type: Optional[str] = None
+    ut_rate: Optional[float] = None
+    bonus_amount: Optional[float] = None
+
+class PayrollSettingResponse(PayrollSettingBase):
+    id: str
+    tenant_id: str
+    employee_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True

@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from api.v1.endpoints import (
     auth, inventory, purchase, sales, crm, prescription, dashboard, reports, audit, inventory_audit, analytics, accounts, hr,
-    settings, admin, compliance, notifications, system, cashier, print, master_data, medicine_master
+    settings, admin, compliance, notifications, system, cashier, print, master_data, medicine_master, hr_payroll_settings
 )
 
 api_router = APIRouter()
@@ -19,6 +19,7 @@ api_router.include_router(inventory_audit.router, prefix="/inventory-audit", tag
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(accounts.router, prefix="/accounts", tags=["accounts"])
 api_router.include_router(hr.router, prefix="/hr", tags=["hr"])
+api_router.include_router(hr_payroll_settings.router, prefix="/hr/payroll-settings", tags=["hr-payroll-settings"])
 
 # Phase 3.4
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])

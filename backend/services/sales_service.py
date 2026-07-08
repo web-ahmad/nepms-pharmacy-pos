@@ -175,16 +175,26 @@ class SalesService:
                 je = None
                 if checkout_in.payment_method == "Credit" or sale.amount_paid < sale.total_amount:
                     if sale.amount_paid >= sale.total_amount:
-                        je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount)
+                        je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount, checkout_in.payment_method)
                     else:
                         je = auto_post.post_credit_sale(tenant_id, user_id, invoice_num, sale.total_amount)
                         if sale.amount_paid > 0:
                             auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{invoice_num}", sale.amount_paid)
                 else:
-                    je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount)
+                    je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount, checkout_in.payment_method)
                 
                 if je:
                     sale.journal_entry_id = je.id
+
+                # Post COGS
+                total_cost = 0.0
+                for item in checkout_in.items:
+                    med = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
+                    if med and med.cost_per_base_unit:
+                        total_cost += item.quantity * med.cost_per_base_unit
+                
+                if total_cost > 0:
+                    auto_post.post_cogs(tenant_id, user_id, invoice_num, total_cost)
 
             db.commit()
             db.refresh(sale)
@@ -320,16 +330,26 @@ class SalesService:
             je = None
             if payment_method == "Credit" or amount_paid < sale.total_amount:
                 if amount_paid >= sale.total_amount:
-                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, payment_method)
                 else:
                     je = auto_post.post_credit_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
                     if amount_paid > 0:
                         auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{sale.invoice_number}", amount_paid)
             else:
-                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, payment_method)
             
             if je:
                 sale.journal_entry_id = je.id
+
+            # Post COGS
+            total_cost = 0.0
+            for placeholder in placeholder_items:
+                med = db.query(Medicine).filter(Medicine.id == placeholder.medicine_id).first()
+                if med and med.cost_per_base_unit:
+                    total_cost += placeholder.quantity * med.cost_per_base_unit
+            
+            if total_cost > 0:
+                auto_post.post_cogs(tenant_id, user_id, sale.invoice_number, total_cost)
 
             db.commit()
             db.refresh(sale)
@@ -554,6 +574,7 @@ class SalesService:
 
             return_num = f"RET-{uuid.uuid4().hex[:6].upper()}"
             total_refund_acc = 0.0
+            total_cost_returned = 0.0
 
             # Prepare list of returns to process
             return_items_to_create = []
@@ -596,6 +617,11 @@ class SalesService:
                     tenant_id=tenant_id
                 )
                 return_items_to_create.append((sale_item, return_item))
+
+                # Calculate COGS returned
+                med = db.query(Medicine).filter(Medicine.id == sale_item.medicine_id).first()
+                if med and med.cost_per_base_unit:
+                    total_cost_returned += med.cost_per_base_unit * item_req.quantity_returned
 
             # Create Return Header
             sale_return = SaleReturn(
@@ -716,6 +742,19 @@ class SalesService:
                 sale.status = "Returned"
             elif total_returned_db > 0:
                 sale.status = "Partially Returned"
+
+            # --- Auto Posting ---
+            from services.auto_posting_service import AutoPostingService
+            auto_post = AutoPostingService(db)
+            auto_post.post_sales_return(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                refund_reference=return_num,
+                original_invoice=sale.invoice_number,
+                refund_amount=total_refund_acc,
+                cost_of_items_returned=total_cost_returned,
+                payment_method=payload.payment_mode
+            )
 
             db.commit()
             db.refresh(sale_return)

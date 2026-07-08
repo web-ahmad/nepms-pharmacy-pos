@@ -627,6 +627,14 @@ class HRRepository:
         for adv in advance_records:
             advances_by_emp[adv.employee_id] += float(adv.amount or 0.0)
 
+        # ── BULK FETCH 6: Payroll Settings ──────────────────────────────────────
+        from models.hr import PayrollSetting
+        settings_records = self.db.query(PayrollSetting).filter(
+            PayrollSetting.tenant_id == tenant_id,
+            PayrollSetting.employee_id.in_(emp_ids)
+        ).all()
+        settings_by_emp = {s.employee_id: s for s in settings_records}
+
         # ── CALCULATE PER EMPLOYEE ─────────────────────────────────────────
         lines = []
         for emp in employees:
@@ -646,6 +654,10 @@ class HRRepository:
                 penalty_days = 0
                 total_worked_hours = 0.0
                 total_overtime = 0.0
+                total_undertime = 0.0
+                
+                setting = settings_by_emp.get(emp.id)
+                grace_period = setting.grace_period_mins if setting else 15
 
                 # Build a set of approved leave dates for quick lookup
                 leave_date_set: set[date] = set()
@@ -688,6 +700,10 @@ class HRRepository:
                                 shift_duration = (shift_end - shift_start).total_seconds() / 3600
                                 if worked_h > shift_duration:
                                     total_overtime += worked_h - shift_duration
+                                elif worked_h < shift_duration:
+                                    diff_mins = (shift_duration - worked_h) * 60
+                                    if diff_mins > grace_period:
+                                        total_undertime += (diff_mins / 60.0)
                             except Exception:
                                 pass  # Malformed shift times — skip overtime for this record
 
@@ -707,9 +723,23 @@ class HRRepository:
                     per_day = base / days_in_month
                     deductions = round(penalty_days * per_day, 2)
 
-                    # Overtime allowance
+                    # Settings applied to OT/UT/Bonus
                     hourly_equiv = base / (days_in_month * 8)
-                    allowances = round(total_overtime * hourly_equiv, 2)
+                    if setting:
+                        if setting.ot_type == "PERCENTAGE":
+                            allowances += round(total_overtime * hourly_equiv * (setting.ot_rate / 100.0), 2)
+                        else:
+                            allowances += round(total_overtime * setting.ot_rate, 2)
+                            
+                        if setting.ut_type == "PERCENTAGE":
+                            deductions += round(total_undertime * hourly_equiv * (setting.ut_rate / 100.0), 2)
+                        else:
+                            deductions += round(total_undertime * setting.ut_rate, 2)
+                            
+                        allowances += float(setting.bonus_amount or 0.0)
+                    else:
+                        allowances += 0.0 # Default if no setting
+
                     worked_units = f"{present_days} / {days_in_month} days"
 
                 # Add advance deductions

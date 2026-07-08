@@ -23,15 +23,20 @@ class AutoPostingService:
             acc = self.accounts_svc.repo.create_account(tenant_id, AccountCreate(code=code, name=name, category=enum_cat))
         return acc.id
 
-    def post_cash_sale(self, tenant_id: str, user_id: str, reference: str, amount: float):
-        cash_acc = self._get_account_id(tenant_id, "1000")
+    def post_cash_sale(self, tenant_id: str, user_id: str, reference: str, amount: float, payment_method: str = "Cash"):
+        from models.accounts import AccountCategory
+        if payment_method and payment_method.lower() in ['bank transfer', 'card', 'credit card']:
+            asset_acc = self._get_or_create_account(tenant_id, "1010", "Bank", AccountCategory.ASSET)
+        else:
+            asset_acc = self._get_account_id(tenant_id, "1000")
+            
         sales_rev_acc = self._get_account_id(tenant_id, "4000")
         
         entry = JournalEntryCreate(
             reference=reference,
-            description="Auto Post: Cash Sale",
+            description=f"Auto Post: Sale ({payment_method})",
             lines=[
-                JournalEntryLineCreate(account_id=cash_acc, debit=amount, credit=0),
+                JournalEntryLineCreate(account_id=asset_acc, debit=amount, credit=0),
                 JournalEntryLineCreate(account_id=sales_rev_acc, debit=0, credit=amount)
             ]
         )
@@ -163,3 +168,104 @@ class AutoPostingService:
             ]
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
+
+    def post_opening_stock(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Opening Stock"):
+        from models.accounts import AccountCategory
+        inv_acc = self._get_account_id(tenant_id, "1020")
+        equity_acc = self._get_or_create_account(tenant_id, "3000", "Opening Balance Equity", AccountCategory.EQUITY)
+        
+        entry = JournalEntryCreate(
+            reference=reference,
+            description=description,
+            lines=[
+                JournalEntryLineCreate(account_id=inv_acc, debit=amount, credit=0),
+                JournalEntryLineCreate(account_id=equity_acc, debit=0, credit=amount)
+            ]
+        )
+        return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
+
+    def post_cogs(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Cost of Goods Sold"):
+        from models.accounts import AccountCategory
+        cogs_acc = self._get_or_create_account(tenant_id, "5010", "Cost of Goods Sold", AccountCategory.EXPENSE)
+        inv_acc = self._get_account_id(tenant_id, "1020")
+        
+        entry = JournalEntryCreate(
+            reference=reference,
+            description=description,
+            lines=[
+                JournalEntryLineCreate(account_id=cogs_acc, debit=amount, credit=0),
+                JournalEntryLineCreate(account_id=inv_acc, debit=0, credit=amount)
+            ]
+        )
+        return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
+
+    def post_purchase_invoice(self, tenant_id: str, user_id: str, invoice_reference: str, total_amount: float, supplier_name: str):
+        from models.accounts import AccountCategory
+        inv_acc = self._get_account_id(tenant_id, "1020")
+        ap_acc = self._get_or_create_account(tenant_id, "2000", "Accounts Payable", AccountCategory.LIABILITY)
+        
+        entry = JournalEntryCreate(
+            reference=invoice_reference,
+            description=f"Purchase Invoice: {invoice_reference} from {supplier_name}",
+            lines=[
+                JournalEntryLineCreate(account_id=inv_acc, debit=total_amount, credit=0),
+                JournalEntryLineCreate(account_id=ap_acc, debit=0, credit=total_amount)
+            ]
+        )
+        return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
+
+    def post_purchase_payment(self, tenant_id: str, user_id: str, invoice_reference: str, amount_paid: float, payment_method: str, supplier_name: str):
+        from models.accounts import AccountCategory
+        ap_acc = self._get_or_create_account(tenant_id, "2000", "Accounts Payable", AccountCategory.LIABILITY)
+        
+        if payment_method and payment_method.lower() in ['bank transfer', 'card', 'credit card']:
+            asset_acc = self._get_or_create_account(tenant_id, "1010", "Bank", AccountCategory.ASSET)
+        else:
+            asset_acc = self._get_account_id(tenant_id, "1000")
+            
+        entry = JournalEntryCreate(
+            reference=f"PAY-{invoice_reference}",
+            description=f"Payment to {supplier_name} for Invoice: {invoice_reference}",
+            lines=[
+                JournalEntryLineCreate(account_id=ap_acc, debit=amount_paid, credit=0),
+                JournalEntryLineCreate(account_id=asset_acc, debit=0, credit=amount_paid)
+            ]
+        )
+        return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
+
+    def post_sales_return(self, tenant_id: str, user_id: str, refund_reference: str, original_invoice: str, refund_amount: float, cost_of_items_returned: float, payment_method: str):
+        from models.accounts import AccountCategory
+        
+        if payment_method and payment_method.lower() in ['bank transfer', 'card', 'credit card']:
+            asset_acc = self._get_or_create_account(tenant_id, "1010", "Bank", AccountCategory.ASSET)
+        else:
+            asset_acc = self._get_account_id(tenant_id, "1000")
+            
+        sales_returns_acc = self._get_or_create_account(tenant_id, "5040", "Sales Returns", AccountCategory.EXPENSE)
+        inv_acc = self._get_account_id(tenant_id, "1020")
+        cogs_acc = self._get_or_create_account(tenant_id, "5010", "Cost of Goods Sold", AccountCategory.EXPENSE)
+        
+        # Entry 1: Refund Money
+        entry_refund = JournalEntryCreate(
+            reference=refund_reference,
+            description=f"Sales Return Refund for {original_invoice}",
+            lines=[
+                JournalEntryLineCreate(account_id=sales_returns_acc, debit=refund_amount, credit=0),
+                JournalEntryLineCreate(account_id=asset_acc, debit=0, credit=refund_amount),
+            ]
+        )
+        je_refund = self.accounts_svc.create_journal_entry(tenant_id, user_id, entry_refund)
+        
+        # Entry 2: Restock Inventory & Reverse COGS
+        if cost_of_items_returned > 0:
+            entry_restock = JournalEntryCreate(
+                reference=f"{refund_reference}-RESTOCK",
+                description=f"Inventory Restock for Return {original_invoice}",
+                lines=[
+                    JournalEntryLineCreate(account_id=inv_acc, debit=cost_of_items_returned, credit=0),
+                    JournalEntryLineCreate(account_id=cogs_acc, debit=0, credit=cost_of_items_returned),
+                ]
+            )
+            self.accounts_svc.create_journal_entry(tenant_id, user_id, entry_restock)
+            
+        return je_refund

@@ -177,13 +177,13 @@ def force_rebuild_accounting(
             je = None
             if sale.payment_method == "Credit" or sale.amount_paid < sale.total_amount:
                 if sale.amount_paid >= sale.total_amount:
-                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, sale.payment_method)
                 else:
                     je = auto_post.post_credit_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
                     if (sale.amount_paid or 0) > 0:
                         auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{sale.invoice_number}", sale.amount_paid)
             else:
-                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, sale.payment_method)
             if je:
                 sale.journal_entry_id = je.id
                 synced["sales"] += 1

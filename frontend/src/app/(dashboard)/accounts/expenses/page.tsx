@@ -9,7 +9,7 @@ export default function ExpensesPage() {
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
 
   const expenseAccounts = useMemo(() => {
-    return accounts?.filter(a => a.category === 'Expense') || [];
+    return accounts?.filter(a => a.category === 'EXPENSE') || [];
   }, [accounts]);
 
   const { data, isLoading } = useLedger({

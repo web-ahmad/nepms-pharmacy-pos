@@ -406,6 +406,13 @@ class PurchaseService:
                 notes=f"Auto-invoice {inv_number} from {grn_num}"
             )
             db.add(ledger)
+            
+            # --- Auto Posting ---
+            from services.auto_posting_service import AutoPostingService
+            auto_post = AutoPostingService(db)
+            je = auto_post.post_purchase_invoice(tenant_id, user_id, inv_number, grn_in.total_amount, supplier.name)
+            if je:
+                invoice.journal_entry_id = je.id
 
         db.commit()
         db.refresh(grn)
@@ -437,6 +444,14 @@ class PurchaseService:
             notes=f"Invoice {inv.invoice_number} generated from GRN"
         )
         db.add(ledger)
+        
+        # --- Auto Posting ---
+        from services.auto_posting_service import AutoPostingService
+        auto_post = AutoPostingService(db)
+        je = auto_post.post_purchase_invoice(tenant_id, "SYSTEM", inv.invoice_number, inv.total_amount, supplier.name)
+        if je:
+            inv.journal_entry_id = je.id
+            
         db.commit()
         db.refresh(inv)
         return inv
@@ -454,12 +469,14 @@ class PurchaseService:
         supplier.current_balance -= payment.amount
         
         # Update Invoice Status if linked
+        inv_ref = payment.reference_number or "PAYMENT"
         if payment.invoice_id:
             inv = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == payment.invoice_id).first()
             if inv:
                 inv.amount_paid += payment.amount
                 inv.status = "Paid" if inv.amount_paid >= inv.total_amount else "Partial"
                 db.add(inv)
+                inv_ref = inv.invoice_number
 
         # Ledger Entry
         ledger = SupplierLedger(
@@ -475,6 +492,19 @@ class PurchaseService:
             notes=f"Payment via {payment.payment_method}"
         )
         db.add(ledger)
+        
+        # --- Auto Posting ---
+        from services.auto_posting_service import AutoPostingService
+        auto_post = AutoPostingService(db)
+        auto_post.post_purchase_payment(
+            tenant_id=tenant_id,
+            user_id="SYSTEM",
+            invoice_reference=inv_ref,
+            amount_paid=payment.amount,
+            payment_method=payment.payment_method,
+            supplier_name=supplier.name
+        )
+        
         db.commit()
         db.refresh(payment)
         return payment

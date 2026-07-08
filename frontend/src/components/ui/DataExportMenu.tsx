@@ -22,13 +22,14 @@ interface DataExportMenuProps {
 }
 
 export function DataExportMenu({ title, data, columns, fileName }: DataExportMenuProps) {
-  const exportFileName = fileName || title.replace(/\s+/g, '_').toLowerCase();
+  const safeTitle = title || 'export';
+  const exportFileName = fileName || safeTitle.replace(/\s+/g, '_').toLowerCase();
 
   const handlePrint = () => {
     try {
       const doc = new jsPDF('p', 'pt', 'a4');
       doc.setFontSize(18);
-      doc.text(title, 40, 40);
+      doc.text(safeTitle, 40, 40);
       
       const head = [columns.map(col => col.header)];
       const body = data.map(row => 

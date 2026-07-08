@@ -65,6 +65,7 @@ class Employee(Base):
     attendances = relationship("Attendance", back_populates="employee")
     leave_requests = relationship("LeaveRequest", back_populates="employee")
     payroll_lines = relationship("PayrollLine", back_populates="employee")
+    payroll_setting = relationship("PayrollSetting", back_populates="employee", uselist=False)
 
 class Shift(Base):
     __tablename__ = "shifts"
@@ -160,3 +161,17 @@ class AdvanceSalary(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     employee = relationship("Employee")
+
+class PayrollSetting(Base):
+    __tablename__ = "payroll_settings"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
+    employee_id = Column(String, ForeignKey("employees.id"), unique=True)
+    grace_period_mins = Column(Integer, default=15)
+    ot_type = Column(String, default="FIXED_AMOUNT") # FIXED_AMOUNT, PERCENTAGE
+    ot_rate = Column(Float, default=0.0)
+    ut_type = Column(String, default="FIXED_AMOUNT") # FIXED_AMOUNT, PERCENTAGE
+    ut_rate = Column(Float, default=0.0)
+    bonus_amount = Column(Float, default=0.0)
+    
+    employee = relationship("Employee", back_populates="payroll_setting")

@@ -44,7 +44,7 @@ class AccountsService:
             {"code": "4010", "name": "Other Revenue", "category": AccountCategory.REVENUE},
             
             {"code": "5000", "name": "Purchase Returns", "category": AccountCategory.EXPENSE}, # Contra-expense conceptually, mapped as Expense for math
-            {"code": "5010", "name": "Sales Returns", "category": AccountCategory.EXPENSE}, # Contra-revenue conceptually, mapped as Expense for math
+            {"code": "5010", "name": "Cost of Goods Sold", "category": AccountCategory.EXPENSE},
             {"code": "5020", "name": "Inventory Adjustment Expense", "category": AccountCategory.EXPENSE},
             {"code": "5030", "name": "Operating Expenses", "category": AccountCategory.EXPENSE},
         ]

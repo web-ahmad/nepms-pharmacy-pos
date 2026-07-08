@@ -26,6 +26,8 @@ const links = [
   { name: 'Balance Sheet',     href: '/accounts/balance-sheet', icon: Landmark },
   { name: 'Cash Book',         href: '/accounts/cash-book',     icon: Wallet },
   { name: 'Bank Book',         href: '/accounts/bank-book',     icon: CreditCard },
+  { name: 'Receivables Book',  href: '/accounts/receivables-book', icon: Receipt },
+  { name: 'Payables Book',     href: '/accounts/payables-book', icon: Receipt },
   { name: 'Expenses',          href: '/accounts/expenses',      icon: Receipt },
 ];
 

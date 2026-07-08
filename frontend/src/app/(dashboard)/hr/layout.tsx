@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, Building2, Contact2,
-  Clock, CalendarCheck, Palmtree, Wallet, Banknote, HandCoins
+  Clock, CalendarCheck, Palmtree, Wallet, Banknote, HandCoins, Settings2
 } from 'lucide-react';
 
 const links = [
@@ -18,6 +18,7 @@ const links = [
   { name: 'Leaves',       href: '/hr/leaves',         icon: Palmtree },
   { name: 'Advances',     href: '/hr/advances',       icon: HandCoins },
   { name: 'Salary Setup', href: '/hr/payroll/setup',  icon: Wallet },
+  { name: 'Payroll Rules', href: '/hr/payroll-settings', icon: Settings2 },
   { name: 'Payroll',      href: '/hr/payroll',        icon: Banknote },
 ];
 

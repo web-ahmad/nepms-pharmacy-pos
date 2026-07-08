@@ -1,5 +1,6 @@
 import { Account } from '../types/accounts';
-import { Printer, Edit2, ShieldCheck, Settings } from 'lucide-react';
+import { Printer, Edit2, ShieldCheck, Settings, Eye } from 'lucide-react';
+import Link from 'next/link';
 import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
 
 interface Props { data: Account[]; isLoading: boolean; }
@@ -95,7 +96,10 @@ export default function AccountTable({ data, isLoading }: Props) {
                       : <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-400 dark:text-zinc-500"><Settings className="h-3 w-3" />Custom</span>
                     }
                   </td>
-                  <td className="px-5 py-3.5 text-right">
+                  <td className="px-5 py-3.5 text-right flex items-center justify-end gap-1">
+                    <Link href={`/accounts/account-ledger/${acc.code}`} className="inline-flex items-center justify-center h-7 w-7 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-400 hover:text-blue-700 dark:hover:text-blue-400 transition-colors" title="View Ledger">
+                      <Eye className="h-3.5 w-3.5" />
+                    </Link>
                     <button className="inline-flex items-center justify-center h-7 w-7 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-gray-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors" title="Edit Account">
                       <Edit2 className="h-3.5 w-3.5" />
                     </button>
