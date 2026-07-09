@@ -79,7 +79,7 @@ export const useProcessReturn = () => {
 export const useVoidSale = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ saleId, payload }: { saleId: string; payload: { voided_by: string; void_reason?: string } }) => {
+    mutationFn: async ({ saleId, payload }: { saleId: string; payload: { voided_by: string; void_reason?: string; webcam_image_base64?: string | null; screenshot_base64?: string | null } }) => {
       const response = await api.post<Sale>(`/api/v1/sales/${saleId}/void`, payload);
       return response.data;
     },

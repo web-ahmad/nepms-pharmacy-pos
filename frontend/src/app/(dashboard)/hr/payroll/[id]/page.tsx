@@ -14,8 +14,10 @@ import { Printer, CheckCircle, ArrowLeft, Send, ThumbsUp, ThumbsDown, DollarSign
 import Link from 'next/link';
 import { api } from '@/services/api';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
+import { GlobalPrintTemplate } from '@/components/shared/GlobalPrintTemplate';
+import { useReactToPrint } from 'react-to-print';
 
 const fmt = (v: number) => new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(v);
 
@@ -58,144 +60,52 @@ export default function PayrollDetailsPage() {
     return 'Rupees ' + convert(intNum).trim() + ' Only';
   };
 
-  const handleDownloadMasterPDF = async () => {
-      try {
-          const response = await api.get(`/api/v1/hr/payroll/${id}/export-master`, {
-              responseType: 'blob' 
-          });
-          const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
-          const link = document.createElement('a');
-          link.href = url;
-          link.setAttribute('download', `Master_Payroll_${id}.pdf`);
-          document.body.appendChild(link);
-          link.click();
-          link.parentNode?.removeChild(link);
-      } catch (error) {
-          toast.error("Failed to download PDF. Please check your permissions.");
-      }
+  const masterPrintRef = useRef<HTMLDivElement>(null);
+  const [isMasterPrinting, setIsMasterPrinting] = useState(false);
+
+  const triggerMasterPrint = useReactToPrint({
+    contentRef: masterPrintRef,
+    documentTitle: `Master_Payroll_${run?.month}_${run?.year}`,
+    onAfterPrint: () => setIsMasterPrinting(false),
+    pageStyle: `@page { margin: 0; } body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }`
+  });
+
+  useEffect(() => {
+    if (isMasterPrinting) {
+      const timer = setTimeout(() => {
+        triggerMasterPrint();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isMasterPrinting, triggerMasterPrint]);
+
+  const handleDownloadMasterPDF = () => {
+    setIsMasterPrinting(true);
   };
+
+  const [printData, setPrintData] = useState<{line: any, emp: any} | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
+  
+  const handlePrintTrigger = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: printData ? `Salary_Slip_${printData.emp.first_name}_${printData.emp.last_name}` : 'Salary_Slip',
+    onAfterPrint: () => setPrintData(null),
+    pageStyle: `@page { margin: 0; } body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }`
+  });
+
+  useEffect(() => {
+    if (printData) {
+      const timer = setTimeout(() => {
+        handlePrintTrigger();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [printData, handlePrintTrigger]);
 
   const handlePrintSlip = (line: any, emp: any) => {
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-      const monthName = monthNames[(run?.month || 1) - 1];
-      const year = run?.year || new Date().getFullYear();
-      const generatedDate = format(new Date(), 'PPp');
-      const netPayWords = numberToWords(line.net_pay || 0);
-
-      printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Salary Slip - ${emp.first_name} ${emp.last_name}</title>
-            <style>
-              @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-              body { font-family: 'Inter', sans-serif; color: #111827; padding: 40px; background-color: #fff; }
-              .payslip-container { max-width: 800px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 40px; }
-              .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-              .logo-area h1 { font-size: 24px; font-weight: 700; color: #059669; margin: 0; }
-              .company-details { text-align: right; font-size: 12px; color: #4b5563; line-height: 1.6; }
-              .company-details strong { color: #111827; font-size: 14px; display: block; }
-              .title-section { text-align: center; margin: 20px 0; padding-bottom: 15px; border-bottom: 2px solid #e5e7eb; }
-              .title-section h2 { margin: 0 0 4px 0; font-size: 18px; font-weight: 700; text-transform: uppercase; color: #059669; }
-              .employee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background-color: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #f3f4f6; }
-              .grid-item { display: flex; font-size: 12px; line-height: 1.8; }
-              .grid-label { width: 120px; color: #6b7280; }
-              .grid-value { color: #111827; font-weight: 600; }
-              .financial-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 25px; }
-              table { width: 100%; border-collapse: collapse; }
-              th { background-color: #f0fdf4; color: #065f46; font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 10px; text-align: left; border-top: 1px solid #d1fae5; border-bottom: 1px solid #d1fae5; }
-              .text-right { text-align: right; }
-              td { padding: 10px; font-size: 12px; color: #4b5563; border-bottom: 1px dashed #e5e7eb; }
-              .amount { color: #111827; font-weight: 500; font-family: monospace; }
-              .totals-row td { border-bottom: none; border-top: 2px solid #e5e7eb; padding-top: 12px; font-weight: 700; color: #111827; }
-              .net-payable-box { margin-top: 20px; background-color: #f0fdf4; border: 1px solid #a7f3d0; padding: 20px; border-radius: 8px; text-align: right; }
-              .net-label { font-size: 12px; color: #065f46; font-weight: 600; }
-              .net-amount { font-size: 26px; font-weight: 700; color: #059669; font-family: monospace; margin: 4px 0; }
-              .net-words { font-size: 12px; color: #059669; font-style: italic; }
-              .signatures { display: flex; justify-content: space-between; margin-top: 60px; }
-              .sig-box { width: 180px; text-align: center; }
-              .sig-line { border-top: 1px dashed #9ca3af; margin-bottom: 6px; }
-              .sig-title { font-size: 12px; color: #4b5563; }
-              .footer { margin-top: 40px; text-align: center; font-size: 10px; color: #9ca3af; border-top: 1px solid #f3f4f6; padding-top: 15px; }
-              @media print {
-                body { padding: 0; }
-                .payslip-container { box-shadow: none; border: none; padding: 0; max-width: 100%; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="payslip-container">
-              <div class="header">
-                <div class="logo-area"><h1>NEPMS</h1></div>
-                <div class="company-details">
-                  <strong>NEPMS Pharmacy Services</strong>
-                  123 Healthcare Blvd, Karachi, Pakistan<br>
-                  info@nepms.com | +92 21 111-NEPMS
-                </div>
-              </div>
-              <div class="title-section">
-                <h2>SALARY SLIP</h2>
-                <p>For the month of ${monthName}, ${year}</p>
-              </div>
-              <div class="employee-grid">
-                <div>
-                  <div class="grid-item"><span class="grid-label">Employee Name:</span><span class="grid-value">${emp.first_name} ${emp.last_name}</span></div>
-                  <div class="grid-item"><span class="grid-label">Employee ID:</span><span class="grid-value">${emp.employee_id || 'N/A'}</span></div>
-                </div>
-                <div>
-                  <div class="grid-item"><span class="grid-label">Department:</span><span class="grid-value">${emp.department?.name || 'N/A'}</span></div>
-                  <div class="grid-item"><span class="grid-label">Payment Status:</span><span class="grid-value" style="color: ${run?.status === 'Paid' ? '#10b981' : '#f59e0b'}">${run?.status || 'Draft'}</span></div>
-                </div>
-              </div>
-              <div class="financial-section">
-                <div>
-                  <table>
-                    <thead><tr><th>Earnings</th><th class="text-right">Amount (PKR)</th></tr></thead>
-                    <tbody>
-                      <tr><td>Base Salary</td><td class="text-right amount">${(line.base_salary || 0).toLocaleString()}</td></tr>
-                      <tr><td>Overtime / Allowances</td><td class="text-right amount">${(line.allowances || 0).toLocaleString()}</td></tr>
-                      <tr class="totals-row"><td>Gross Earnings</td><td class="text-right">${((line.base_salary || 0) + (line.allowances || 0)).toLocaleString()}</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <div>
-                  <table>
-                    <thead><tr><th>Deductions</th><th class="text-right">Amount (PKR)</th></tr></thead>
-                    <tbody>
-                      ${line.deductions_breakdown ? `
-                        <tr><td>Absent Deductions</td><td class="text-right amount">${(line.deductions_breakdown.absent_amount || 0).toLocaleString()}</td></tr>
-                        ${line.deductions_breakdown.advance_recovery > 0 ? `<tr><td>Advance Recovery</td><td class="text-right amount">${line.deductions_breakdown.advance_recovery.toLocaleString()}</td></tr>` : ''}
-                      ` : `
-                        <tr><td>Absent Deductions</td><td class="text-right amount">${(line.deductions || 0).toLocaleString()}</td></tr>
-                      `}
-                      <tr class="totals-row"><td>Total Deductions</td><td class="text-right">${(line.deductions || 0).toLocaleString()}</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div class="net-payable-box">
-                <div class="net-label">NET PAYABLE</div>
-                <div class="net-amount">PKR ${(line.net_pay || 0).toLocaleString()}</div>
-                <div class="net-words">${netPayWords}</div>
-              </div>
-              <div class="signatures">
-                <div class="sig-box"><div class="sig-line"></div><div class="sig-title">Employee Signature</div></div>
-                <div class="sig-box"><div class="sig-line"></div><div class="sig-title">Authorized Officer</div></div>
-              </div>
-              <div class="footer">
-                <p>This is a system-generated document for NEPMS Pharmacy Portal.</p>
-                <p>Generated on: ${generatedDate}</p>
-              </div>
-            </div>
-            <script>window.onload = function() { window.print(); }</script>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
+    setPrintData({ line, emp });
   };
+
 
   if (isLoading) {
     return <div className="animate-pulse h-64 bg-zinc-100 dark:bg-zinc-900 rounded-xl" />;
@@ -402,6 +312,194 @@ export default function PayrollDetailsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Hidden Print Template */}
+      {printData && (
+        <GlobalPrintTemplate
+          ref={printRef}
+          title="SALARY SLIP"
+        >
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Employee Name</p>
+                <p className="text-sm font-semibold text-gray-900">{printData.emp.first_name} {printData.emp.last_name}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Employee ID</p>
+                <p className="text-sm font-semibold text-gray-900">{printData.emp.employee_id || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Department</p>
+                <p className="text-sm font-semibold text-gray-900">{printData.emp.department?.name || printData.line.department_name || 'Unassigned'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">For Month</p>
+                <p className="text-sm font-semibold text-gray-900">{["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][(run?.month || 1) - 1]}, {run?.year}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Payment Status</p>
+                <p className="text-sm font-semibold text-gray-900">{run?.status || 'Draft'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Worked Days</p>
+                <p className="text-sm font-semibold text-gray-900">{printData.line.worked_units || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">OT / UT Hours</p>
+                <p className="text-sm font-semibold text-gray-900">
+                  {printData.line.total_ot_hours ?? printData.line.deductions_breakdown?.ot_hours ?? printData.line.ot_hours ?? 0}h OT / {printData.line.total_ut_hours ?? printData.line.deductions_breakdown?.ut_hours ?? printData.line.ut_hours ?? 0}h UT
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex gap-8">
+            <div className="flex-1">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="bg-emerald-50 text-emerald-800 p-2 text-left font-bold uppercase text-xs border border-emerald-100">Earnings</th>
+                    <th className="bg-emerald-50 text-emerald-800 p-2 text-right font-bold uppercase text-xs border border-emerald-100">Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="p-2 border-b border-l border-r border-dashed border-zinc-200">Base Salary</td>
+                    <td className="p-2 border-b border-r border-dashed border-zinc-200 text-right font-mono">{(printData.line.base_salary || 0).toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 border-b border-l border-r border-dashed border-zinc-200">Overtime / Allowances</td>
+                    <td className="p-2 border-b border-r border-dashed border-zinc-200 text-right font-mono">{(printData.line.allowances || 0).toLocaleString()}</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 border-t-2 border-b-2 border-l border-r border-zinc-200 font-bold bg-zinc-50">Gross Earnings</td>
+                    <td className="p-2 border-t-2 border-b-2 border-r border-zinc-200 text-right font-bold font-mono bg-zinc-50">{((printData.line.base_salary || 0) + (printData.line.allowances || 0)).toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="flex-1">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="bg-red-50 text-red-800 p-2 text-left font-bold uppercase text-xs border border-red-100">Deductions</th>
+                    <th className="bg-red-50 text-red-800 p-2 text-right font-bold uppercase text-xs border border-red-100">Amount (PKR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {printData.line.deductions_breakdown ? (
+                    <>
+                      <tr>
+                        <td className="p-2 border-b border-l border-r border-dashed border-zinc-200">Short Hours / Absent Penalty</td>
+                        <td className="p-2 border-b border-r border-dashed border-zinc-200 text-right font-mono">{(printData.line.deductions_breakdown.absent_amount || 0).toLocaleString()}</td>
+                      </tr>
+                      {printData.line.deductions_breakdown.advance_recovery > 0 && (
+                        <tr>
+                          <td className="p-2 border-b border-l border-r border-dashed border-zinc-200">Advance Recovery</td>
+                          <td className="p-2 border-b border-r border-dashed border-zinc-200 text-right font-mono">{printData.line.deductions_breakdown.advance_recovery.toLocaleString()}</td>
+                        </tr>
+                      )}
+                    </>
+                  ) : (
+                    <tr>
+                      <td className="p-2 border-b border-l border-r border-dashed border-zinc-200">Short Hours / Absent Penalty</td>
+                      <td className="p-2 border-b border-r border-dashed border-zinc-200 text-right font-mono">{(printData.line.deductions || 0).toLocaleString()}</td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="p-2 border-t-2 border-b-2 border-l border-r border-zinc-200 font-bold bg-zinc-50">Total Deductions</td>
+                    <td className="p-2 border-t-2 border-b-2 border-r border-zinc-200 text-right font-bold font-mono bg-zinc-50">{(printData.line.deductions || 0).toLocaleString()}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="mt-8 bg-emerald-50 border border-emerald-200 p-6 rounded-xl flex items-center justify-between">
+            <div>
+               <div className="text-xs text-emerald-800 font-bold tracking-wider">NET PAYABLE</div>
+               <div className="text-xs text-emerald-600 italic mt-1">{numberToWords(printData.line.net_pay || 0)}</div>
+            </div>
+            <div className="text-3xl font-black text-emerald-600 font-mono">PKR {(printData.line.net_pay || 0).toLocaleString()}</div>
+          </div>
+        </GlobalPrintTemplate>
+      )}
+
+      {/* Hidden Master Print Template */}
+      {isMasterPrinting && run && (
+        <GlobalPrintTemplate
+          ref={masterPrintRef}
+          title={`PAYROLL MASTER SHEET - ${run.month}/${run.year}`}
+        >
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
+            <div className="grid grid-cols-5 gap-4">
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Month/Year</p>
+                <p className="text-sm font-semibold text-gray-900">{run.month}/{run.year}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Total Gross Base</p>
+                <p className="text-sm font-semibold text-gray-900 font-mono">{fmt(run.total_gross)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Total Deductions</p>
+                <p className="text-sm font-semibold text-gray-900 font-mono">{fmt(run.total_deductions)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Total Net Payable</p>
+                <p className="text-sm font-semibold text-gray-900 font-mono">{fmt(run.total_net)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase">Total Employees</p>
+                <p className="text-sm font-semibold text-gray-900">{run.lines.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-4 text-sm font-bold text-emerald-800 uppercase tracking-wider">EMPLOYEE BREAKDOWN</div>
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th className="bg-[#059669] text-white p-2 text-left font-bold uppercase text-xs border border-emerald-700">Employee</th>
+                <th className="bg-[#059669] text-white p-2 text-right font-bold uppercase text-xs border border-emerald-700">Base Salary</th>
+                <th className="bg-[#059669] text-white p-2 text-right font-bold uppercase text-xs border border-emerald-700">Allowances</th>
+                <th className="bg-[#059669] text-white p-2 text-right font-bold uppercase text-xs border border-emerald-700">Deductions</th>
+                <th className="bg-[#059669] text-white p-2 text-right font-bold uppercase text-xs border border-emerald-700">Net Pay</th>
+              </tr>
+            </thead>
+            <tbody>
+              {run.lines.map((l: any, i: number) => {
+                const e = employees?.find((e: any) => e.id === l.employee_id);
+                return (
+                  <tr key={l.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="p-2 border-b border-l border-r border-dashed border-gray-200">
+                      <div className="font-semibold text-gray-900">{e ? `${e.first_name} ${e.last_name}` : l.employee_name || 'Unknown'}</div>
+                      <div className="text-xs text-gray-500">{l.department_name || e?.department?.name || 'Unassigned'}</div>
+                    </td>
+                    <td className="p-2 border-b border-r border-dashed border-gray-200 text-right font-mono">{fmt(l.base_salary)}</td>
+                    <td className="p-2 border-b border-r border-dashed border-gray-200 text-right font-mono">{fmt(l.allowances)}</td>
+                    <td className="p-2 border-b border-r border-dashed border-gray-200 text-right font-mono">{fmt(l.deductions)}</td>
+                    <td className="p-2 border-b border-r border-dashed border-gray-200 text-right font-mono font-bold">{fmt(l.net_pay)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <div className="mt-24 flex justify-between items-end px-8">
+            <div className="text-center w-48">
+              <div className="border-t-2 border-gray-800 mb-2"></div>
+              <p className="text-xs font-bold text-gray-800 uppercase">Prepared By (HR)</p>
+            </div>
+            <div className="text-center w-48">
+              <div className="border-t-2 border-gray-800 mb-2"></div>
+              <p className="text-xs font-bold text-gray-800 uppercase">Approved By (Finance/CEO)</p>
+            </div>
+          </div>
+        </GlobalPrintTemplate>
       )}
     </div>
   );

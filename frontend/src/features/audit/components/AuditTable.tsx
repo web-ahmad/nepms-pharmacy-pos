@@ -1,4 +1,7 @@
 import { AuditResponse } from '../types';
+import { Camera, Smartphone } from 'lucide-react';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface AuditTableProps {
   data: AuditResponse;
@@ -15,6 +18,8 @@ export default function AuditTable({ data, isLoading }: AuditTableProps) {
       </div>
     );
   }
+
+  const [selectedMedia, setSelectedMedia] = useState<{ webcam?: string; screenshot?: string } | null>(null);
 
   if (!data || data.rows.length === 0) {
     return (
@@ -64,6 +69,19 @@ export default function AuditTable({ data, isLoading }: AuditTableProps) {
                 <td className="px-6 py-4">
                   <div className="max-w-xs truncate" title={row.details}>
                     {row.details}
+                    {row.media_urls && (
+                      <button 
+                        onClick={() => setSelectedMedia(row.media_urls!)}
+                        className="ml-2 inline-flex items-center gap-1 text-blue-500 hover:text-blue-700 underline"
+                      >
+                        <Camera size={14} /> View Evidence
+                      </button>
+                    )}
+                    {row.whatsapp_alert_sent && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-green-500" title="WhatsApp Alert Sent">
+                        <Smartphone size={14} />
+                      </span>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -74,6 +92,28 @@ export default function AuditTable({ data, isLoading }: AuditTableProps) {
       <div className="border-t border-zinc-200 bg-zinc-50 px-6 py-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
         Showing {data.total_records} records
       </div>
+
+      <Dialog open={!!selectedMedia} onOpenChange={(open) => !open && setSelectedMedia(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Security Evidence</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            {selectedMedia?.webcam && (
+              <div className="space-y-2">
+                <p className="font-bold text-sm text-zinc-600">Operator Snapshot</p>
+                <img src={selectedMedia.webcam} alt="Webcam" className="rounded-lg border border-zinc-200 w-full" />
+              </div>
+            )}
+            {selectedMedia?.screenshot && (
+              <div className="space-y-2">
+                <p className="font-bold text-sm text-zinc-600">Screen Capture</p>
+                <img src={selectedMedia.screenshot} alt="Screenshot" className="rounded-lg border border-zinc-200 w-full" />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

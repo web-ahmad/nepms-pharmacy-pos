@@ -191,16 +191,19 @@ export const useUpdateShift = (id: string) => {
 };
 
 // Attendance
-export const useAttendance = (date?: string) => {
+export const useAttendance = (month?: number, year?: number) => {
   return useQuery({
-    queryKey: ['hr', 'attendance', date],
+    queryKey: ['hr', 'attendance', month, year],
     queryFn: async () => {
-      const params = date ? `?date=${date}` : '';
-      const res = await api.get(`/api/v1/hr/attendance${params}`);
+      let url = '/api/v1/hr/attendance?';
+      if (month) url += `month=${month}&`;
+      if (year) url += `year=${year}&`;
+      const res = await api.get(url);
       return res.data as Attendance[];
     }
   });
 };
+
 
 export const useMonthlyAttendance = (employeeId?: string, month?: number, year?: number) => {
   return useQuery({

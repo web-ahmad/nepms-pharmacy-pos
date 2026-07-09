@@ -215,7 +215,7 @@ export default function AttendanceDetailView({
                           </select>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 font-mono text-xs">
-                          {rec.overtime ? <span className="text-emerald-600 font-semibold">+{rec.overtime}h</span> : <span className="text-zinc-400">—</span>}
+                          {rec.overtime ? <span className="text-emerald-600 font-semibold">+{formatHours(rec.overtime)}</span> : <span className="text-zinc-400">—</span>}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-right">
                           <button

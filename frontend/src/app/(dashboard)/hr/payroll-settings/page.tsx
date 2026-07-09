@@ -71,7 +71,7 @@ export default function PayrollSettingsPage() {
       if (currentRule) {
         await api.put(`/api/v1/hr/payroll-settings/${currentRule.id}`, payload);
       } else {
-        await api.post('/api/v1/hr/payroll-settings/', payload);
+        await api.post('/api/v1/hr/payroll-settings', payload);
       }
       setIsModalOpen(false);
       fetchData();

@@ -98,6 +98,70 @@ export default function SettingsDashboardPage() {
             </button>
           </div>
         </div>
+
+        <WhatsAppIntegrationCard />
+      </div>
+    </div>
+  );
+}
+
+import { useWhatsAppQR } from '@/features/settings/services/settings.api';
+import { Smartphone, CheckCircle2, AlertCircle } from 'lucide-react';
+
+function WhatsAppIntegrationCard() {
+  const { data, isLoading } = useWhatsAppQR();
+
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950 overflow-hidden">
+      <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
+        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+          <Smartphone size={18} className="text-green-500" />
+          WhatsApp Web Integration
+        </h3>
+        <p className="text-sm text-zinc-500 mt-1">
+          Link your WhatsApp to receive high-severity Audit alerts and daily reports.
+        </p>
+      </div>
+
+      <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col items-center justify-center min-h-[300px]">
+        {isLoading ? (
+          <div className="flex flex-col items-center gap-2 text-zinc-500">
+            <Loader2 className="animate-spin text-green-600" size={32} />
+            <p>Connecting to WhatsApp Microservice...</p>
+          </div>
+        ) : data?.error ? (
+          <div className="flex flex-col items-center gap-2 text-red-500 bg-red-50 dark:bg-red-900/20 p-6 rounded-xl border border-red-200 dark:border-red-800">
+            <AlertCircle size={32} />
+            <p className="font-bold">{data.error}</p>
+            <p className="text-sm text-red-400">Ensure the whatsapp_service node app is running.</p>
+          </div>
+        ) : data?.connected ? (
+          <div className="flex flex-col items-center gap-3 text-green-600">
+            <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <CheckCircle2 size={48} />
+            </div>
+            <p className="font-bold text-lg">WhatsApp Connected</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Security alerts will be sent automatically.</p>
+          </div>
+        ) : data?.qr ? (
+          <div className="flex flex-col items-center gap-6">
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-zinc-200">
+              {/* Note: In a real app we would render a QR code from the base64, but whatsapp-web.js often provides text or base64. Let's assume it's base64 image or use a library */}
+              <img src={data.qr} alt="WhatsApp QR Code" className="w-64 h-64 object-contain" />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-zinc-900 dark:text-white">Scan this QR Code</p>
+              <p className="text-sm text-zinc-500 mt-1 max-w-sm">
+                Open WhatsApp on your phone, go to Linked Devices, and scan this code to link the NEPMS bot.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-zinc-500 flex flex-col items-center">
+            <Loader2 className="animate-spin mb-2" />
+            Generating QR Code...
+          </div>
+        )}
       </div>
     </div>
   );

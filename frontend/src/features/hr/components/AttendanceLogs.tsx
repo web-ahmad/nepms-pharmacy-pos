@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo, useEffect, Fragment } from 'react';
 import { useAttendance, useEmployees, useBulkAttendance, useDepartments } from '../services/hr.api';
 import { Attendance, BulkAttendanceRow } from '../types/hr';
 import {
   CalendarDays,
   Search,
   ChevronDown,
+  ChevronRight,
+  ChevronUp,
   Clock,
   LogIn,
   LogOut,
@@ -22,6 +24,7 @@ import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
 import EditAttendanceModal from './EditAttendanceModal';
 import MarkMonthlyModal from './MarkMonthlyModal';
+import MarkCustomDateModal from './MarkCustomDateModal';
 import AttendanceDetailView from './AttendanceDetailView';
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -72,14 +75,19 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 
 // ─── Component ───────────────────────────────────────────────────────
 export default function AttendanceLogs() {
-  const [dateFilter, setDateFilter] = useState<string>(todayISO());
+  const [monthStr, setMonthStr] = useState<string>(new Date().toISOString().substring(0, 7));
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingRecord, setEditingRecord] = useState<Attendance | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<any | null>(null);
   const [isMarkMonthlyOpen, setIsMarkMonthlyOpen] = useState(false);
+  const [isMarkCustomOpen, setIsMarkCustomOpen] = useState(false);
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
-  const { data: logs, isLoading } = useAttendance(dateFilter);
+  const [year, month] = monthStr.split('-').map(Number);
+  const { data: logs, isLoading } = useAttendance(month, year);
   const { data: employees } = useEmployees();
   const { data: departments } = useDepartments();
   const { mutateAsync: bulkUpload, isPending: isUploading } = useBulkAttendance();
@@ -95,6 +103,50 @@ export default function AttendanceLogs() {
     const q = searchTerm.toLowerCase();
     return name.includes(q) || shift.includes(q);
   });
+
+  // Group by employee
+  const groupedData = useMemo(() => {
+    const map = new Map<string, {
+      employee_id: string;
+      employee_name: string;
+      emp_record: any;
+      totalPresent: number;
+      totalAbsentLate: number;
+      totalWorkedHours: number;
+      records: Attendance[];
+    }>();
+
+    filtered.forEach(rec => {
+      if (!map.has(rec.employee_id)) {
+        const emp = employees?.find(e => e.id === rec.employee_id);
+        const name = rec.employee_name || (emp ? `${emp.first_name} ${emp.last_name}` : rec.employee_id);
+        map.set(rec.employee_id, {
+          employee_id: rec.employee_id,
+          employee_name: name,
+          emp_record: emp,
+          totalPresent: 0,
+          totalAbsentLate: 0,
+          totalWorkedHours: 0,
+          records: []
+        });
+      }
+      const group = map.get(rec.employee_id)!;
+      group.records.push(rec);
+      if (rec.status === 'Present') group.totalPresent++;
+      if (rec.status === 'Absent' || rec.status === 'Late') group.totalAbsentLate++;
+      if (rec.total_hours_worked) group.totalWorkedHours += rec.total_hours_worked;
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
+  }, [filtered, employees]);
+
+  const totalPages = Math.ceil(groupedData.length / ITEMS_PER_PAGE) || 1;
+  const paginatedGroups = groupedData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setExpandedEmployeeId(null);
+  }, [monthStr, departmentFilter, searchTerm]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -174,6 +226,14 @@ export default function AttendanceLogs() {
             <CalendarDays size={16} />
             <span className="hidden sm:inline">Mark Monthly</span>
           </button>
+          
+          <button 
+            onClick={() => setIsMarkCustomOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            <CalendarDays size={16} />
+            <span className="hidden sm:inline">Mark Custom Date</span>
+          </button>
 
           {/* Hidden File Input */}
           <input 
@@ -197,10 +257,10 @@ export default function AttendanceLogs() {
         <div className="relative flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-zinc-400" />
           <input
-            id="att-logs-date"
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
+            id="att-logs-month"
+            type="month"
+            value={monthStr}
+            onChange={(e) => setMonthStr(e.target.value)}
             className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
         </div>
@@ -240,11 +300,11 @@ export default function AttendanceLogs() {
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            {/* Head */}
-            <thead className="border-b border-zinc-200 bg-zinc-50/70 text-xs font-medium uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60">
+            <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-white text-xs font-medium uppercase tracking-wider text-zinc-500 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
               <tr>
                 <th className="px-4 py-4 w-10 text-center"><input type="checkbox" className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900" /></th>
                 <th className="px-2 py-4 w-10"></th>
+                <th className="px-6 py-4">Date</th>
                 <th className="px-6 py-4">Employee</th>
                 <th className="px-6 py-4 whitespace-nowrap"><span className="flex items-center gap-1.5"><LogIn size={13} /> Check In At</span></th>
                 <th className="px-6 py-4 whitespace-nowrap"><span className="flex items-center gap-1.5"><LogOut size={13} /> Check Out At</span></th>
@@ -273,160 +333,148 @@ export default function AttendanceLogs() {
                 </>
               )}
 
-              {!isLoading && filtered.length === 0 && (
+              {!isLoading && groupedData.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="py-16 text-center text-zinc-400 dark:text-zinc-600"
-                  >
+                  <td colSpan={12} className="py-16 text-center text-zinc-400 dark:text-zinc-600">
                     <CalendarDays className="mx-auto mb-3 h-8 w-8 opacity-40" />
                     <p className="font-medium">No attendance records found</p>
-                    <p className="mt-0.5 text-xs">
-                      Try a different date or search term.
-                    </p>
+                    <p className="mt-0.5 text-xs">Try a different month or search term.</p>
                   </td>
                 </tr>
               )}
 
-              {!isLoading &&
-                filtered.map((rec) => {
-                  const emp = employees?.find((e) => e.id === rec.employee_id);
-                  const name =
-                    rec.employee_name ||
-                    (emp
-                      ? `${emp.first_name} ${emp.last_name}`
-                      : rec.employee_id);
-                  const initials = getInitials(name);
-                  const statusStyle =
-                    STATUS_STYLE[rec.status] ??
-                    'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400';
+              {!isLoading && paginatedGroups.map(group => {
+                const initials = getInitials(group.employee_name);
+                const isExpanded = expandedEmployeeId === group.employee_id;
 
-                  return (
-                    <tr
-                      key={rec.id}
-                      className="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
+                return (
+                  <Fragment key={group.employee_id}>
+                    {/* Summary Row */}
+                    <tr 
+                      className={`group cursor-pointer border-b border-zinc-100 transition-colors hover:bg-zinc-50/50 dark:border-zinc-800 dark:hover:bg-zinc-900/50 ${isExpanded ? 'bg-zinc-50/50 dark:bg-zinc-900/50' : ''}`}
+                      onClick={() => setExpandedEmployeeId(isExpanded ? null : group.employee_id)}
                     >
                       <td className="px-4 py-4 text-center">
-                        <input type="checkbox" className="rounded border-zinc-300 dark:border-zinc-700 dark:bg-zinc-900" />
+                        <button className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors">
+                          {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </button>
                       </td>
                       <td className="px-2 py-4 text-center">
-                        <button onClick={() => setViewingEmployee(emp || null)} className="text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        <button onClick={(e) => { e.stopPropagation(); setViewingEmployee(group.emp_record || null); }} className="text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                           <Eye size={16} />
                         </button>
                       </td>
-                      {/* Employee */}
+                      <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
+                        {/* Empty Date column for summary row */}
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
                             {initials}
                           </div>
                           <div>
-                            <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                              {name}
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              {emp?.employee_id || '—'}
-                            </p>
+                            <p className="font-medium text-zinc-900 dark:text-zinc-100">{group.employee_name}</p>
+                            <p className="text-xs text-zinc-500">{group.emp_record?.employee_id || '—'}</p>
                           </div>
                         </div>
                       </td>
-
-                      {/* Check In */}
-                      <td className="whitespace-nowrap px-6 py-4">
-                        {rec.clock_in ? (
-                          <span className="font-mono text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                            {formatTime(rec.clock_in)}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-400">—</span>
-                        )}
-                      </td>
-
-                      {/* Check Out */}
-                      <td className="whitespace-nowrap px-6 py-4">
-                        {rec.clock_out ? (
-                          <span className="font-mono text-xs font-medium text-red-500 dark:text-red-400">
-                            {formatTime(rec.clock_out)}
-                          </span>
-                        ) : rec.clock_in ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            </span>
-                            Active
-                          </span>
-                        ) : (
-                          <span className="text-zinc-400">—</span>
-                        )}
-                      </td>
-
-                      {/* Worked Hour */}
-                      <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                        {formatHours(rec.total_hours_worked)}
-                      </td>
-
-                      {/* Break Time */}
-                      <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                        {rec.break_time ? `${rec.break_time}h` : '—'}
-                      </td>
-
-                      {/* Status Badge */}
-                      <td className="whitespace-nowrap px-6 py-4 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}
-                        >
-                          {STATUS_ICON[rec.status]}
-                          {rec.status}
+                      <td colSpan={2} className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          <CheckCircle2 size={12} /> {group.totalPresent} Present
+                        </span>
+                        <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                          <AlertCircle size={12} /> {group.totalAbsentLate} Absent/Late
                         </span>
                       </td>
-
-                      {/* Shift Name */}
-                      <td className="whitespace-nowrap px-6 py-4">
-                        {rec.shift_name ? (
-                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
-                            {rec.shift_name}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-400">—</span>
-                        )}
+                      <td className="px-6 py-4 font-mono text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                        {formatHours(group.totalWorkedHours)}
                       </td>
-
-                      {/* Overtime */}
-                      <td className="whitespace-nowrap px-6 py-4 font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                        {rec.overtime ? <span className="text-emerald-600 font-semibold">+{rec.overtime}h</span> : '—'}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="whitespace-nowrap px-6 py-4 text-right">
-                        <button
-                          title="Edit attendance"
-                          onClick={() => setEditingRecord(rec)}
-                          className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-                        >
-                          <Pencil size={15} />
-                        </button>
+                      <td colSpan={5} className="px-6 py-4 text-right">
+                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                          {group.records.length} records
+                        </span>
                       </td>
                     </tr>
-                  );
-                })}
+
+                    {/* Detailed Records Row (Accordion Content) */}
+                    {isExpanded && group.records.map(rec => {
+                      const statusStyle = STATUS_STYLE[rec.status] ?? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400';
+                      return (
+                        <tr key={rec.id} className="bg-zinc-50/30 dark:bg-zinc-900/20 border-b border-zinc-100 dark:border-zinc-800/50 last:border-b-2 last:border-zinc-200 dark:last:border-zinc-700">
+                          <td className="px-4 py-3"></td>
+                          <td className="px-2 py-3"></td>
+                          <td className="px-6 py-3 whitespace-nowrap text-sm text-zinc-600 dark:text-zinc-400 pl-8">
+                            {new Date(rec.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="px-6 py-3"></td>
+                          <td className="whitespace-nowrap px-6 py-3">
+                            {rec.clock_in ? <span className="font-mono text-xs font-medium text-emerald-600 dark:text-emerald-400">{formatTime(rec.clock_in)}</span> : <span className="text-zinc-400">—</span>}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3">
+                            {rec.clock_out ? <span className="font-mono text-xs font-medium text-red-500 dark:text-red-400">{formatTime(rec.clock_out)}</span> : rec.clock_in ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+                                Active
+                              </span>
+                            ) : <span className="text-zinc-400">—</span>}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                            {formatHours(rec.total_hours_worked)}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                            {rec.break_time ? `${rec.break_time}h` : '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 text-center">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}>
+                              {STATUS_ICON[rec.status]}{rec.status}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3">
+                            {rec.shift_name ? <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">{rec.shift_name}</span> : <span className="text-zinc-400">—</span>}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                            {rec.overtime ? <span className="text-emerald-600 font-semibold">+{rec.overtime}h</span> : '—'}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 text-right">
+                            <button title="Edit attendance" onClick={() => setEditingRecord(rec)} className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300">
+                              <Pencil size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
         {/* Footer */}
-        {!isLoading && filtered.length > 0 && (
-          <div className="border-t border-zinc-100 px-6 py-3 dark:border-zinc-800">
+        {!isLoading && groupedData.length > 0 && (
+          <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-3 dark:border-zinc-800 bg-white dark:bg-zinc-950">
             <p className="text-xs text-zinc-500">
-              {filtered.length} record{filtered.length !== 1 ? 's' : ''} for{' '}
+              Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, groupedData.length)} of {groupedData.length} employees for{' '}
               <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                {new Date(dateFilter).toLocaleDateString('en-US', {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
+                {new Date(`${monthStr}-01`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
               </span>
             </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-zinc-500">Page {currentPage} of {totalPages}</span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -441,6 +489,9 @@ export default function AttendanceLogs() {
         isOpen={isMarkMonthlyOpen}
         onClose={() => setIsMarkMonthlyOpen(false)}
       />
+      {isMarkCustomOpen && (
+        <MarkCustomDateModal onClose={() => setIsMarkCustomOpen(false)} />
+      )}
       <AttendanceDetailView
         isOpen={!!viewingEmployee}
         employee={viewingEmployee}

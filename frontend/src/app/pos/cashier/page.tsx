@@ -307,23 +307,49 @@ export default function CashierPortalPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const [isCapturingSecurityData, setIsCapturingSecurityData] = useState(false);
   const voidSaleMutation = useVoidSale();
 
   const handleVoidSale = async () => {
     if (!voidSaleId) return;
+    
+    setIsCapturingSecurityData(true);
+    const toastId = toast.loading('Security Capture in Progress...');
+    let media;
+    try {
+      const { captureSurveillance } = await import('@/lib/surveillance');
+      media = await captureSurveillance('void-sale-modal-cashier');
+    } catch (e) {
+      console.error(e);
+      media = null;
+    }
+
+    if (!media || !media.webcam || !media.screenshot) {
+      console.error("CRITICAL: Surveillance capture failed.");
+      setIsCapturingSecurityData(false);
+      toast.dismiss(toastId);
+      alert("Security Violation: Camera/Screenshot capture failed. Transaction blocked for audit compliance.");
+      return; // STOP execution here, do not call voidSale API
+    }
+
     try {
       await voidSaleMutation.mutateAsync({
         saleId: voidSaleId,
         payload: {
           voided_by: user?.username || 'Cashier',
-          void_reason: 'Voided from Cashier Portal'
+          void_reason: 'Voided from Cashier Portal',
+          webcam_image_base64: media.webcam,
+          screenshot_base64: media.screenshot
         }
       });
-      toast.success('Sale Voided & Stock Reverted');
+      toast.success('Sale Voided & Stock Reverted', { id: toastId });
       setVoidSaleId(null);
       qc.invalidateQueries({ queryKey: ['cashier', 'pending-queue'] });
     } catch (error: any) {
-      toast.error(parseApiError(error));
+      toast.error(error.message || parseApiError(error), { id: toastId });
+    } finally {
+      setIsCapturingSecurityData(false);
+      toast.dismiss(toastId);
     }
   };
 
@@ -852,7 +878,7 @@ export default function CashierPortalPage() {
 
       {/* Void Sale Alert Dialog */}
       <AlertDialog open={!!voidSaleId} onOpenChange={(open) => !open && setVoidSaleId(null)}>
-        <AlertDialogContent className="font-sans">
+        <AlertDialogContent id="void-sale-modal-cashier" className="font-sans">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-red-600 flex items-center gap-2">
               <Trash2 size={20} />
@@ -870,9 +896,13 @@ export default function CashierPortalPage() {
                 handleVoidSale();
               }}
               className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
-              disabled={voidSaleMutation.isPending}
+              disabled={voidSaleMutation.isPending || isCapturingSecurityData}
             >
-              {voidSaleMutation.isPending ? 'Voiding...' : 'Yes, Void Sale'}
+              {isCapturingSecurityData 
+                ? 'Capturing Security Data...' 
+                : voidSaleMutation.isPending 
+                  ? 'Voiding...' 
+                  : 'Yes, Void Sale'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

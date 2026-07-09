@@ -5,6 +5,9 @@ export interface AuditLog {
   entity_type: string;
   entity_id: string;
   details: string;
+  severity?: string;
+  media_urls?: { webcam?: string; screenshot?: string };
+  whatsapp_alert_sent?: boolean;
 }
 
 export interface AuditResponse {

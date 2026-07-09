@@ -44,12 +44,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       console.error('API 401 Unauthorized at URL:', error.config?.url);
       
-      // Clear auth state
-      useAuthStore.getState().logout();
+      // Clear auth state (Disabled for debugging)
+      // useAuthStore.getState().logout();
       
-      // Redirect to login if running in browser
+      // Redirect to login if running in browser (Disabled for debugging)
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        // window.location.href = '/login';
       }
     }
     return Promise.reject(error);

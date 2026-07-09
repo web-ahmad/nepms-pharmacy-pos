@@ -76,3 +76,14 @@ export const useUpdateModule = (id: string) => {
     }
   });
 };
+
+export const useWhatsAppQR = () => {
+  return useQuery({
+    queryKey: ['settings', 'whatsapp', 'qr'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/settings/whatsapp/qr');
+      return res.data as { connected: boolean; qr: string | null; error?: string };
+    },
+    refetchInterval: (query) => query.state.data?.connected ? false : 3000
+  });
+};
