@@ -8,7 +8,7 @@ from core.deps import get_current_user
 
 router = APIRouter()
 
-@router.get("/", response_model=List[PayrollSettingResponse])
+@router.get("", response_model=List[PayrollSettingResponse])
 def get_payroll_settings(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
@@ -26,7 +26,7 @@ def get_payroll_settings(
         
     return result
 
-@router.post("/", response_model=PayrollSettingResponse)
+@router.post("", response_model=PayrollSettingResponse)
 def create_payroll_setting(
     obj_in: PayrollSettingCreate,
     db: Session = Depends(get_db),

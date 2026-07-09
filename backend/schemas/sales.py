@@ -34,6 +34,8 @@ class CheckoutRequest(BaseModel):
 class VoidSaleRequest(BaseModel):
     voided_by: Optional[str] = None
     void_reason: Optional[str] = None
+    webcam_image_base64: Optional[str] = None
+    screenshot_base64: Optional[str] = None
 
 
 

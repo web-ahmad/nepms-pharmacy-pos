@@ -8,9 +8,43 @@ from typing import List, Optional
 
 from datetime import datetime
 
+import os
+import uuid
+import base64
+
 class AuditService:
     def __init__(self, db: Session):
         self.db = db
+
+    @staticmethod
+    def save_surveillance_media(webcam_b64: str = None, screenshot_b64: str = None) -> dict:
+        urls = {}
+        storage_dir = os.path.join(os.getcwd(), "storage", "surveillance")
+        os.makedirs(storage_dir, exist_ok=True)
+        
+        try:
+            if webcam_b64:
+                # Remove header if exists
+                if "," in webcam_b64:
+                    webcam_b64 = webcam_b64.split(",")[1]
+                filename = f"webcam_{uuid.uuid4().hex}.jpg"
+                filepath = os.path.join(storage_dir, filename)
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(webcam_b64))
+                urls["webcam"] = f"/storage/surveillance/{filename}"
+                
+            if screenshot_b64:
+                if "," in screenshot_b64:
+                    screenshot_b64 = screenshot_b64.split(",")[1]
+                filename = f"screenshot_{uuid.uuid4().hex}.jpg"
+                filepath = os.path.join(storage_dir, filename)
+                with open(filepath, "wb") as f:
+                    f.write(base64.b64decode(screenshot_b64))
+                urls["screenshot"] = f"/storage/surveillance/{filename}"
+        except Exception as e:
+            print(f"Failed to save surveillance media: {e}")
+            
+        return urls
 
     def get_audit_logs(
         self, 
@@ -58,7 +92,9 @@ class AuditService:
                 reason_code=log.reason_code,
                 batch_audit_id=log.batch_audit_id,
                 severity=log.severity,
-                details=None
+                details=None,
+                media_urls=log.media_urls,
+                whatsapp_alert_sent=log.whatsapp_alert_sent
             ))
             
         return responses

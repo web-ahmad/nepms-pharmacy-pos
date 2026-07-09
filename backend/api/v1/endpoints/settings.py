@@ -39,3 +39,14 @@ def get_modules(db: Session = Depends(get_db), current_user: User = Depends(requ
 @router.put("/modules/{id}", response_model=SystemModuleResponse)
 def update_module(id: str, obj_in: SystemModuleUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_settings_update)):
     return SettingsService(db).update_module(current_user.tenant_id, id, current_user.id, obj_in)
+
+@router.get("/whatsapp/qr")
+def get_whatsapp_qr(current_user: User = Depends(require_settings_view)):
+    import requests
+    try:
+        response = requests.get("http://localhost:3001/api/v1/settings/whatsapp/qr", timeout=5)
+        if response.status_code == 200:
+            return response.json()
+        return {"connected": False, "qr": None, "error": "Microservice error"}
+    except requests.exceptions.RequestException:
+        return {"connected": False, "qr": None, "error": "WhatsApp microservice is offline"}

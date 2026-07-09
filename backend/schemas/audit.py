@@ -75,6 +75,8 @@ class SystemAuditLogBase(BaseModel):
     batch_audit_id: Optional[str] = None
     severity: Optional[str] = "Info"
     details: Optional[str] = None
+    media_urls: Optional[Dict[str, str]] = None
+    whatsapp_alert_sent: Optional[bool] = False
 
 class SystemAuditLogResponse(SystemAuditLogBase):
     id: str

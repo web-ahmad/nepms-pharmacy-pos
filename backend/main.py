@@ -50,7 +50,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.staticfiles import StaticFiles
+import os
+
 app.include_router(api_router, prefix="/api/v1")
+
+storage_path = os.path.join(os.getcwd(), "storage")
+os.makedirs(storage_path, exist_ok=True)
+app.mount("/storage", StaticFiles(directory=storage_path), name="storage")
 
 
 @app.on_event("startup")

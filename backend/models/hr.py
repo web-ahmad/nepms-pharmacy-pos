@@ -88,6 +88,8 @@ class Attendance(Base):
     clock_in = Column(DateTime, nullable=True)
     clock_out = Column(DateTime, nullable=True)
     status = Column(String) # Present, Absent, Late, Half Day
+    overtime_minutes = Column(Integer, default=0)
+    undertime_minutes = Column(Integer, default=0)
 
     employee = relationship("Employee", back_populates="attendances")
 

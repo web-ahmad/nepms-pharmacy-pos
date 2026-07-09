@@ -184,7 +184,9 @@ def void_sale(
         branch_id=tenant.branch_id,
         user_id=current_user.id,
         void_reason=payload.void_reason,
-        voided_by=payload.voided_by or current_user.username
+        voided_by=payload.voided_by or current_user.username,
+        webcam_image_base64=payload.webcam_image_base64,
+        screenshot_base64=payload.screenshot_base64
     )
     return map_sale_to_response(sale)
 

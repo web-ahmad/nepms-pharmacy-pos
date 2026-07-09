@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, Text, JSON
+from sqlalchemy import Column, String, ForeignKey, Text, JSON, Boolean
 from models.base import BaseModel
 
 class AuditLog(BaseModel):
@@ -22,3 +22,6 @@ class AuditLog(BaseModel):
     reason_code = Column(String(100), nullable=True)
     batch_audit_id = Column(String(36), nullable=True, index=True)
     severity = Column(String(20), default="Info") # Info, Warning, Critical
+    
+    media_urls = Column(JSON, nullable=True) # {"webcam": "...", "screenshot": "..."}
+    whatsapp_alert_sent = Column(Boolean, default=False)

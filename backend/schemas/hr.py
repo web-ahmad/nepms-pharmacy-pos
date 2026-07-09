@@ -271,6 +271,9 @@ class PayrollLineBase(BaseModel):
 class PayrollLineResponse(PayrollLineBase):
     id: str
     employee_name: Optional[str] = None
+    department_name: Optional[str] = None
+    total_ot_hours: Optional[float] = None
+    total_ut_hours: Optional[float] = None
 
     class Config:
         from_attributes = True

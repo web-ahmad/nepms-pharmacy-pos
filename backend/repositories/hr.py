@@ -100,7 +100,8 @@ class HRRepository:
 
     # Employees
     def get_employees(self, tenant_id: str):
-        return self.db.query(Employee).filter(Employee.tenant_id == tenant_id).all()
+        from sqlalchemy.orm import joinedload
+        return self.db.query(Employee).options(joinedload(Employee.department)).filter(Employee.tenant_id == tenant_id).all()
 
     def get_employee(self, tenant_id: str, employee_id: str):
         return self.db.query(Employee).filter(Employee.tenant_id == tenant_id, Employee.id == employee_id).first()
@@ -187,19 +188,8 @@ class HRRepository:
                     worked_hours = 0
                 worked_hours = round(worked_hours, 2)
 
-                if emp and emp.overtime_allowed and shift:
-                    try:
-                        sh, sm = [int(x) for x in shift.start_time.split(":")]
-                        eh, em = [int(x) for x in shift.end_time.split(":")]
-                        shift_start_dt = datetime(2000, 1, 1, sh, sm)
-                        shift_end_dt = datetime(2000, 1, 1, eh, em)
-                        if shift_end_dt < shift_start_dt:
-                            shift_end_dt += timedelta(days=1)
-                        shift_duration = (shift_end_dt - shift_start_dt).total_seconds() / 3600
-                        if worked_hours > shift_duration:
-                            overtime = round(worked_hours - shift_duration, 2)
-                    except Exception:
-                        pass
+                if hasattr(rec, 'overtime_minutes') and rec.overtime_minutes and rec.overtime_minutes > 0:
+                    overtime = round(rec.overtime_minutes / 60, 2)
 
             approved_leave = self.db.query(LeaveRequest).filter(
                 LeaveRequest.tenant_id == tenant_id,
@@ -299,9 +289,60 @@ class HRRepository:
         if not rec:
             return None
         rec.clock_out = datetime.utcnow()
+
+        # Calculate overtime/undertime
+        if rec.clock_in and rec.clock_out:
+            self._recalculate_ot(rec)
+
         self.db.commit()
         self.db.refresh(rec)
         return rec
+
+    def _recalculate_ot(self, rec: Attendance):
+        rec.overtime_minutes = 0
+        rec.undertime_minutes = 0
+        if not rec.clock_in or not rec.clock_out:
+            return
+
+        emp = self.db.query(Employee).filter(Employee.id == rec.employee_id).first()
+        if not emp: return
+
+        break_time = emp.standard_break_time if emp.standard_break_time is not None else 60
+
+        standard_minutes = 480 # Default 8 hours
+        if emp.shift_id:
+            shift = self.db.query(Shift).filter(Shift.id == emp.shift_id).first()
+            if shift and shift.start_time and shift.end_time:
+                try:
+                    sh, sm = map(int, shift.start_time.split(":"))
+                    eh, em = map(int, shift.end_time.split(":"))
+                    from datetime import timedelta
+                    shift_start = datetime(2000, 1, 1, sh, sm)
+                    shift_end = datetime(2000, 1, 1, eh, em)
+                    if shift_end < shift_start:
+                        shift_end += timedelta(days=1)
+                    
+                    gross_shift_minutes = int((shift_end - shift_start).total_seconds() / 60)
+                    if gross_shift_minutes > break_time:
+                        standard_minutes = gross_shift_minutes - break_time
+                    else:
+                        standard_minutes = gross_shift_minutes
+                except Exception:
+                    pass
+
+        worked_minutes = int((rec.clock_out - rec.clock_in).total_seconds() / 60)
+        
+        # Don't subtract break if they worked very little
+        if worked_minutes > break_time:
+            worked_minutes -= break_time
+
+        if worked_minutes > standard_minutes:
+            rec.overtime_minutes = worked_minutes - standard_minutes
+        elif worked_minutes < standard_minutes:
+            # Add grace period for undertime? The requirement says "beyond Grace Period"
+            grace = shift.grace_period if emp.shift_id and shift else 15
+            if (standard_minutes - worked_minutes) > grace:
+                rec.undertime_minutes = standard_minutes - worked_minutes
 
     def create_attendance(self, tenant_id: str, obj_in: AttendanceCreate):
         db_obj = Attendance(tenant_id=tenant_id, **obj_in.model_dump())
@@ -322,7 +363,12 @@ class HRRepository:
 
         update_data = obj_in.model_dump(exclude_unset=True)
         for key, value in update_data.items():
+            # if frontend sends timezone-aware datetime, convert to naive utc
+            if isinstance(value, datetime) and value.tzinfo is not None:
+                value = value.replace(tzinfo=None)
             setattr(rec, key, value)
+            
+        self._recalculate_ot(rec)
 
         self.db.commit()
         self.db.refresh(rec)
@@ -444,7 +490,7 @@ class HRRepository:
         self.db.commit()
         return {"deleted_count": deleted_count}
 
-    def get_weekly_summary(self, tenant_id: str, start_date: date):
+    def get_weekly_summary(self, tenant_id: str):
         """Return daily Present/Late/Absent counts for the last 7 days."""
         from datetime import timedelta
         today = date.today()
@@ -549,7 +595,26 @@ class HRRepository:
         return self.db.query(PayrollRun).filter(PayrollRun.tenant_id == tenant_id).all()
 
     def get_payroll_run(self, tenant_id: str, run_id: str):
-        return self.db.query(PayrollRun).filter(PayrollRun.tenant_id == tenant_id, PayrollRun.id == run_id).first()
+        from sqlalchemy.orm import joinedload
+        run = self.db.query(PayrollRun).options(
+            joinedload(PayrollRun.lines).joinedload(PayrollLine.employee).joinedload(Employee.department)
+        ).filter(PayrollRun.tenant_id == tenant_id, PayrollRun.id == run_id).first()
+        
+        if run:
+            for line in run.lines:
+                # Map department
+                setattr(line, "department_name", line.employee.department.name if line.employee and line.employee.department else "Unassigned")
+                
+                # Map OT/UT
+                ot_h = 0.0
+                ut_h = 0.0
+                if line.deductions_breakdown:
+                    ot_h = line.deductions_breakdown.get("ot_hours", 0.0)
+                    ut_h = line.deductions_breakdown.get("ut_hours", 0.0)
+                setattr(line, "total_ot_hours", ot_h)
+                setattr(line, "total_ut_hours", ut_h)
+                
+        return run
 
     def calculate_payroll_lines(self, tenant_id: str, month: int, year: int, department_id: str = None):
         """
@@ -688,24 +753,11 @@ class HRRepository:
                         worked_h = max(gross_hours - break_hours, 0.0)
                         total_worked_hours += worked_h
 
-                        # Overtime
-                        if emp.overtime_allowed and shift:
-                            try:
-                                sh, sm = [int(x) for x in shift.start_time.split(":")]
-                                eh, em = [int(x) for x in shift.end_time.split(":")]
-                                shift_start = datetime(2000, 1, 1, sh, sm)
-                                shift_end = datetime(2000, 1, 1, eh, em)
-                                if shift_end < shift_start:
-                                    shift_end += timedelta(days=1)
-                                shift_duration = (shift_end - shift_start).total_seconds() / 3600
-                                if worked_h > shift_duration:
-                                    total_overtime += worked_h - shift_duration
-                                elif worked_h < shift_duration:
-                                    diff_mins = (shift_duration - worked_h) * 60
-                                    if diff_mins > grace_period:
-                                        total_undertime += (diff_mins / 60.0)
-                            except Exception:
-                                pass  # Malformed shift times — skip overtime for this record
+                        # Overtime & Undertime (Persisted DB Values)
+                        if hasattr(rec, 'overtime_minutes') and rec.overtime_minutes:
+                            total_overtime += rec.overtime_minutes / 60.0
+                        if hasattr(rec, 'undertime_minutes') and rec.undertime_minutes:
+                            total_undertime += rec.undertime_minutes / 60.0
 
                 # ── STRICT DEDUCTION FORMULA ───────────────────────────────
                 # Only deduct for explicit penalty statuses (Absent, Unpaid Leave)
@@ -753,13 +805,20 @@ class HRRepository:
                     "id": f"preview-{emp.id}",
                     "employee_id": emp.id,
                     "employee_name": f"{emp.first_name} {emp.last_name}",
+                    "department_name": emp.department.name if emp.department else "Unassigned",
                     "base_salary": round(base, 2),
                     "worked_units": worked_units,
+                    "ot_hours": round(total_overtime, 2),
+                    "ut_hours": round(total_undertime, 2),
+                    "total_ot_hours": round(total_overtime, 2),
+                    "total_ut_hours": round(total_undertime, 2),
                     "allowances": allowances,
                     "deductions": deductions,
                     "deductions_breakdown": {
                         "absent_amount": round(absent_deductions, 2),
-                        "advance_recovery": round(emp_advance_deduction, 2)
+                        "advance_recovery": round(emp_advance_deduction, 2),
+                        "ot_hours": round(total_overtime, 2),
+                        "ut_hours": round(total_undertime, 2)
                     },
                     "net_pay": net,
                 })
