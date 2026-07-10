@@ -5,6 +5,7 @@ interface AuditHistoryListProps {
 }
 
 export default function AuditHistoryList({ entityId }: AuditHistoryListProps) {
+  // TODO: Implement actual data fetching when the Audit API is ready.
   // Placeholder since Audit API wasn't explicitly exposed in previous phases 
   // but it's recorded in the database.
   
