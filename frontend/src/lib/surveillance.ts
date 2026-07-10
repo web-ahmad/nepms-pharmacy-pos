@@ -14,7 +14,7 @@ export const captureSurveillance = async (targetElementId?: string): Promise<{ w
   // Add 500ms initial delay for UI/modal animation
   await new Promise(resolve => setTimeout(resolve, 500));
 
-  console.log("Starting capture...");
+  console.log("Starting capture..");
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
