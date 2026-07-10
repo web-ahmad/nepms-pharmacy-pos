@@ -34,7 +34,7 @@ export default function InventoryTable() {
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [filters, setFilters] = useState<{category?: string, status?: string, expiry?: string}>({});
   
-  // Temporary state for the filter panel before applying
+  // Temporary state for the filter panel before applying ffffffffffffffffffd
   const [tempFilters, setTempFilters] = useState<{category?: string, status?: string, expiry?: string}>({});
   const deleteMutation = useDeleteMedicine();
   const bulkDeleteMutation = useBulkDeleteMedicines();
