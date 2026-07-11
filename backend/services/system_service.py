@@ -30,16 +30,8 @@ class SystemService:
             status="Success"
         )
         backup = self.repo.create_backup_record(tenant_id, user_id, obj_in)
+
         
-        from models.audit import AuditLog
-        self.db.add(AuditLog(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            action="System Backup",
-            entity_type="System",
-            entity_id=backup.id,
-            details="Triggered manual database backup"
-        ))
         self.db.commit()
         return backup
 

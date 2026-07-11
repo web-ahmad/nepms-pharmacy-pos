@@ -72,7 +72,6 @@ export const NAV_ITEMS = [
   { label: 'Reports', href: '/reports', icon: PieChart, permission: 'reports:view', moduleKey: 'reports' },
   { label: 'Accounting', href: '/accounts', icon: DollarSign, permission: 'profit:view', moduleKey: 'journals' },
   { label: 'HR & Payroll', href: '/hr', icon: UserCog, permission: 'settings:manage', moduleKey: 'employees' },
-  { label: 'Audit Log', href: '/audit', icon: ShieldAlert, permission: null, moduleKey: null },
   { label: 'Compliance', href: '/compliance', icon: ClipboardList, permission: null, moduleKey: null },
   { label: 'Notifications', href: '/notifications', icon: Bell, permission: null, moduleKey: null },
   { label: 'System', href: '/system', icon: Monitor, permission: 'settings:manage', moduleKey: null },

@@ -4,8 +4,6 @@ from repositories.prescription import PrescriptionRepository
 from schemas.prescription import PrescriptionCreate, PrescriptionUpdate
 import logging
 
-from models.audit import AuditLog
-
 logger = logging.getLogger(__name__)
 
 class PrescriptionService:
@@ -27,17 +25,7 @@ class PrescriptionService:
         try:
             db_prescription = self.prescription_repo.create(prescription_in, tenant_id)
             
-            if current_user_id:
-                audit_log = AuditLog(
-                    tenant_id=tenant_id,
-                    user_id=current_user_id,
-                    action="CREATE",
-                    entity_type="Prescription",
-                    entity_id=db_prescription.id,
-                    new_value={"details": f"Created prescription for patient {db_prescription.patient_id}"}
-                )
-                self.db.add(audit_log)
-                
+
             self.db.commit()
             return db_prescription
         except Exception as e:
@@ -50,17 +38,7 @@ class PrescriptionService:
         try:
             updated_prescription = self.prescription_repo.update(db_prescription, prescription_in)
             
-            if current_user_id:
-                audit_log = AuditLog(
-                    tenant_id=db_prescription.tenant_id,
-                    user_id=current_user_id,
-                    action="UPDATE",
-                    entity_type="Prescription",
-                    entity_id=db_prescription.id,
-                    new_value={"details": f"Updated prescription for patient {db_prescription.patient_id}"}
-                )
-                self.db.add(audit_log)
-                
+
             self.db.commit()
             return updated_prescription
         except Exception as e:
@@ -71,17 +49,7 @@ class PrescriptionService:
     def delete_prescription(self, prescription_id: str, current_user_id: str = None):
         db_prescription = self.get_prescription(prescription_id)
         try:
-            if current_user_id:
-                audit_log = AuditLog(
-                    tenant_id=db_prescription.tenant_id,
-                    user_id=current_user_id,
-                    action="DELETE",
-                    entity_type="Prescription",
-                    entity_id=db_prescription.id,
-                    new_value={"details": f"Deleted prescription for patient {db_prescription.patient_id}"}
-                )
-                self.db.add(audit_log)
-                
+
             self.prescription_repo.delete(db_prescription)
             self.db.commit()
         except Exception as e:

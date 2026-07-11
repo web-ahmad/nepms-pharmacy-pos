@@ -358,7 +358,7 @@ export default function PurchaseReturnsPage() {
         <GlobalPrintTemplate
           title="DEBIT NOTE"
           metadata={[
-            { label: 'Supplier', value: selectedInvoice.supplier_name },
+            { label: 'Supplier', value: selectedInvoice.supplier_name || 'Unknown' },
             { label: 'Return No', value: selectedInvoice.return_number },
             { label: 'Date', value: new Date(selectedInvoice.return_date).toLocaleDateString() },
             ...(selectedInvoice.reason ? [{ label: 'Reason', value: selectedInvoice.reason }] : [])

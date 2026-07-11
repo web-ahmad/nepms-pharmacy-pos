@@ -16,7 +16,7 @@ class ExceptionMiddleware(BaseHTTPMiddleware):
 
 from api.v1.api import api_router
 
-import core.audit # Registers SQLAlchemy event listeners
+
 
 tags_metadata = [
     {"name": "Authentication", "description": "Operations with users and login logic."},

@@ -6,7 +6,7 @@ from .purchase import Supplier, PurchaseOrder, POItem, GRN, PurchaseInvoice, Sup
 from .crm import Customer, LoyaltyTransaction
 from .prescription import Prescription, PrescriptionItem
 from .sales import Sale, SaleItem, CustomerPayment, SaleReturn, CustomerLedger
-from .audit import AuditLog
+
 from .accounts import Account, JournalEntry, JournalEntryLine
 from .hr import Department, Designation, Employee, Shift, Attendance, LeaveRequest, PayrollRun, PayrollLine
 from .settings import TenantSettings, SystemModule
@@ -36,7 +36,6 @@ __all__ = [
     "SupplierPayment", "PurchaseReturn", "SupplierLedger",
     "Customer", "Prescription", "PrescriptionItem",
     "Sale", "SaleItem", "CustomerPayment", "SaleReturn", "CustomerLedger",
-    "AuditLog",
     "Account", "JournalEntry", "JournalEntryLine",
     "Department", "Designation", "Employee", "Shift", "Attendance", "LeaveRequest", "PayrollRun", "PayrollLine",
     "TenantSettings", "SystemModule",

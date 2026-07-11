@@ -54,15 +54,8 @@ class HRService:
 
     def create_employee(self, tenant_id: str, user_id: str, obj_in: EmployeeCreate):
         emp = self.repo.create_employee(tenant_id, obj_in)
-        from models.audit import AuditLog
-        self.db.add(AuditLog(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            action="Create Employee",
-            entity_type="Employee",
-            entity_id=emp.id,
-            new_value={"name": f"{emp.first_name} {emp.last_name}"}
-        ))
+
+        
         self.db.commit()
         return emp
 
@@ -70,15 +63,8 @@ class HRService:
         emp = self.repo.update_employee(tenant_id, emp_id, obj_in)
         if not emp:
             raise HTTPException(404, "Employee not found")
-        from models.audit import AuditLog
-        self.db.add(AuditLog(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            action="Update Employee",
-            entity_type="Employee",
-            entity_id=emp.id,
-            new_value={"name": f"{emp.first_name} {emp.last_name}"}
-        ))
+
+        
         self.db.commit()
         return emp
 
@@ -86,16 +72,8 @@ class HRService:
         success = self.repo.delete_employee(tenant_id, emp_id)
         if not success:
             raise HTTPException(404, "Employee not found")
-            
-        from models.audit import AuditLog
-        self.db.add(AuditLog(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            action="Delete Employee",
-            entity_type="Employee",
-            entity_id=emp_id,
-            new_value={"action": "soft_delete"}
-        ))
+
+        
         self.db.commit()
         return {"message": "Employee deleted successfully"}
 
@@ -161,16 +139,8 @@ class HRService:
             raise HTTPException(404, "Leave not found")
         
         updated = self.repo.update_leave_status(leave, "Rejected", user_id)
+
         
-        from models.audit import AuditLog
-        self.db.add(AuditLog(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            action="reject_leave",
-            entity_type="LeaveRequest",
-            entity_id=leave_id,
-            new_value={"status": "Rejected"}
-        ))
         self.db.commit()
         return updated
 
@@ -180,16 +150,8 @@ class HRService:
             raise HTTPException(404, "Leave not found")
         
         updated = self.repo.update_leave_status(leave, "Approved", user_id)
+
         
-        from models.audit import AuditLog
-        self.db.add(AuditLog(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            action="approve_leave",
-            entity_type="LeaveRequest",
-            entity_id=updated.id,
-            new_value={"status": "Approved"}
-        ))
         self.db.commit()
         return updated
 
@@ -228,16 +190,8 @@ class HRService:
         if je:
             run.journal_entry_id = je.id
             self.db.add(run)
-            
-        from models.audit import AuditLog
-        self.db.add(AuditLog(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            action="Paid Payroll",
-            entity_type="PayrollRun",
-            entity_id=run.id,
-            new_value={"message": f"Marked payroll as Paid for {run.month}/{run.year}"}
-        ))
+
+        
         self.db.commit()
         return run
 
@@ -295,16 +249,8 @@ class HRService:
             run = self.repo.create_payroll_run(tenant_id, user_id, obj_in, employees)
             
             # Auto-post to Accounting REMOVED from initial run (delayed to final payment step)
+
             
-            from models.audit import AuditLog
-            self.db.add(AuditLog(
-                tenant_id=tenant_id,
-                user_id=user_id,
-                action="Run Payroll",
-                entity_type="PayrollRun",
-                entity_id=run.id,
-                new_value={"message": f"Ran payroll for {run.month}/{run.year}"}
-            ))
             self.db.commit()
             return run
         except Exception as e:
@@ -341,16 +287,8 @@ class HRService:
         )
         if je:
             adv.journal_entry_id = je.id
-            
-        from models.audit import AuditLog
-        self.db.add(AuditLog(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            action="Approve Advance Salary",
-            entity_type="AdvanceSalary",
-            entity_id=adv.id,
-            new_value={"status": "Paid"}
-        ))
+
+        
         
         self.db.add(adv)
         self.db.commit()

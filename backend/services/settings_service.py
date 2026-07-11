@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from repositories.settings import SettingsRepository
 from schemas.settings import TenantSettingsUpdate, SystemModuleUpdate
-from models.audit import AuditLog
 
 class SettingsService:
     def __init__(self, db: Session):

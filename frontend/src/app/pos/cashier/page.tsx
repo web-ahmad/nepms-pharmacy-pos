@@ -307,39 +307,20 @@ export default function CashierPortalPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const [isCapturingSecurityData, setIsCapturingSecurityData] = useState(false);
+
   const voidSaleMutation = useVoidSale();
 
   const handleVoidSale = async () => {
     if (!voidSaleId) return;
     
-    setIsCapturingSecurityData(true);
-    const toastId = toast.loading('Security Capture in Progress...');
-    let media;
-    try {
-      const { captureSurveillance } = await import('@/lib/surveillance');
-      media = await captureSurveillance('void-sale-modal-cashier');
-    } catch (e) {
-      console.error(e);
-      media = null;
-    }
-
-    if (!media || !media.webcam || !media.screenshot) {
-      console.error("CRITICAL: Surveillance capture failed.");
-      setIsCapturingSecurityData(false);
-      toast.dismiss(toastId);
-      alert("Security Violation: Camera/Screenshot capture failed. Transaction blocked for audit compliance.");
-      return; // STOP execution here, do not call voidSale API
-    }
+    const toastId = toast.loading('Voiding sale...');
 
     try {
       await voidSaleMutation.mutateAsync({
         saleId: voidSaleId,
         payload: {
           voided_by: user?.username || 'Cashier',
-          void_reason: 'Voided from Cashier Portal',
-          webcam_image_base64: media.webcam,
-          screenshot_base64: media.screenshot
+          void_reason: 'Voided from Cashier Portal'
         }
       });
       toast.success('Sale Voided & Stock Reverted', { id: toastId });
@@ -348,7 +329,6 @@ export default function CashierPortalPage() {
     } catch (error: any) {
       toast.error(error.message || parseApiError(error), { id: toastId });
     } finally {
-      setIsCapturingSecurityData(false);
       toast.dismiss(toastId);
     }
   };
@@ -896,13 +876,11 @@ export default function CashierPortalPage() {
                 handleVoidSale();
               }}
               className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
-              disabled={voidSaleMutation.isPending || isCapturingSecurityData}
+              disabled={voidSaleMutation.isPending}
             >
-              {isCapturingSecurityData 
-                ? 'Capturing Security Data...' 
-                : voidSaleMutation.isPending 
-                  ? 'Voiding...' 
-                  : 'Yes, Void Sale'}
+              {voidSaleMutation.isPending 
+                ? 'Voiding...' 
+                : 'Yes, Void Sale'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -477,7 +477,7 @@ export default function PayrollDetailsPage() {
                   <tr key={l.id} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                     <td className="p-2 border-b border-l border-r border-dashed border-gray-200">
                       <div className="font-semibold text-gray-900">{e ? `${e.first_name} ${e.last_name}` : l.employee_name || 'Unknown'}</div>
-                      <div className="text-xs text-gray-500">{l.department_name || e?.department?.name || 'Unassigned'}</div>
+                      <div className="text-xs text-gray-500">{l.department_name || (e as any)?.department?.name || 'Unassigned'}</div>
                     </td>
                     <td className="p-2 border-b border-r border-dashed border-gray-200 text-right font-mono">{fmt(l.base_salary)}</td>
                     <td className="p-2 border-b border-r border-dashed border-gray-200 text-right font-mono">{fmt(l.allowances)}</td>

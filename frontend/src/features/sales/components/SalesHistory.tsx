@@ -79,7 +79,7 @@ export default function SalesHistory() {
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(viewId);
   const [returnSaleId,   setReturnSaleId]   = useState<string | null>(null);
   const [voidSaleId,     setVoidSaleId]     = useState<string | null>(null);
-  const [isCapturingSecurityData, setIsCapturingSecurityData] = useState(false);
+
 
   const voidSaleMutation = useVoidSale();
   const { user } = useAuthStore();
@@ -107,34 +107,14 @@ export default function SalesHistory() {
   const handleVoidSale = async () => {
     if (!voidSaleId) return;
     
-    setIsCapturingSecurityData(true);
-    const toastId = toast.loading('Security Capture in Progress...');
-    let media;
-    try {
-      const { captureSurveillance } = await import('@/lib/surveillance');
-      media = await captureSurveillance('void-sale-modal-history');
-    } catch (e) {
-      console.error(e);
-      media = null;
-    }
-      
-    if (!media || !media.webcam || !media.screenshot) {
-      console.error("CRITICAL: Surveillance capture failed.");
-      setIsCapturingSecurityData(false);
-      toast.dismiss(toastId);
-      alert("Security Violation: Camera/Screenshot capture failed. Transaction blocked for audit compliance.");
-      return; // STOP execution here, do not call voidSale API
-    }
+    const toastId = toast.loading('Voiding sale...');
       
     try {
-      console.log("Submitting Void Payload with Media:", media);
       await voidSaleMutation.mutateAsync({
         saleId: voidSaleId,
         payload: { 
           voided_by: 'Cashier', 
-          void_reason: 'Voided from History',
-          webcam_image_base64: media.webcam,
-          screenshot_base64: media.screenshot
+          void_reason: 'Voided from History'
         }
       });
       setVoidSaleId(null); refetch();
@@ -144,7 +124,6 @@ export default function SalesHistory() {
       console.error(error);
       toast.error(error.message || 'Void operation failed.', { id: toastId });
     } finally {
-      setIsCapturingSecurityData(false);
       toast.dismiss(toastId);
     }
   };
@@ -546,13 +525,11 @@ export default function SalesHistory() {
             <AlertDialogAction
               onClick={(e) => { e.preventDefault(); handleVoidSale(); }}
               className="bg-rose-600 hover:bg-rose-700 text-white focus:ring-rose-600"
-              disabled={voidSaleMutation.isPending || isCapturingSecurityData}
+              disabled={voidSaleMutation.isPending}
             >
-              {isCapturingSecurityData 
-                ? 'Capturing Security Data...' 
-                : voidSaleMutation.isPending 
-                  ? 'Voiding…' 
-                  : 'Yes, Void Sale'}
+              {voidSaleMutation.isPending 
+                ? 'Voiding…' 
+                : 'Yes, Void Sale'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

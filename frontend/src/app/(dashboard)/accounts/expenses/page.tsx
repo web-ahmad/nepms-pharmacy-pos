@@ -106,7 +106,7 @@ export default function ExpensesPage() {
                   </div>
                   <div className="space-y-1.5 col-span-2">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Created By</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedVoucher.created_by_name || selectedVoucher.created_by || 'Unknown'}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{(selectedVoucher as any).created_by_name || selectedVoucher.created_by || 'Unknown'}</p>
                   </div>
                   <div className="space-y-1.5 col-span-2">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Journal Entry</p>

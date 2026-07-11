@@ -2,6 +2,17 @@ const express = require('express');
 const cors = require('cors');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
+const config = require('./config');
+
+function formatToWhatsApp(number) {
+    let cleanNumber = number.replace(/[^0-9]/g, '');
+    if (cleanNumber.startsWith('0')) {
+        cleanNumber = '92' + cleanNumber.substring(1);
+    } else if (cleanNumber.length === 10 && !cleanNumber.startsWith('92')) {
+        cleanNumber = '92' + cleanNumber;
+    }
+    return cleanNumber + '@c.us';
+}
 
 const app = express();
 app.use(cors());
@@ -71,8 +82,14 @@ app.post('/send', async (req, res) => {
         return res.status(400).json({ error: 'Phone and message are required' });
     }
 
+    // Route security alerts to the primary alert number
+    let targetPhone = phone;
+    if (message.includes('SECURITY ALERT') || message.includes('Security Alert') || phone === '923000000000') {
+        targetPhone = config.PRIMARY_ALERT_NUMBER;
+    }
+
     // Format phone number to international format without + (e.g., 923001234567@c.us)
-    const formattedPhone = phone.replace(/[^0-9]/g, '') + '@c.us';
+    const formattedPhone = formatToWhatsApp(targetPhone);
 
     try {
         let sentMessage;
