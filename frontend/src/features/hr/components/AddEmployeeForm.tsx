@@ -19,12 +19,12 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
   const [address, setAddress] = useState(initialData?.address || '');
   const [dob, setDob] = useState(initialData?.dob || '');
   const [gender, setGender] = useState(initialData?.gender || '');
-  
+
   const [departmentId, setDepartmentId] = useState(initialData?.department_id || '');
   const [designationId, setDesignationId] = useState(initialData?.designation_id || '');
   const [shiftId, setShiftId] = useState(initialData?.shift_id || '');
   const [joinDate, setJoinDate] = useState(initialData?.join_date || new Date().toISOString().split('T')[0]);
-  
+
   const [username, setUsername] = useState(initialData?.username || '');
 
   // Attendance Rules
@@ -35,14 +35,14 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
   const { data: departments } = useDepartments();
   const { data: designations } = useDesignations();
   const { data: shifts } = useShifts();
-  
+
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee(initialData?.id || '');
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
 
-  // Auto-generate username only if not editing or if username is empty
+  // Auto-generate username only if not editing or if username is empty Devjix
   useEffect(() => {
     if (!isEditing && (firstName || lastName)) {
       const generated = `${firstName.toLowerCase().trim()}.${lastName.toLowerCase().trim()}`.replace(/\s+/g, '');
@@ -118,7 +118,7 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
       <h2 className="mb-6 text-lg font-bold text-zinc-900 dark:text-zinc-50">
         {isEditing ? 'Edit Employee' : 'Add New Employee'}
       </h2>
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100 border-b pb-2 dark:border-zinc-800">Personal Details</h3>
@@ -210,14 +210,14 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
               <div className="flex flex-wrap gap-3">
                 {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
                   <label key={day} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer bg-zinc-50 dark:bg-zinc-900/50 px-3 py-1.5 rounded-full border border-zinc-200 dark:border-zinc-800">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={weekendDays.includes(day)}
                       onChange={(e) => {
                         if (e.target.checked) setWeekendDays([...weekendDays, day]);
                         else setWeekendDays(weekendDays.filter(d => d !== day));
                       }}
-                      className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900" 
+                      className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
                     />
                     {day}
                   </label>
