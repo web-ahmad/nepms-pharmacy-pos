@@ -42,7 +42,12 @@ export default function LoginPage() {
       const { access_token, user, tenant_id, branch_id } = response.data;
       
       setAuth(access_token, user, tenant_id, branch_id);
-      
+
+      // Yield one microtask tick so Zustand's persist middleware can flush
+      // the token to localStorage before the dashboard pages mount and fire
+      // their first API requests (prevents the 401 race condition).
+      await Promise.resolve();
+
       // Role-based redirection
       if (user?.role === 'Cashier') {
         router.push('/pos/cashier');

@@ -11,25 +11,37 @@ export const api = axios.create({
   },
 });
 
-// Request interceptor to inject JWT token
+// Request interceptor to inject JWT token.
+//
+// Reading order:
+//   1. Zustand in-memory state  (fastest, already set after setAuth())
+//   2. localStorage fallback    (covers SSR-rehydration and hard-reload races
+//                                where Zustand persist hasn't finished yet)
+//
+// IMPORTANT: The Zustand persist middleware writes to localStorage
+// synchronously on set(), so by the time the first request fires after
+// a successful login the token WILL be in localStorage even if the Zustand
+// in-memory store hasn't propagated yet in some edge cases.
 api.interceptors.request.use(
   (config) => {
+    // Primary: Zustand in-memory state (available immediately after setAuth)
     let token = useAuthStore.getState().accessToken;
-    
-    // Fallback to reading directly from localStorage if Zustand hasn't rehydrated yet
+
+    // Fallback: localStorage (covers hard-reloads & initial-render races)
     if (!token && typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem('nepms-auth-storage');
         if (stored) {
           const parsed = JSON.parse(stored);
-          token = parsed.state?.accessToken;
+          // Zustand persist wraps state under a `state` key
+          token = parsed?.state?.accessToken ?? null;
         }
-      } catch (error) {
-        console.error('Failed to parse auth storage', error);
+      } catch {
+        // Silently ignore parse errors; request will proceed without token
       }
     }
 
-    if (token) {
+    if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -42,14 +54,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error('API 401 Unauthorized at URL:', error.config?.url);
-      
-      // Clear auth state (Disabled for debugging)
-      // useAuthStore.getState().logout();
-      
-      // Redirect to login if running in browser (Disabled for debugging)
-      if (typeof window !== 'undefined') {
-        // window.location.href = '/login';
+      const url = error.config?.url ?? '';
+      // Don't logout/redirect on the login endpoint itself
+      const isLoginEndpoint = url.includes('/auth/login');
+
+      if (!isLoginEndpoint && typeof window !== 'undefined') {
+        console.warn('[api] 401 Unauthorized →', url, '— clearing session');
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

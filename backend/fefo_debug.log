@@ -1386,3 +1386,19 @@ Found active batches count: 5
   Batch 3: B1-qty522 (qty: 10, reserved: 0, status: Active, expiry: 2028-11-15)
   Batch 4: B1-qty9 (qty: 9, reserved: 0, status: Active, expiry: 2029-07-19)
   Batch 5: B1-qty23 (qty: 23, reserved: 0, status: Active, expiry: 2030-04-04)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'tenant-c1ca3c1f'
+branch_id: ''
+medicine_id: '0272c21f-c58f-4fc5-ad30-f911bdf42ac2'
+quantity_required: 1
+user_id: 'c4da8a83-abff-4e09-a9f2-eb383a187a2c'
+reference_id: 'c73c05a7-7c5a-477e-87b8-547da51cc59f'
+movement_type: 'Sale'
+preferred_batch_id: None
+Found active batches count: 5
+  Batch 1: BAT-0050 (qty: 23, reserved: 0, status: Active, expiry: 2027-02-08)
+  Batch 2: B1-qty58 (qty: 2, reserved: 0, status: Active, expiry: 2027-05-13)
+  Batch 3: B1-qty522 (qty: 10, reserved: 0, status: Active, expiry: 2028-11-15)
+  Batch 4: B1-qty9 (qty: 9, reserved: 0, status: Active, expiry: 2029-07-19)
+  Batch 5: B1-qty23 (qty: 23, reserved: 0, status: Active, expiry: 2030-04-04)

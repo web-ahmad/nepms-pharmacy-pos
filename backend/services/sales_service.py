@@ -386,14 +386,7 @@ class SalesService:
             if not sale:
                 raise ValueError("Sale not found")
                 
-            if not webcam_image_base64 or not screenshot_base64:
-                raise ValueError("Unauthorized Action: Missing Surveillance Data")
-                
-            # Process surveillance media immediately before audit logging
-            from services.audit_service import AuditService
-            media_urls = AuditService.save_surveillance_media(webcam_image_base64, screenshot_base64)
-            if media_urls:
-                db.audit_media_payloads = media_urls
+
                 
             if sale.status not in ["Completed", "Partially Paid", "Pending Verification"]:
                 raise ValueError(f"Cannot void a sale with status: {sale.status}")
