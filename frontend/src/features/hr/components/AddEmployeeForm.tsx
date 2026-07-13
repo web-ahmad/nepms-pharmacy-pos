@@ -42,7 +42,7 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
 
-  // Auto-generate username only if not editing or if username is empty Devjix
+  // Auto-generate username only if not editing or if username is empty
   useEffect(() => {
     if (!isEditing && (firstName || lastName)) {
       const generated = `${firstName.toLowerCase().trim()}.${lastName.toLowerCase().trim()}`.replace(/\s+/g, '');
