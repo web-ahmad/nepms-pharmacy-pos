@@ -50,7 +50,7 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
     }
   }, [firstName, lastName, isEditing]);
 
-  // Reset designation when department changes, but not on initial load for edit
+  // Reset designation when department changes, but not on initial load for edit okey
   useEffect(() => {
     if (initialData?.department_id !== departmentId) {
       setDesignationId('');

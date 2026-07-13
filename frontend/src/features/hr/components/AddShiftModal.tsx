@@ -7,7 +7,7 @@ interface AddShiftModalProps {
   onClose: () => void;
   shift?: Shift;
 }
-
+// Devjix Software Company
 export default function AddShiftModal({ onClose, shift }: AddShiftModalProps) {
   const [name, setName] = useState(shift?.name || '');
   const [startTime, setStartTime] = useState(shift?.start_time || '');
