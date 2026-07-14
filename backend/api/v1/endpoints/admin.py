@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from typing import List
 from core.security import get_password_hash
 from fastapi import HTTPException
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
@@ -17,7 +18,7 @@ def require_roles_manage(token_payload: dict = Depends(requires_permission("user
 @router.get("/users", response_model=list[UserResponse])
 def list_all_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), token_payload: dict = Depends(require_users_manage)):
     # Standard users list for admin center
-    return db.query(User).filter(User.tenant_id == current_user.tenant_id).all()
+    return db.query(User).filter(User.tenant_id == scope.tenant_id).all()
 
 @router.post("/users", response_model=UserResponse)
 def create_user(user_in: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), token_payload: dict = Depends(require_users_manage)):
@@ -31,7 +32,7 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db), current_user
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name,
         role_id=user_in.role_id,
-        tenant_id=current_user.tenant_id,
+        tenant_id=scope.tenant_id,
         is_active=True
     )
     db.add(new_user)
@@ -116,7 +117,7 @@ def update_user(
     current_user: User = Depends(get_current_user),
     token_payload: dict = Depends(require_users_manage)
 ):
-    user = db.query(User).filter(User.id == user_id, User.tenant_id == current_user.tenant_id).first()
+    user = db.query(User).filter(User.id == user_id, User.tenant_id == scope.tenant_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 

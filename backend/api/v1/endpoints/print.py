@@ -5,6 +5,7 @@ from core.deps import get_db, get_current_user
 from models.users import User
 from services.printer_service import PrinterService
 from services.settings_service import SettingsService
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
@@ -21,7 +22,7 @@ def print_receipt(
     if not receipt_data:
         raise HTTPException(status_code=400, detail="receipt_data is required")
         
-    settings = SettingsService(db).get_invoice_settings(current_user.tenant_id)
+    settings = SettingsService(db).get_invoice_settings(scope.tenant_id)
     
     # Convert settings ORM object to dict
     settings_dict = {

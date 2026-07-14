@@ -8,6 +8,7 @@ from models.users import User
 from api.v1.endpoints.auth import get_current_user
 from schemas.reports import DateRangeParams
 from services.reports_service import ReportsService
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
@@ -39,7 +40,7 @@ def get_sales_summary(
         
     service = ReportsService(db)
     params = DateRangeParams(start_date=start_date, end_date=end_date, cashier_id=cashier_id, export_format=export)
-    return service.get_sales_summary(current_user.tenant_id, params, period)
+    return service.get_sales_summary(scope.tenant_id, params, period)
 
 @router.get("/sales/by-medicine")
 def get_sales_by_medicine(
@@ -54,7 +55,7 @@ def get_sales_by_medicine(
         
     service = ReportsService(db)
     params = DateRangeParams(start_date=start_date, end_date=end_date, export_format=export)
-    return service.get_sales_by_medicine(current_user.tenant_id, params)
+    return service.get_sales_by_medicine(scope.tenant_id, params)
 
 @router.get("/sales/by-category")
 def get_sales_by_category(
@@ -69,7 +70,7 @@ def get_sales_by_category(
         
     service = ReportsService(db)
     params = DateRangeParams(start_date=start_date, end_date=end_date, export_format=export)
-    return service.get_sales_by_category(current_user.tenant_id, params)
+    return service.get_sales_by_category(scope.tenant_id, params)
 
 @router.get("/inventory/valuation")
 def get_inventory_valuation(
@@ -81,7 +82,7 @@ def get_inventory_valuation(
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db)
-    return service.get_inventory_valuation(current_user.tenant_id, export)
+    return service.get_inventory_valuation(scope.tenant_id, export)
 
 @router.get("/inventory/low-stock")
 def get_low_stock(
@@ -93,7 +94,7 @@ def get_low_stock(
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db)
-    return service.get_low_stock(current_user.tenant_id, export)
+    return service.get_low_stock(scope.tenant_id, export)
 
 @router.get("/inventory/expiry")
 def get_expiry(
@@ -106,7 +107,7 @@ def get_expiry(
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db)
-    return service.get_expiry(current_user.tenant_id, expired, export)
+    return service.get_expiry(scope.tenant_id, expired, export)
 
 @router.get("/purchases/summary")
 def get_purchase_summary(
@@ -121,7 +122,7 @@ def get_purchase_summary(
         
     service = ReportsService(db)
     params = DateRangeParams(start_date=start_date, end_date=end_date, export_format=export)
-    return service.get_purchase_summary(current_user.tenant_id, params)
+    return service.get_purchase_summary(scope.tenant_id, params)
 
 @router.get("/crm/summary")
 def get_customer_summary(
@@ -133,7 +134,7 @@ def get_customer_summary(
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db)
-    return service.get_customer_summary(current_user.tenant_id, export)
+    return service.get_customer_summary(scope.tenant_id, export)
 
 @router.get("/prescriptions/summary")
 def get_prescription_report(
@@ -148,7 +149,7 @@ def get_prescription_report(
         
     service = ReportsService(db)
     params = DateRangeParams(start_date=start_date, end_date=end_date, export_format=export)
-    return service.get_prescription_report(current_user.tenant_id, params)
+    return service.get_prescription_report(scope.tenant_id, params)
 
 @router.get("/financial/profit-and-loss")
 def get_profit_and_loss(
@@ -167,4 +168,4 @@ def get_profit_and_loss(
         
     service = ReportsService(db)
     params = DateRangeParams(start_date=start_date, end_date=end_date, export_format=export)
-    return service.get_profit_and_loss(current_user.tenant_id, params)
+    return service.get_profit_and_loss(scope.tenant_id, params)

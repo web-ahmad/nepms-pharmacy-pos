@@ -9,6 +9,7 @@ from models.sales import Sale, SaleItem
 from models.crm import Customer
 from api.v1.endpoints.auth import get_current_user
 from services.analytics_service import AnalyticsService
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
@@ -23,7 +24,7 @@ def get_dashboard_kpis(
     current_user: User = Depends(require_analytics_view)
 ):
     service = AnalyticsService(db)
-    return service.get_dashboard_kpis(current_user.tenant_id)
+    return service.get_dashboard_kpis(scope.tenant_id)
 
 @router.get("/expiry-radar")
 def get_expiry_radar(db: Session = Depends(get_db)):

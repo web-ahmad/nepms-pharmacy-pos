@@ -20,6 +20,7 @@ from schemas.accounts import (
 )
 from services.accounts_service import AccountsService
 from services.auto_posting_service import AutoPostingService
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter(dependencies=[Depends(require_module("journals"))])
 
@@ -51,7 +52,7 @@ def seed_chart_of_accounts(
     current_user: User = Depends(require_accounts_create)
 ):
     service = AccountsService(db)
-    service.seed_default_chart(current_user.tenant_id)
+    service.seed_default_chart(scope.tenant_id)
     return {"message": "Default Chart of Accounts seeded successfully."}
 
 @router.get("/chart", response_model=List[AccountResponse])
@@ -60,7 +61,7 @@ def get_chart_of_accounts(
     current_user: User = Depends(require_accounts_view)
 ):
     service = AccountsService(db)
-    return service.get_chart_of_accounts(current_user.tenant_id)
+    return service.get_chart_of_accounts(scope.tenant_id)
 
 @router.post("/chart", response_model=AccountResponse)
 def create_account(
@@ -69,7 +70,7 @@ def create_account(
     current_user: User = Depends(require_accounts_create)
 ):
     service = AccountsService(db)
-    return service.create_account(current_user.tenant_id, account_in)
+    return service.create_account(scope.tenant_id, account_in)
 
 @router.post("/journals")
 def create_journal_entry(
@@ -81,7 +82,7 @@ def create_journal_entry(
     # Require separate approval if strictly enforcing separation of duties
     status = "Draft" if "accounts.approve" not in current_user.permissions and current_user.role != "Super Admin" else "Approved"
     
-    entry = service.create_journal_entry(current_user.tenant_id, current_user.id, journal_in, status)
+    entry = service.create_journal_entry(scope.tenant_id, current_user.id, journal_in, status)
     return {"message": "Journal Entry Created", "id": entry.id, "status": entry.status}
 
 @router.get("/reports/trial-balance", response_model=TrialBalanceResponse)
@@ -90,7 +91,7 @@ def get_trial_balance(
     current_user: User = Depends(require_accounts_view)
 ):
     service = AccountsService(db)
-    return service.get_trial_balance(current_user.tenant_id)
+    return service.get_trial_balance(scope.tenant_id)
 
 @router.get("/reports/profit-loss", response_model=ProfitLossResponse)
 def get_profit_and_loss(
@@ -98,7 +99,7 @@ def get_profit_and_loss(
     current_user: User = Depends(require_accounts_view)
 ):
     service = AccountsService(db)
-    return service.get_profit_and_loss(current_user.tenant_id)
+    return service.get_profit_and_loss(scope.tenant_id)
 
 @router.get("/reports/balance-sheet", response_model=BalanceSheetResponse)
 def get_balance_sheet(
@@ -106,7 +107,7 @@ def get_balance_sheet(
     current_user: User = Depends(require_accounts_view)
 ):
     service = AccountsService(db)
-    return service.get_balance_sheet(current_user.tenant_id)
+    return service.get_balance_sheet(scope.tenant_id)
 
 @router.get("/ledger", response_model=LedgerResponse)
 def get_ledger(
@@ -117,7 +118,7 @@ def get_ledger(
     current_user: User = Depends(require_accounts_view)
 ):
     service = AccountsService(db)
-    return service.get_ledger(current_user.tenant_id, account_id, start_date, end_date)
+    return service.get_ledger(scope.tenant_id, account_id, start_date, end_date)
 
 @router.get("/journals", response_model=List[JournalEntryResponse])
 def get_journal_entries(
@@ -125,7 +126,7 @@ def get_journal_entries(
     current_user: User = Depends(require_accounts_view)
 ):
     service = AccountsService(db)
-    return service.get_journal_entries(current_user.tenant_id)
+    return service.get_journal_entries(scope.tenant_id)
 
 @router.get("/dashboard-stats", response_model=DashboardStatsResponse)
 def get_dashboard_stats(
@@ -133,7 +134,7 @@ def get_dashboard_stats(
     current_user: User = Depends(require_accounts_view)
 ):
     service = AccountsService(db)
-    return service.get_dashboard_stats(current_user.tenant_id)
+    return service.get_dashboard_stats(scope.tenant_id)
 
 
 @router.post("/force-rebuild")
@@ -154,7 +155,7 @@ def force_rebuild_accounting(
     from models.hr import PayrollRun
     import time
 
-    tenant_id = current_user.tenant_id
+    tenant_id = scope.tenant_id
     user_id = current_user.id
 
     # ── Step 1: Ensure default COA exists ───────────────────────────────────

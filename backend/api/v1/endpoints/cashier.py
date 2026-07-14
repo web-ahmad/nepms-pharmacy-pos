@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from core.deps import get_db, get_current_user, get_tenant_context, TenantContext
+from core.deps import get_db, get_current_user
 from models.users import User
 from schemas.cashier import (
     OpenSessionRequest, CloseSessionRequest, LogExpenseRequest,
     SessionSummary, LedgerEntryResponse
 )
 from services.cashier_service import CashierService
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
@@ -17,7 +18,7 @@ router = APIRouter()
 def open_session(
     body: OpenSessionRequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -28,8 +29,8 @@ def open_session(
     session = CashierService.open_session(
         db=db,
         user_id=current_user.id,
-        branch_id=tenant.branch_id,
-        tenant_id=tenant.tenant_id,
+        branch_id=scope.branch_id,
+        tenant_id=scope.tenant_id,
         opening_balance=body.opening_balance
     )
     return {
@@ -45,7 +46,7 @@ def open_session(
 def close_session(
     body: CloseSessionRequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -55,7 +56,7 @@ def close_session(
     session = CashierService.close_session(
         db=db,
         user_id=current_user.id,
-        branch_id=tenant.branch_id,
+        branch_id=scope.branch_id,
         closing_balance_actual=body.closing_balance_actual,
         discrepancy_notes=body.discrepancy_notes
     )
@@ -98,7 +99,7 @@ def close_session(
 @router.get("/session/current", response_model=SessionSummary, summary="Live session totals for the active shift")
 def get_current_session(
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -108,7 +109,7 @@ def get_current_session(
     summary = CashierService.get_session_summary(
         db=db,
         user_id=current_user.id,
-        branch_id=tenant.branch_id
+        branch_id=scope.branch_id
     )
     return summary
 
@@ -117,7 +118,7 @@ def get_current_session(
 def log_expense(
     body: LogExpenseRequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -127,8 +128,8 @@ def log_expense(
     entry = CashierService.log_expense(
         db=db,
         user_id=current_user.id,
-        branch_id=tenant.branch_id,
-        tenant_id=tenant.tenant_id,
+        branch_id=scope.branch_id,
+        tenant_id=scope.tenant_id,
         amount=body.amount,
         notes=body.notes,
         payment_mode=body.payment_mode
@@ -147,14 +148,14 @@ def log_expense(
 @router.get("/session/check", summary="Check if the current user has an open session")
 def check_session(
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Lightweight check — returns has_open_session bool + session_id if open.
     Used by the frontend Shift Guard UI.
     """
-    session = CashierService.get_open_session(db, current_user.id, tenant.branch_id)
+    session = CashierService.get_open_session(db, current_user.id, scope.branch_id)
     if session:
         return {
             "has_open_session": True,

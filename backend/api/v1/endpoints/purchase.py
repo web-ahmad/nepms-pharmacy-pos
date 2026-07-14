@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from core.deps import get_db, get_current_user, get_tenant_context, TenantContext, requires_permission
+from core.deps import get_db, get_current_user, requires_permission
 from schemas.purchase import (
     SupplierCreate, SupplierUpdate, SupplierResponse,
     PurchaseOrderCreate, PurchaseOrderResponse, BulkDraftPORequest,
@@ -11,6 +11,7 @@ from schemas.purchase import (
     PurchaseReturnCreate, PurchaseReturnResponse,
     SupplierLedgerResponse
 )
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from repositories.purchase import supplier_repo, po_repo, grn_repo, invoice_repo
 from services.purchase_service import PurchaseService
 from models.users import User
@@ -22,20 +23,20 @@ router = APIRouter()
 def create_supplier(
     supplier_in: SupplierCreate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("purchase:manage"))
 ):
-    return supplier_repo.create(db, obj_in=supplier_in, tenant_id=tenant.tenant_id)
+    return supplier_repo.create(db, obj_in=supplier_in, tenant_id=scope.tenant_id)
 
 @router.get("/suppliers", response_model=List[SupplierResponse])
 def get_suppliers(
     region: Optional[str] = None,
     skip: int = 0, limit: int = 100,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from models.purchase import Supplier
-    query = db.query(Supplier).filter(Supplier.tenant_id == tenant.tenant_id, Supplier.is_deleted == False)
+    query = db.query(Supplier).filter(Supplier.tenant_id == scope.tenant_id, Supplier.is_deleted == False)
     if region:
         query = query.filter(Supplier.region_name == region)
     return query.offset(skip).limit(limit).all()
@@ -44,10 +45,10 @@ def get_suppliers(
 def get_supplier(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
-    supplier = supplier_repo.get(db, id=id, tenant_id=tenant.tenant_id)
+    supplier = supplier_repo.get(db, id=id, tenant_id=scope.tenant_id)
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
     return supplier
@@ -57,10 +58,10 @@ def update_supplier(
     id: str,
     supplier_in: SupplierUpdate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("purchase:manage"))
 ):
-    supplier = supplier_repo.get(db, id=id, tenant_id=tenant.tenant_id)
+    supplier = supplier_repo.get(db, id=id, tenant_id=scope.tenant_id)
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
     return supplier_repo.update(db, db_obj=supplier, obj_in=supplier_in)
@@ -69,10 +70,10 @@ def update_supplier(
 def delete_supplier(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("purchase:manage"))
 ):
-    supplier = supplier_repo.get(db, id=id, tenant_id=tenant.tenant_id)
+    supplier = supplier_repo.get(db, id=id, tenant_id=scope.tenant_id)
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
     
@@ -88,7 +89,7 @@ def upsert_supplier_medicines(
     id: str,
     medicines_in: List[SupplierMedicinePriceCreate],
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from models.purchase import SupplierMedicinePrice
     db.query(SupplierMedicinePrice).filter(SupplierMedicinePrice.supplier_id == id).delete()
@@ -115,7 +116,7 @@ def upsert_supplier_medicines(
 def get_supplier_medicines(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from models.purchase import SupplierMedicinePrice
     from models.inventory import Medicine
@@ -147,34 +148,34 @@ def get_supplier_medicines(
 def get_supplier_ledger(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     """
     Get immutable ledger history (debits and credits) for a supplier.
     """
-    return supplier_repo.get_ledger(db, tenant.tenant_id, id)
+    return supplier_repo.get_ledger(db, scope.tenant_id, id)
 
 # --- Purchase Orders ---
 @router.post("/orders", response_model=PurchaseOrderResponse)
 def create_po(
     po_in: PurchaseOrderCreate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
-    return PurchaseService.create_purchase_order(db, po_in, tenant.tenant_id, tenant.branch_id, current_user.id)
+    return PurchaseService.create_purchase_order(db, po_in, scope.tenant_id, scope.branch_id, current_user.id)
 
 @router.post("/orders/bulk-draft", response_model=List[PurchaseOrderResponse])
 def create_bulk_draft_pos(
     payload: BulkDraftPORequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Generate draft POs for multiple low-stock medicines, grouped by supplier.
     """
-    return PurchaseService.bulk_draft_po(db, payload.medicine_ids, tenant.tenant_id, tenant.branch_id, current_user.id)
+    return PurchaseService.bulk_draft_po(db, payload.medicine_ids, scope.tenant_id, scope.branch_id, current_user.id)
 
 
 from pydantic import BaseModel
@@ -194,54 +195,54 @@ def auto_suggest_purchases(
     supplier_id: Optional[str] = None,
     strategy: Optional[str] = Query("low_stock", alias="strategy"),
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     """
     Auto-calculates low-stock items and suggests order quantities based on multi-supplier matrix.
     """
-    return PurchaseService.get_auto_suggest(db, tenant.tenant_id, tenant.branch_id, region, supplier_id, strategy)
+    return PurchaseService.get_auto_suggest(db, scope.tenant_id, scope.branch_id, region, supplier_id, strategy)
 
 @router.post("/generate-po", response_model=List[PurchaseOrderResponse])
 def generate_auto_po(
     payload: GeneratePORequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Auto-Split Engine: Processes a batch array of items and automatically handles splitting into distinct Purchase Orders per supplier.
     """
     items_dict = [item.model_dump() for item in payload.items]
-    return PurchaseService.generate_auto_split_po(db, items_dict, tenant.tenant_id, tenant.branch_id, current_user.id)
+    return PurchaseService.generate_auto_split_po(db, items_dict, scope.tenant_id, scope.branch_id, current_user.id)
 
 @router.post("/orders/{po_id}/approve", response_model=PurchaseOrderResponse)
 def approve_po(
     po_id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("purchase:manage"))
 ):
-    return PurchaseService.approve_po(db, po_id, tenant.tenant_id)
+    return PurchaseService.approve_po(db, po_id, scope.tenant_id)
 
 
 @router.post("/orders/{po_id}/cancel", response_model=PurchaseOrderResponse)
 def cancel_po(
     po_id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
-    return PurchaseService.cancel_po(db, po_id, tenant.tenant_id)
+    return PurchaseService.cancel_po(db, po_id, scope.tenant_id)
 
 
 @router.get("/orders/{po_id}", response_model=PurchaseOrderResponse)
 def get_po(
     po_id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
-    po = po_repo.get_with_items(db, tenant.tenant_id, id=po_id)
+    po = po_repo.get_with_items(db, scope.tenant_id, id=po_id)
     if not po:
         raise HTTPException(status_code=404, detail="Purchase Order not found")
     return po
@@ -251,12 +252,12 @@ def get_po(
 def get_orders(
     skip: int = 0, limit: int = 100,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from models.purchase import PurchaseOrder
     return (
         db.query(PurchaseOrder)
-        .filter(PurchaseOrder.tenant_id == tenant.tenant_id, PurchaseOrder.is_deleted == False)
+        .filter(PurchaseOrder.tenant_id == scope.tenant_id, PurchaseOrder.is_deleted == False)
         .order_by(PurchaseOrder.created_at.desc())
         .offset(skip).limit(limit).all()
     )
@@ -266,23 +267,23 @@ def get_orders(
 def create_grn(
     grn_in: GRNCreate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Main inventory entry point. Automatically creates batches, stock movements, and updates inventory levels.
     """
-    return PurchaseService.receive_grn(db, grn_in, tenant.tenant_id, tenant.branch_id, current_user.id)
+    return PurchaseService.receive_grn(db, grn_in, scope.tenant_id, scope.branch_id, current_user.id)
 
 @router.get("/grn", response_model=List[GRNResponse])
 def get_grns(
     po_id: str = None,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     from models.purchase import GRN
-    query = db.query(GRN).filter(GRN.tenant_id == tenant.tenant_id, GRN.is_deleted == False)
+    query = db.query(GRN).filter(GRN.tenant_id == scope.tenant_id, GRN.is_deleted == False)
     if po_id:
         query = query.filter(GRN.po_id == po_id)
     return query.all()
@@ -315,12 +316,12 @@ def get_invoice_items_helper(db: Session, invoice) -> List[dict]:
 def create_invoice(
     invoice_in: PurchaseInvoiceCreate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     """
     Creates an invoice and credits the supplier balance.
     """
-    invoice = PurchaseService.add_supplier_invoice(db, invoice_in, tenant.tenant_id)
+    invoice = PurchaseService.add_supplier_invoice(db, invoice_in, scope.tenant_id)
     invoice.items = get_invoice_items_helper(db, invoice)
     return invoice
 
@@ -328,12 +329,12 @@ def create_invoice(
 def get_invoice(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from models.purchase import PurchaseInvoice
     from sqlalchemy import or_
     invoice = db.query(PurchaseInvoice).filter(
-        PurchaseInvoice.tenant_id == tenant.tenant_id,
+        PurchaseInvoice.tenant_id == scope.tenant_id,
         PurchaseInvoice.is_deleted == False
     ).filter(
         or_(PurchaseInvoice.id == id, PurchaseInvoice.invoice_number == id)
@@ -348,10 +349,10 @@ def get_invoices(
     po_id: Optional[str] = None,
     skip: int = 0, limit: int = 100,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from models.purchase import PurchaseInvoice, GRN
-    query = db.query(PurchaseInvoice).filter(PurchaseInvoice.tenant_id == tenant.tenant_id, PurchaseInvoice.is_deleted == False)
+    query = db.query(PurchaseInvoice).filter(PurchaseInvoice.tenant_id == scope.tenant_id, PurchaseInvoice.is_deleted == False)
     if po_id:
         query = query.filter(PurchaseInvoice.grn_id.in_(
             db.query(GRN.id).filter(GRN.po_id == po_id)
@@ -365,12 +366,12 @@ def get_invoices(
 def create_payment(
     payment_in: SupplierPaymentCreate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     """
     Logs payment, debits supplier balance, and updates invoice status.
     """
-    return PurchaseService.add_supplier_payment(db, payment_in, tenant.tenant_id, tenant.branch_id)
+    return PurchaseService.add_supplier_payment(db, payment_in, scope.tenant_id, scope.branch_id)
 
 # --- Purchase Returns ---
 from schemas.purchase import PurchaseReturnResponse, PurchaseReturnCreate
@@ -381,10 +382,10 @@ from sqlalchemy.orm import joinedload
 def create_purchase_return(
     return_in: PurchaseReturnCreate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
-    return PurchaseService.create_purchase_return(db, return_in, tenant.tenant_id, tenant.branch_id, current_user.id)
+    return PurchaseService.create_purchase_return(db, return_in, scope.tenant_id, scope.branch_id, current_user.id)
 
 @router.get("/returns", response_model=List[PurchaseReturnResponse])
 def get_purchase_returns(
@@ -392,13 +393,13 @@ def get_purchase_returns(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     query = db.query(PurchaseReturn).options(
         joinedload(PurchaseReturn.items).joinedload(PurchaseReturnItem.medicine),
         joinedload(PurchaseReturn.supplier)
     ).filter(
-        PurchaseReturn.tenant_id == tenant.tenant_id,
+        PurchaseReturn.tenant_id == scope.tenant_id,
         PurchaseReturn.is_deleted == False
     )
     if po_id:

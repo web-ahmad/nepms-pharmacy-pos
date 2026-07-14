@@ -1,6 +1,38 @@
-from sqlalchemy import Column, String, Boolean, ForeignKey, Text
+from sqlalchemy import Column, String, Boolean, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
 from .base import BaseModel
+import uuid
+from datetime import datetime
+
+class Pharmacy(BaseModel):
+    """
+    Top-level SaaS entity — one row per pharmacy business.
+    Sits above branches and all other data.
+    """
+    __tablename__ = "pharmacies"
+
+    name = Column(String(255), nullable=False)
+    owner_contact = Column(String(50), nullable=True)
+    subscription_status = Column(String(20), nullable=False, default="active")  # active/suspended/trial
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Backward-compat link to the legacy tenants row
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=True)
+
+class SuperAdmin(BaseModel):
+    """
+    Platform-level administrator — can manage any Pharmacy.
+    Separate from per-pharmacy staff roles.
+    """
+    __tablename__ = "super_admins"
+
+    auth_user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    name = Column(String(255), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[auth_user_id])
 
 class Tenant(BaseModel):
     __tablename__ = "tenants"
@@ -78,6 +110,8 @@ class User(BaseModel):
     @property
     def permissions(self):
         if self.is_super_admin:
+            return ["*"]
+        if self.role and self.role.name == "Pharmacy Owner":
             return ["*"]
         if self.role and self.role.role_permissions:
             return [rp.permission.code for rp in self.role.role_permissions if rp.permission]

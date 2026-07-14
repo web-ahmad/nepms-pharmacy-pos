@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Union
+from typing import Any, Union, List
 from jose import jwt
 from passlib.context import CryptContext
 from .config import settings
@@ -13,7 +13,14 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 def create_access_token(
-    subject: Union[str, Any], tenant_id: str, branch_id: str, role: str, permissions: list = [], expires_delta: timedelta = None
+    subject: Union[str, Any],
+    tenant_id: str,
+    branch_id: str,
+    role: str,
+    permissions: List[str] = [],
+    pharmacy_id: str = "",          # ← SaaS: caller's pharmacy UUID
+    is_super_admin: bool = False,   # ← SaaS: platform super-admin bypass
+    expires_delta: timedelta = None,
 ) -> str:
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -22,12 +29,15 @@ def create_access_token(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
     to_encode = {
-        "exp": expire, 
-        "sub": str(subject),
-        "tenant_id": tenant_id,
-        "branch_id": branch_id,
-        "role": role,
-        "permissions": permissions
+        "exp":            expire,
+        "sub":            str(subject),
+        "tenant_id":      tenant_id,
+        "branch_id":      branch_id,
+        "role":           role,
+        "permissions":    permissions,
+        "pharmacy_id":    pharmacy_id,      # ← NEW
+        "is_super_admin": is_super_admin,   # ← NEW
     }
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+

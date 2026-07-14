@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-from core.deps import get_db, get_current_user, get_tenant_context, TenantContext, requires_permission, get_token_payload
+from core.deps import get_db, get_current_user, requires_permission, get_token_payload
 from schemas.sales import (
     CheckoutRequest,
     SaleResponse,
@@ -21,6 +21,7 @@ from services.sales_service import SalesService
 from repositories.sales import sale_repo, customer_ledger_repo, sale_return_repo
 from models.users import User
 from models.sales import Sale
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
@@ -88,24 +89,24 @@ def map_return_to_response(sale_return) -> dict:
 def checkout(
     checkout_in: CheckoutRequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Main POS checkout API. Handles atomic allocation, inventory updates, loyalty points, and invoicing.
     """
-    sale = SalesService.checkout(db, checkout_in, tenant.tenant_id, tenant.branch_id, current_user.id)
+    sale = SalesService.checkout(db, checkout_in, scope.tenant_id, scope.branch_id, current_user.id)
     return map_sale_to_response(sale)
 
 @router.get("/workflow-mode")
 def get_workflow_mode(
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from core.config import settings
     from services.settings_service import SettingsService
     try:
-        db_settings = SettingsService(db).get_settings(tenant.tenant_id)
+        db_settings = SettingsService(db).get_settings(scope.tenant_id)
         if db_settings and db_settings.pos_settings and db_settings.pos_settings.get("workflow_mode"):
             return {"mode": db_settings.pos_settings.get("workflow_mode")}
     except Exception:
@@ -115,25 +116,25 @@ def get_workflow_mode(
 @router.get("/pending-verification", response_model=List[SaleResponse])
 def get_pending_verification_sales(
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Retrieve sales pending cashier verification.
     """
-    pending_sales = sale_repo.get_pending_verification_sales(db, tenant.tenant_id, tenant.branch_id)
+    pending_sales = sale_repo.get_pending_verification_sales(db, scope.tenant_id, scope.branch_id)
     return [map_sale_to_response(s) for s in pending_sales]
 
 @router.get("/pending", response_model=List[SaleResponse])
 def get_pending_sales_alias(
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Alias for /pending-verification. Returns all sales awaiting cashier payment collection.
     """
-    pending_sales = sale_repo.get_pending_verification_sales(db, tenant.tenant_id, tenant.branch_id)
+    pending_sales = sale_repo.get_pending_verification_sales(db, scope.tenant_id, scope.branch_id)
     return [map_sale_to_response(s) for s in pending_sales]
 
 @router.post("/{sale_id}/verify-complete", response_model=SaleResponse)
@@ -141,7 +142,7 @@ def verify_complete_sale(
     sale_id: str,
     payload: VerifyCompleteRequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -152,8 +153,8 @@ def verify_complete_sale(
         sale_id=sale_id,
         amount_paid=payload.amount_paid,
         payment_method=payload.payment_method,
-        tenant_id=tenant.tenant_id,
-        branch_id=tenant.branch_id,
+        tenant_id=scope.tenant_id,
+        branch_id=scope.branch_id,
         user_id=current_user.id
     )
     return map_sale_to_response(sale)
@@ -163,7 +164,7 @@ def void_sale(
     sale_id: str,
     payload: VoidSaleRequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
     token_payload: dict = Depends(get_token_payload)
 ):
@@ -180,8 +181,8 @@ def void_sale(
     sale = SalesService.void_sale(
         db=db,
         sale_id=sale_id,
-        tenant_id=tenant.tenant_id,
-        branch_id=tenant.branch_id,
+        tenant_id=scope.tenant_id,
+        branch_id=scope.branch_id,
         user_id=current_user.id,
         void_reason=payload.void_reason,
         voided_by=payload.voided_by or current_user.username,
@@ -193,35 +194,35 @@ def void_sale(
 @router.get("/held", response_model=List[SaleResponse])
 def get_held_sales(
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     """
     Retrieve sales that were parked/held.
     """
-    held_sales = sale_repo.get_held_sales(db, tenant.tenant_id, tenant.branch_id)
+    held_sales = sale_repo.get_held_sales(db, scope.tenant_id, scope.branch_id)
     return [map_sale_to_response(s) for s in held_sales]
 
 @router.post("/returns", response_model=SaleReturnResponse)
 def process_return(
     return_in: SaleReturnRequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
     token_payload: dict = Depends(requires_permission("pos:approve_refund"))
 ):
     """
     Legacy return endpoint. Restores batch quantities, triggers Stock Movement, and credits customer ledger.
     """
-    sale_return = SalesService.process_return(db, return_in, tenant.tenant_id, tenant.branch_id, current_user.id)
+    sale_return = SalesService.process_return(db, return_in, scope.tenant_id, scope.branch_id, current_user.id)
     return map_return_to_response(sale_return)
 
 @router.get("/customers/{customer_id}/ledger", response_model=List[CustomerLedgerResponse])
 def get_customer_ledger(
     customer_id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
-    return customer_ledger_repo.get_ledger(db, tenant.tenant_id, customer_id)
+    return customer_ledger_repo.get_ledger(db, scope.tenant_id, customer_id)
 
 # ---------------------------------------------------------------------------
 # NEW SALES HISTORY & SALE RETURN ENDPOINTS
@@ -237,7 +238,7 @@ def get_sales_history(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -245,8 +246,8 @@ def get_sales_history(
     """
     sales, total = sale_repo.get_sales_history(
         db=db,
-        tenant_id=tenant.tenant_id,
-        branch_id=tenant.branch_id,
+        tenant_id=scope.tenant_id,
+        branch_id=scope.branch_id,
         start_date=start_date,
         end_date=end_date,
         invoice_id=invoice_id,
@@ -268,7 +269,7 @@ def get_return_logs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -276,8 +277,8 @@ def get_return_logs(
     """
     returns, total = sale_return_repo.get_return_logs(
         db=db,
-        tenant_id=tenant.tenant_id,
-        branch_id=tenant.branch_id,
+        tenant_id=scope.tenant_id,
+        branch_id=scope.branch_id,
         start_date=start_date,
         end_date=end_date,
         cashier_id=cashier_id,
@@ -319,14 +320,14 @@ def get_return_logs(
 def delete_held_sale(
     sale_id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Deletes a parked/held sale so it can be resumed.
     """
-    sale = sale_repo.get(db, id=sale_id, tenant_id=tenant.tenant_id)
-    if not sale or (tenant.branch_id and sale.branch_id != tenant.branch_id):
+    sale = sale_repo.get(db, id=sale_id, tenant_id=scope.tenant_id)
+    if not sale or (scope.branch_id and sale.branch_id != scope.branch_id):
         raise HTTPException(status_code=404, detail="Sale not found")
     if sale.status not in ("Held", "Pending Verification"):
         raise HTTPException(status_code=400, detail="Only held or pending sales can be deleted")
@@ -339,7 +340,7 @@ def delete_held_sale(
 def get_sale_detail(
     sale_id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -353,7 +354,7 @@ def get_sale_detail(
     try:
         # Validate if sale_id is a valid UUID
         uuid.UUID(sale_id)
-        sale = sale_repo.get(db, id=sale_id, tenant_id=tenant.tenant_id)
+        sale = sale_repo.get(db, id=sale_id, tenant_id=scope.tenant_id)
     except ValueError:
         pass
         
@@ -361,11 +362,11 @@ def get_sale_detail(
     if not sale:
         sale = db.query(Sale).filter(
             Sale.invoice_number == sale_id,
-            Sale.tenant_id == tenant.tenant_id,
+            Sale.tenant_id == scope.tenant_id,
             Sale.is_deleted == False
         ).first()
 
-    if not sale or (tenant.branch_id and sale.branch_id != tenant.branch_id):
+    if not sale or (scope.branch_id and sale.branch_id != scope.branch_id):
         raise HTTPException(status_code=404, detail=f"Sale not found for ID: {sale_id}")
     return map_sale_to_response(sale)
 
@@ -374,7 +375,7 @@ def process_item_wise_return(
     sale_id: str,
     payload: SaleReturnCreateRequest,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
     token_payload: dict = Depends(requires_permission("pos:approve_refund"))
 ):
@@ -385,8 +386,8 @@ def process_item_wise_return(
         db=db,
         sale_id=sale_id,
         payload=payload,
-        tenant_id=tenant.tenant_id,
-        branch_id=tenant.branch_id,
+        tenant_id=scope.tenant_id,
+        branch_id=scope.branch_id,
         user_id=current_user.id
     )
     return map_return_to_response(sale_return)

@@ -9,6 +9,7 @@ from dependencies.auth import get_current_user
 from schemas.expenses import ExpenseVoucherCreate, ExpenseVoucherResponse
 from services.expense_service import ExpenseService
 from models.users import User
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter(tags=["Expenses"])
 
@@ -25,12 +26,12 @@ def get_expenses(
     current_user: User = Depends(get_current_user)
 ):
     svc = ExpenseService(db)
-    return svc.get_expenses(current_user.tenant_id, start_date, end_date, category_id)
+    return svc.get_expenses(scope.tenant_id, start_date, end_date, category_id)
 
 @router.get("/{id}", response_model=ExpenseVoucherResponse)
 def get_expense(id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     svc = ExpenseService(db)
-    voucher = svc.get_expense(current_user.tenant_id, id)
+    voucher = svc.get_expense(scope.tenant_id, id)
     if not voucher:
         raise HTTPException(status_code=404, detail="Expense not found")
     return voucher
@@ -67,7 +68,7 @@ def create_expense(
         date=None # Using default now
     )
     
-    return svc.create_expense(current_user.tenant_id, current_user.id, data, attachment_url)
+    return svc.create_expense(scope.tenant_id, current_user.id, data, attachment_url)
 
 @router.post("/petty-cash", response_model=ExpenseVoucherResponse)
 def create_petty_cash(
@@ -109,12 +110,12 @@ def create_petty_cash(
         date=parsed_date
     )
     
-    return svc.create_petty_cash(current_user.tenant_id, current_user.id, data, attachment_url)
+    return svc.create_petty_cash(scope.tenant_id, current_user.id, data, attachment_url)
 
 @router.post("/{id}/void")
 def void_expense(id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     svc = ExpenseService(db)
-    success = svc.void_expense(current_user.tenant_id, current_user.id, id)
+    success = svc.void_expense(scope.tenant_id, current_user.id, id)
     if not success:
         raise HTTPException(status_code=400, detail="Could not void expense")
     return {"message": "Expense voided successfully"}

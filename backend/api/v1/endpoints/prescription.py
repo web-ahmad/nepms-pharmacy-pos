@@ -11,6 +11,7 @@ from models.users import User
 from schemas.prescription import PrescriptionCreate, PrescriptionUpdate, PrescriptionResponse, PaginatedPrescriptionResponse
 from services.prescription_service import PrescriptionService
 from dependencies.module_guard import require_module
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter(dependencies=[Depends(require_module("digital_rx"))])
 
@@ -68,7 +69,7 @@ def create_prescription(
         raise HTTPException(status_code=403, detail="Not enough permissions")
         
     service = PrescriptionService(db)
-    return service.create_prescription(prescription_in, tenant_id=current_user.tenant_id, current_user_id=current_user.id)
+    return service.create_prescription(prescription_in, tenant_id=scope.tenant_id, current_user_id=current_user.id)
 
 @router.put("/{id}", response_model=PrescriptionResponse)
 def update_prescription(

@@ -6,6 +6,7 @@ from models.users import User
 from dependencies.auth import require_role
 from schemas.compliance import AuditLogResponse, RetentionPolicyUpdate
 from services.compliance_service import ComplianceService
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
@@ -13,12 +14,12 @@ def require_compliance_view(current_user: User = Depends(require_role("complianc
 
 @router.get("/audit-logs", response_model=List[AuditLogResponse])
 def get_audit_logs(limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(require_compliance_view)):
-    return ComplianceService(db).get_audit_logs(current_user.tenant_id, limit)
+    return ComplianceService(db).get_audit_logs(scope.tenant_id, limit)
 
 @router.get("/sensitive-actions", response_model=List[AuditLogResponse])
 def get_sensitive_actions(db: Session = Depends(get_db), current_user: User = Depends(require_compliance_view)):
-    return ComplianceService(db).get_sensitive_actions(current_user.tenant_id)
+    return ComplianceService(db).get_sensitive_actions(scope.tenant_id)
 
 @router.put("/retention")
 def update_retention(obj_in: RetentionPolicyUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_compliance_view)):
-    return ComplianceService(db).update_retention_policy(current_user.tenant_id, obj_in)
+    return ComplianceService(db).update_retention_policy(scope.tenant_id, obj_in)

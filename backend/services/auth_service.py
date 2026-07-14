@@ -4,6 +4,7 @@ from core.security import verify_password, create_access_token
 from repositories.auth import user_repo
 from schemas.auth import UserLogin, Token
 
+
 class AuthService:
     @staticmethod
     def authenticate_user(db: Session, login_data: UserLogin) -> Token:
@@ -23,7 +24,7 @@ class AuthService:
         if not user.is_active:
             raise HTTPException(status_code=400, detail="Inactive user")
 
-        # Create access token
+        # ── Resolve branch_id ─────────────────────────────────────────────
         branch_id = ""
         if user.branches:
             branch_id = user.branches[0].branch_id
@@ -36,29 +37,53 @@ class AuthService:
                 branch = db.query(Branch).first()
                 if branch:
                     branch_id = branch.id
+
         role_name = user.role.name if user.role else "User"
 
+        # ── Resolve pharmacy_id ───────────────────────────────────────────
+        # Look up the Pharmacy whose tenant_id matches the user's tenant
+        from models.users import Pharmacy, SuperAdmin
+        pharmacy = db.query(Pharmacy).filter(
+            Pharmacy.tenant_id == user.tenant_id,
+            Pharmacy.is_active == True,
+        ).first()
+        pharmacy_id = pharmacy.id if pharmacy else ""
+
+        # ── Check super_admin status ──────────────────────────────────────
+        is_sa = (
+            user.is_super_admin  # legacy flag on User model
+            or db.query(SuperAdmin).filter(
+                SuperAdmin.auth_user_id == user.id,
+                SuperAdmin.is_active == True,
+            ).first() is not None
+        )
+
+        # ── Create JWT ────────────────────────────────────────────────────
         access_token = create_access_token(
             subject=user.id,
             tenant_id=user.tenant_id,
             branch_id=branch_id,
             role=role_name,
-            permissions=user.permissions
+            permissions=user.permissions,
+            pharmacy_id=pharmacy_id,    # ← NEW
+            is_super_admin=is_sa,       # ← NEW
         )
-        
+
         user_data = {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
+            "id":        user.id,
+            "username":  user.username,
+            "email":     user.email,
             "full_name": user.full_name,
-            "role": role_name,
-            "permissions": user.permissions
+            "role":      role_name,
+            "permissions": user.permissions,
+            "is_super_admin": is_sa,
         }
-        
+
         return Token(
-            access_token=access_token, 
+            access_token=access_token,
             token_type="bearer",
             user=user_data,
             tenant_id=user.tenant_id,
-            branch_id=branch_id
+            branch_id=branch_id,
         )
+

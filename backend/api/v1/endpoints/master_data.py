@@ -7,6 +7,7 @@ from core.deps import get_current_user
 from models.users import User
 from repositories.master_data import get_master_repo
 from schemas.master_data import MasterDataCreate, MasterDataUpdate, MasterDataResponse
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter(prefix="/master-data", tags=["Master Data"])
 
@@ -41,7 +42,7 @@ def get_all_master_data(master_type: str, db: Session = Depends(get_db), current
         raise HTTPException(status_code=400, detail="Invalid master data type")
     
     repo = get_master_repo(model_name)
-    return repo.get_all_active(db, tenant_id=current_user.tenant_id)
+    return repo.get_all_active(db, tenant_id=scope.tenant_id)
 
 @router.post("/{master_type}", response_model=MasterDataResponse)
 def create_master_data(master_type: str, data: MasterDataCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -51,8 +52,8 @@ def create_master_data(master_type: str, data: MasterDataCreate, db: Session = D
     
     repo = get_master_repo(model_name)
     # Check duplicate
-    existing = repo.get_by_name(db, data.name, tenant_id=current_user.tenant_id)
+    existing = repo.get_by_name(db, data.name, tenant_id=scope.tenant_id)
     if existing:
         raise HTTPException(status_code=400, detail=f"{data.name} already exists.")
     
-    return repo.create(db, obj_in=data, tenant_id=current_user.tenant_id)
+    return repo.create(db, obj_in=data, tenant_id=scope.tenant_id)

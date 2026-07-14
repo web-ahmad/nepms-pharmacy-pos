@@ -49,7 +49,9 @@ export default function LoginPage() {
       await Promise.resolve();
 
       // Role-based redirection
-      if (user?.role === 'Cashier') {
+      if (user?.is_super_admin) {
+        router.push('/super-admin');
+      } else if (user?.role === 'Cashier') {
         router.push('/pos/cashier');
       } else {
         router.push('/');

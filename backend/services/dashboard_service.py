@@ -37,7 +37,7 @@ def get_sales_overview(db: Session, tenant_id: str, branch_id: str = None, cashi
         func.sum(Sale.discount_amount).label('discounts'),
         func.sum(Sale.total_amount + Sale.discount_amount).label('gross_sales'),
         func.count(Sale.id).label('invoice_count')
-    ).filter(Sale.status == "Completed")
+    ).filter(Sale.status == "Completed", Sale.tenant_id == tenant_id)
 
     if branch_id:
         query = query.filter(Sale.branch_id == branch_id)
@@ -63,7 +63,8 @@ def get_sales_overview(db: Session, tenant_id: str, branch_id: str = None, cashi
     cogs_query = db.query(
         func.sum(SaleItem.quantity * Batch.purchase_price)
     ).select_from(SaleItem).join(Sale).join(Batch, SaleItem.batch_id == Batch.id).filter(
-        Sale.status == "Completed"
+        Sale.status == "Completed",
+        Sale.tenant_id == tenant_id
     )
     if branch_id:
         cogs_query = cogs_query.filter(Sale.branch_id == branch_id)
@@ -95,7 +96,7 @@ def get_sales_overview(db: Session, tenant_id: str, branch_id: str = None, cashi
 
     # Dead Stock Capital (no sales in last 60 days)
     sixty_days_ago = now - timedelta(days=60)
-    active_meds = db.query(SaleItem.medicine_id).join(Sale).filter(Sale.sale_date >= sixty_days_ago).distinct()
+    active_meds = db.query(SaleItem.medicine_id).join(Sale).filter(Sale.sale_date >= sixty_days_ago, Sale.tenant_id == tenant_id).distinct()
     dead_stock_query = db.query(func.sum(Batch.current_quantity * Batch.purchase_price)).select_from(Batch).join(Medicine).filter(
         Medicine.tenant_id == tenant_id,
         Batch.current_quantity > 0,
@@ -110,7 +111,8 @@ def get_sales_overview(db: Session, tenant_id: str, branch_id: str = None, cashi
     cash_drawer_query = db.query(func.sum(Sale.amount_paid - Sale.change_due)).filter(
         Sale.status == "Completed",
         Sale.payment_method == "Cash",
-        Sale.sale_date >= today_utc_from
+        Sale.sale_date >= today_utc_from,
+        Sale.tenant_id == tenant_id
     )
     if branch_id:
         cash_drawer_query = cash_drawer_query.filter(Sale.branch_id == branch_id)
@@ -275,7 +277,7 @@ def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_
     tz_name = tenant.timezone if tenant and tenant.timezone else "UTC"
 
     # Setup base sale query
-    sale_query = db.query(Sale).filter(Sale.status == "Completed")
+    sale_query = db.query(Sale).filter(Sale.status == "Completed", Sale.tenant_id == tenant_id)
     if branch_id:
         sale_query = sale_query.filter(Sale.branch_id == branch_id)
     if cashier_id:
@@ -295,7 +297,8 @@ def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_
         Sale.id,
         func.sum(SaleItem.quantity * Batch.purchase_price).label('cogs')
     ).select_from(SaleItem).join(Sale).join(Batch, SaleItem.batch_id == Batch.id).filter(
-        Sale.status == "Completed"
+        Sale.status == "Completed",
+        Sale.tenant_id == tenant_id
     )
     if branch_id:
         cogs_query = cogs_query.filter(Sale.branch_id == branch_id)

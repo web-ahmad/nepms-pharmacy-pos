@@ -8,6 +8,7 @@ from database import get_db
 from dependencies.auth import get_current_user
 from models.users import User
 from models.expenses import PettyCashCategory
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter(tags=["Petty Cash Categories"])
 
@@ -27,7 +28,7 @@ class PettyCashCategoryResponse(PettyCashCategoryBase):
 @router.get("", response_model=List[PettyCashCategoryResponse])
 @router.get("/", response_model=List[PettyCashCategoryResponse])
 def get_categories(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(PettyCashCategory).filter(PettyCashCategory.tenant_id == current_user.tenant_id).all()
+    return db.query(PettyCashCategory).filter(PettyCashCategory.tenant_id == scope.tenant_id).all()
 
 @router.post("", response_model=PettyCashCategoryResponse)
 @router.post("/", response_model=PettyCashCategoryResponse)
@@ -38,7 +39,7 @@ def create_category(
 ):
     cat = PettyCashCategory(
         id=str(uuid.uuid4()),
-        tenant_id=current_user.tenant_id,
+        tenant_id=scope.tenant_id,
         name=data.name
     )
     db.add(cat)
@@ -50,7 +51,7 @@ def create_category(
 def delete_category(id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     cat = db.query(PettyCashCategory).filter(
         PettyCashCategory.id == id,
-        PettyCashCategory.tenant_id == current_user.tenant_id
+        PettyCashCategory.tenant_id == scope.tenant_id
     ).first()
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")

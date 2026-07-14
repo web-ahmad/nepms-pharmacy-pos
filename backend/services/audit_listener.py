@@ -123,23 +123,25 @@ async def _send_whatsapp(event_id: str, message: str, image_url: str | None) -> 
 # DB helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _save_snapshot(db, event_id: str, branch_id: str, image_url: str):
+def _save_snapshot(db, event_id: str, branch_id: str, image_url: str, pharmacy_id: str | None = None):
     snap = CameraSnapshot(
         audit_event_id=event_id,
         branch_id=branch_id,
         image_url=image_url,
+        pharmacy_id=pharmacy_id,
     )
     db.add(snap)
     db.commit()
 
 
-def _log_alert(db, event_id: str, channel: str, status: str, error: str | None = None):
+def _log_alert(db, event_id: str, channel: str, status: str, error: str | None = None, pharmacy_id: str | None = None):
     db.add(AlertHistory(
         audit_event_id=event_id,
         sent_to=TEST_WHATSAPP_NUMBER or "dashboard",
         channel=channel,
         status=status,
         error_message=error,
+        pharmacy_id=pharmacy_id,
     ))
     db.commit()
 
@@ -159,6 +161,7 @@ def _get_configs(db, branch_id: str, event_type: str):
 async def _handle_void(event: AuditEvent, db):
     meta = event.metadata_ or {}
     configs = _get_configs(db, event.branch_id, "void")
+    pharmacy_id = getattr(event, 'pharmacy_id', None)
 
     # If no alert_config rows exist yet, still capture + send to the test number
     should_alert = bool(configs) or bool(TEST_WHATSAPP_NUMBER)
@@ -168,7 +171,7 @@ async def _handle_void(event: AuditEvent, db):
 
     image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
     if image_url:
-        _save_snapshot(db, event.id, event.branch_id, image_url)
+        _save_snapshot(db, event.id, event.branch_id, image_url, pharmacy_id=pharmacy_id)
 
     staff_name = meta.get("staff_name", "Unknown Staff")
     item_name  = meta.get("item_name",  "Unknown Item")
@@ -188,14 +191,15 @@ async def _handle_void(event: AuditEvent, db):
     )
 
     success = await _send_whatsapp(event.id, msg, image_url)
-    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed", pharmacy_id=pharmacy_id)
 
 
 async def _handle_discount(event: AuditEvent, db):
     meta = event.metadata_ or {}
+    pharmacy_id = getattr(event, 'pharmacy_id', None)
     image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
     if image_url:
-        _save_snapshot(db, event.id, event.branch_id, image_url)
+        _save_snapshot(db, event.id, event.branch_id, image_url, pharmacy_id=pharmacy_id)
 
     msg = (
         f"🚨 *Large Discount Applied*\n\n"
@@ -204,14 +208,15 @@ async def _handle_discount(event: AuditEvent, db):
         f"🕒 *Time*: {event.created_at}"
     )
     success = await _send_whatsapp(event.id, msg, image_url)
-    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed", pharmacy_id=pharmacy_id)
 
 
 async def _handle_refund(event: AuditEvent, db):
     meta = event.metadata_ or {}
+    pharmacy_id = getattr(event, 'pharmacy_id', None)
     image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
     if image_url:
-        _save_snapshot(db, event.id, event.branch_id, image_url)
+        _save_snapshot(db, event.id, event.branch_id, image_url, pharmacy_id=pharmacy_id)
 
     msg = (
         f"⚠️ *Refund Issued*\n\n"
@@ -221,7 +226,7 @@ async def _handle_refund(event: AuditEvent, db):
         f"🕒 *Time*: {event.created_at}"
     )
     success = await _send_whatsapp(event.id, msg, image_url)
-    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed", pharmacy_id=pharmacy_id)
 
 
 async def _handle_cash_variance(event: AuditEvent, db):
@@ -301,15 +306,13 @@ async def _handle_near_expiry(event: AuditEvent, db):
 async def scan_inventory_flags(scan_interval_seconds: float = 3600.0):
     """Background task: periodically scan for expired/near-expiry batches."""
     import datetime
-    from database import SessionLocal
-    from models.audit import AuditEvent
     from models.inventory import Batch, Medicine
 
     logger.info("Inventory scanner started – interval %.0fs", scan_interval_seconds)
 
     while True:
         try:
-            db = SessionLocal()
+            db = SessionLocal()   # uses module-level SessionLocal (patchable in tests)
             today = datetime.date.today()
             soon  = today + datetime.timedelta(days=30)
 
@@ -351,8 +354,22 @@ async def scan_inventory_flags(scan_interval_seconds: float = 3600.0):
                         continue
 
                     severity = "high" if flag_type == "expired" else "medium"
+                    # Resolve pharmacy_id for the new AuditEvent
+                    pharm_id = getattr(batch, 'pharmacy_id', None)
+                    if not pharm_id:
+                        # Fallback: look up via Pharmacy table using batch's medicine
+                        try:
+                            from models.users import Pharmacy as PharmacyModel
+                            pharm = db.query(PharmacyModel).filter(
+                                PharmacyModel.is_active == True
+                            ).first()
+                            pharm_id = pharm.id if pharm else None
+                        except Exception:
+                            pharm_id = None
+
                     ev = AuditEvent(
                         branch_id      = str(batch.branch_id),
+                        pharmacy_id    = pharm_id,           # ← stamped here
                         staff_id       = "system",
                         event_type     = flag_type,
                         transaction_id = dedup_key,

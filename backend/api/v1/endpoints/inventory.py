@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from typing import List, Optional
 from pydantic import BaseModel
-from core.deps import get_db, get_current_user, get_tenant_context, TenantContext, requires_permission, get_token_payload
+from core.deps import get_db, get_current_user, requires_permission, get_token_payload
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from schemas.inventory import (
     MedicineCreate, MedicineUpdate, MedicineResponse, ExpiryAlert, LowStockAlert,
     PaginatedLowStockResponse,
@@ -40,7 +41,7 @@ def list_or_search_medicines(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
     token_payload: dict = Depends(get_token_payload)
 ):
@@ -49,7 +50,7 @@ def list_or_search_medicines(
     """
     query = db.query(Medicine).options(joinedload(Medicine.batches), joinedload(Medicine.packaging_levels)).filter(
         Medicine.is_deleted == False,
-        or_(Medicine.tenant_id == tenant.tenant_id, Medicine.tenant_id == None)
+        or_(Medicine.tenant_id == scope.tenant_id, Medicine.tenant_id == None)
     )
 
     if search_term:
@@ -117,7 +118,7 @@ from sqlalchemy.exc import IntegrityError
 def create_medicine(
     medicine_in: MedicineCreate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
     token_payload: dict = Depends(requires_permission("inventory:manage"))
 ):
@@ -130,14 +131,14 @@ def create_medicine(
         
         category_name = data.pop("category", None)
         if category_name:
-            cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == tenant.tenant_id).first()
+            cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == scope.tenant_id).first()
             if not cat:
-                cat = Category(name=category_name, tenant_id=tenant.tenant_id)
+                cat = Category(name=category_name, tenant_id=scope.tenant_id)
                 db.add(cat)
                 db.flush()
             data["category_id"] = cat.id
 
-        med = Medicine(**data, tenant_id=tenant.tenant_id)
+        med = Medicine(**data, tenant_id=scope.tenant_id)
         
         if substitute_ids:
             subs = db.query(Medicine).filter(Medicine.id.in_(substitute_ids)).all()
@@ -176,8 +177,8 @@ def create_medicine(
 
         if initial_batch and initial_batch.current_stock > 0:
             batch = Batch(
-                tenant_id=tenant.tenant_id,
-                branch_id=tenant.branch_id,
+                tenant_id=scope.tenant_id,
+                branch_id=scope.branch_id,
                 medicine_id=med.id,
                 batch_number=initial_batch.batch_number,
                 manufacturing_date=initial_batch.manufacturing_date,
@@ -193,8 +194,8 @@ def create_medicine(
             db.flush()
             
             movement = StockMovement(
-                tenant_id=tenant.tenant_id,
-                branch_id=tenant.branch_id,
+                tenant_id=scope.tenant_id,
+                branch_id=scope.branch_id,
                 medicine_id=med.id,
                 batch_id=batch.id,
                 user_id=current_user.id,
@@ -212,7 +213,7 @@ def create_medicine(
                 from services.auto_posting_service import AutoPostingService
                 auto_poster = AutoPostingService(db)
                 auto_poster.post_opening_stock(
-                    tenant_id=tenant.tenant_id,
+                    tenant_id=scope.tenant_id,
                     user_id=current_user.id,
                     reference=f"OPENING-MED-{med.id[:8]}",
                     amount=total_value,
@@ -231,12 +232,12 @@ def create_medicine(
 def get_medicine(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
     token_payload: dict = Depends(get_token_payload)
 ):
-    medicine = medicine_repo.get(db, id=id, tenant_id=tenant.tenant_id)
-    if not medicine or (medicine.tenant_id and medicine.tenant_id != tenant.tenant_id):
+    medicine = medicine_repo.get(db, id=id, tenant_id=scope.tenant_id)
+    if not medicine or (medicine.tenant_id and medicine.tenant_id != scope.tenant_id):
         raise HTTPException(status_code=404, detail="Medicine not found")
         
     resp = MedicineResponse.model_validate(medicine)
@@ -254,13 +255,13 @@ def get_medicine(
 def get_expiring_batches(
     days: int = Query(30, description="Days until expiry"),
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get batches expiring within the specified number of days (30, 60, 90).
     """
-    return InventoryService.get_expiring_batches(db, tenant.tenant_id, tenant.branch_id, days)
+    return InventoryService.get_expiring_batches(db, scope.tenant_id, scope.branch_id, days)
 
 
 @router.get("/alerts/low-stock", response_model=PaginatedLowStockResponse)
@@ -272,14 +273,14 @@ def get_low_stock(
     severity: Optional[str] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     """
     Get paginated and filtered low stock alerts.
     """
     return InventoryService.get_low_stock(
-        db, tenant.tenant_id, tenant.branch_id,
+        db, scope.tenant_id, scope.branch_id,
         skip=skip, limit=limit,
         category_id=category_id, supplier_id=supplier_id,
         severity=severity, search=search
@@ -291,10 +292,10 @@ def update_medicine(
     id: str,
     medicine_in: MedicineUpdate,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("inventory:manage"))
 ):
-    medicine = medicine_repo.get(db, id=id, tenant_id=tenant.tenant_id)
+    medicine = medicine_repo.get(db, id=id, tenant_id=scope.tenant_id)
     if not medicine:
         raise HTTPException(status_code=404, detail="Medicine not found")
         
@@ -303,9 +304,9 @@ def update_medicine(
         
         category_name = update_data.pop("category", None)
         if category_name:
-            cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == tenant.tenant_id).first()
+            cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == scope.tenant_id).first()
             if not cat:
-                cat = Category(name=category_name, tenant_id=tenant.tenant_id)
+                cat = Category(name=category_name, tenant_id=scope.tenant_id)
                 db.add(cat)
                 db.flush()
             update_data["category_id"] = cat.id
@@ -398,10 +399,10 @@ def update_medicine(
 def delete_medicine(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("inventory:manage"))
 ):
-    medicine = medicine_repo.get(db, id=id, tenant_id=tenant.tenant_id)
+    medicine = medicine_repo.get(db, id=id, tenant_id=scope.tenant_id)
     if not medicine:
         raise HTTPException(status_code=404, detail="Medicine not found")
     
@@ -414,13 +415,13 @@ def delete_medicine(
 def bulk_delete_medicines(
     payload: BulkDeletePayload,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("inventory:manage"))
 ):
     try:
         deleted_count = db.query(Medicine).filter(
             Medicine.id.in_(payload.ids),
-            Medicine.tenant_id == tenant.tenant_id
+            Medicine.tenant_id == scope.tenant_id
         ).delete(synchronize_session=False)
         db.commit()
         return {"detail": f"{deleted_count} medicines deleted"}
@@ -433,7 +434,7 @@ def bulk_delete_medicines(
 def bulk_import_medicines(
     payload: BulkImportPayload,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
     token_payload: dict = Depends(requires_permission("inventory:manage"))
 ):
@@ -443,7 +444,7 @@ def bulk_import_medicines(
     for medicine_in in payload.medicines:
         try:
             if medicine_in.barcode:
-                exists = db.query(Medicine).filter(Medicine.barcode == medicine_in.barcode, Medicine.tenant_id == tenant.tenant_id).first()
+                exists = db.query(Medicine).filter(Medicine.barcode == medicine_in.barcode, Medicine.tenant_id == scope.tenant_id).first()
                 if exists:
                     failed_items.append({"name": medicine_in.name, "reason": f"Duplicate barcode: {medicine_in.barcode}"})
                     continue
@@ -454,14 +455,14 @@ def bulk_import_medicines(
             
             category_name = data.pop("category", None)
             if category_name:
-                cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == tenant.tenant_id).first()
+                cat = db.query(Category).filter(Category.name == category_name, Category.tenant_id == scope.tenant_id).first()
                 if not cat:
-                    cat = Category(name=category_name, tenant_id=tenant.tenant_id)
+                    cat = Category(name=category_name, tenant_id=scope.tenant_id)
                     db.add(cat)
                     db.flush()
                 data["category_id"] = cat.id
 
-            med = Medicine(**data, tenant_id=tenant.tenant_id)
+            med = Medicine(**data, tenant_id=scope.tenant_id)
             db.add(med)
             db.flush()
             
@@ -490,8 +491,8 @@ def bulk_import_medicines(
 
             if initial_batch and initial_batch.current_stock > 0:
                 batch = Batch(
-                    tenant_id=tenant.tenant_id,
-                    branch_id=tenant.branch_id,
+                    tenant_id=scope.tenant_id,
+                    branch_id=scope.branch_id,
                     medicine_id=med.id,
                     batch_number=initial_batch.batch_number,
                     manufacturing_date=initial_batch.manufacturing_date,
@@ -507,8 +508,8 @@ def bulk_import_medicines(
                 db.flush()
                 
                 movement = StockMovement(
-                    tenant_id=tenant.tenant_id,
-                    branch_id=tenant.branch_id,
+                    tenant_id=scope.tenant_id,
+                    branch_id=scope.branch_id,
                     medicine_id=med.id,
                     batch_id=batch.id,
                     user_id=current_user.id,
@@ -536,12 +537,12 @@ def bulk_import_medicines(
 def list_medicine_batches(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     batches = db.query(Batch).filter(
         Batch.medicine_id == id,
-        Batch.branch_id == tenant.branch_id,
+        Batch.branch_id == scope.branch_id,
         Batch.is_deleted == False
     ).all()
     return batches
@@ -551,12 +552,12 @@ def list_medicine_batches(
 def list_medicine_movements(
     id: str,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     movements = db.query(StockMovement).filter(
         StockMovement.medicine_id == id,
-        StockMovement.branch_id == tenant.branch_id
+        StockMovement.branch_id == scope.branch_id
     ).order_by(StockMovement.created_at.desc()).all()
     
     from models.sales import Sale
@@ -573,14 +574,14 @@ def list_medicine_movements(
 def adjust_stock(
     payload: StockAdjustmentPayload,
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(get_tenant_context),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("stock:adjust")),
     current_user: User = Depends(get_current_user)
 ):
     batch = db.query(Batch).filter(
         Batch.id == payload.batch_id,
         Batch.medicine_id == payload.medicine_id,
-        Batch.branch_id == tenant.branch_id,
+        Batch.branch_id == scope.branch_id,
         Batch.is_deleted == False
     ).first()
     if not batch:
@@ -597,11 +598,11 @@ def adjust_stock(
 
     adjustment = StockAdjustment(
         batch_id=batch.id,
-        branch_id=tenant.branch_id,
+        branch_id=scope.branch_id,
         user_id=current_user.id,
         quantity_adjusted=qty_change,
         reason=payload.reason,
-        tenant_id=tenant.tenant_id
+        tenant_id=scope.tenant_id
     )
     db.add(adjustment)
     db.flush()
@@ -609,14 +610,14 @@ def adjust_stock(
     movement = StockMovement(
         medicine_id=payload.medicine_id,
         batch_id=batch.id,
-        branch_id=tenant.branch_id,
+        branch_id=scope.branch_id,
         user_id=current_user.id,
         movement_type=f"Adjustment {payload.adjustment_type.capitalize()}",
         quantity_change=qty_change,
         balance_after=batch.current_quantity,
         reference_id=adjustment.id,
         notes=payload.reason,
-        tenant_id=tenant.tenant_id
+        tenant_id=scope.tenant_id
     )
     db.add(movement)
     db.commit()

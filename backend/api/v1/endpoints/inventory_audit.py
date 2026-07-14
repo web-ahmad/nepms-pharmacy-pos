@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from core.deps import get_current_user, get_tenant_context, TenantContext
+from core.deps import get_current_user
 from schemas.audit import (
     AuditSessionCreate, AuditSessionUpdate, UpdatePhysicalCount, 
     AuditSessionResponse, AuditItemResponse, AuditSummary
@@ -11,6 +11,7 @@ from schemas.audit import (
 from services import inventory_audit_service
 from models.users import User
 from models.inventory import AuditSession, Medicine
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
@@ -18,7 +19,7 @@ router = APIRouter()
 def get_available_racks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     """Fetch all unique rack/shelf locations from medicines table."""
     from sqlalchemy import distinct
@@ -49,12 +50,12 @@ def create_session(
     data: AuditSessionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     session = inventory_audit_service.create_audit_session(
         db=db,
         data=data,
-        tenant_id=tenant_context.tenant_id,
+        tenant_id=scope.tenant_id,
         branch_id=tenant_context.branch_id,
         user_id=current_user.id
     )
@@ -64,11 +65,11 @@ def create_session(
 def get_sessions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     sessions = inventory_audit_service.get_audit_sessions(
         db=db,
-        tenant_id=tenant_context.tenant_id,
+        tenant_id=scope.tenant_id,
         branch_id=tenant_context.branch_id
     )
     return [_format_session_response(s) for s in sessions]
@@ -78,9 +79,9 @@ def get_session(
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
-    session = inventory_audit_service.get_audit_session(db, session_id, tenant_context.tenant_id)
+    session = inventory_audit_service.get_audit_session(db, session_id, scope.tenant_id)
     if not session:
         raise HTTPException(status_code=404, detail="Audit session not found")
     return _format_session_response(session)
@@ -92,14 +93,14 @@ def update_item_count(
     data: UpdatePhysicalCount,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     item = inventory_audit_service.update_physical_count(
         db=db,
         session_id=session_id,
         item_id=item_id,
         physical_count=data.physical_count,
-        tenant_id=tenant_context.tenant_id,
+        tenant_id=scope.tenant_id,
         user_id=current_user.id
     )
     if not item:
@@ -112,13 +113,13 @@ def reconcile_item(
     item_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     item = inventory_audit_service.reconcile_single_audit_item(
         db=db,
         session_id=session_id,
         item_id=item_id,
-        tenant_id=tenant_context.tenant_id,
+        tenant_id=scope.tenant_id,
         user_id=current_user.id
     )
     if not item:
@@ -143,9 +144,9 @@ def submit_session(
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
-    session = inventory_audit_service.submit_audit_session(db, session_id, tenant_context.tenant_id)
+    session = inventory_audit_service.submit_audit_session(db, session_id, scope.tenant_id)
     if not session:
         raise HTTPException(status_code=404, detail="Audit session not found")
     return _format_session_response(session)
@@ -155,12 +156,12 @@ def reconcile_session(
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     session = inventory_audit_service.reconcile_audit_session(
         db=db, 
         session_id=session_id, 
-        tenant_id=tenant_context.tenant_id,
+        tenant_id=scope.tenant_id,
         user_id=current_user.id
     )
     if not session:
@@ -172,12 +173,12 @@ def sync_session(
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     session = inventory_audit_service.sync_audit_session_items(
         db=db, 
         session_id=session_id, 
-        tenant_id=tenant_context.tenant_id
+        tenant_id=scope.tenant_id
     )
     if not session:
         raise HTTPException(status_code=404, detail="Audit session not found")
@@ -188,9 +189,9 @@ def get_session_summary(
     session_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-    tenant_context: TenantContext = Depends(get_tenant_context)
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
-    session = inventory_audit_service.get_audit_session(db, session_id, tenant_context.tenant_id)
+    session = inventory_audit_service.get_audit_session(db, session_id, scope.tenant_id)
     if not session:
         raise HTTPException(status_code=404, detail="Audit session not found")
     

@@ -13,6 +13,7 @@ from services.crm_service import CRMService
 from core.deps import get_current_user
 from models.users import User
 from dependencies.module_guard import require_module
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter(dependencies=[Depends(require_module("customers"))])
 
@@ -43,7 +44,7 @@ def create_customer(
     current_user: User = Depends(get_current_user)
 ):
     service = CRMService(db)
-    return service.create_customer(customer, current_user.tenant_id)
+    return service.create_customer(customer, scope.tenant_id)
 
 @router.put("/customers/{customer_id}", response_model=CustomerResponse)
 def update_customer(

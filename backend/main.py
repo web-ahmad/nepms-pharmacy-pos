@@ -81,6 +81,10 @@ async def startup_event():
     # Scan inventory for expired/near-expiry batches immediately, then every hour
     asyncio.create_task(scan_inventory_flags(scan_interval_seconds=3600.0))
     
+    # Billing / Subscription Grace Period loop
+    from services.billing_listener import start_billing_enforcement_loop
+    asyncio.create_task(start_billing_enforcement_loop())
+    
     # Initialize APScheduler for Cron Jobs
     try:
         from apscheduler.schedulers.background import BackgroundScheduler

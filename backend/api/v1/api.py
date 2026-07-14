@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 from api.v1.endpoints import (
     auth, inventory, purchase, sales, crm, prescription, dashboard, reports, inventory_audit, analytics, accounts, hr,
-    settings, admin, notifications, system, cashier, print, master_data, medicine_master, hr_payroll_settings, audit
+    settings, admin, notifications, system, cashier, print, master_data, medicine_master, hr_payroll_settings, audit,
+    super_admin, webhooks
 )
 
 api_router = APIRouter()
@@ -19,6 +20,7 @@ api_router.include_router(analytics.router, prefix="/analytics", tags=["analytic
 api_router.include_router(accounts.router, prefix="/accounts", tags=["accounts"])
 api_router.include_router(hr.router, prefix="/hr", tags=["hr"])
 api_router.include_router(hr_payroll_settings.router, prefix="/hr/payroll-settings", tags=["hr-payroll-settings"])
+api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 
 # Phase 3.4
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
@@ -42,3 +44,5 @@ api_router.include_router(medicine_master.router)
 # Audit
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 
+# Super Admin — platform-level pharmacy management
+api_router.include_router(super_admin.router, prefix="/super-admin", tags=["super-admin"])
