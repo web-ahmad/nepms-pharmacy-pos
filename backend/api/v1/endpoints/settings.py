@@ -44,7 +44,7 @@ def update_module(id: str, obj_in: SystemModuleUpdate, db: Session = Depends(get
 def get_whatsapp_qr(current_user: User = Depends(require_settings_view)):
     import requests
     try:
-        response = requests.get("http://localhost:3001/api/v1/settings/whatsapp/qr", timeout=5)
+        response = requests.get("http://localhost:3001/qr", timeout=5)
         if response.status_code == 200:
             return response.json()
         return {"connected": False, "qr": None, "error": "Microservice error"}

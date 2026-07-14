@@ -64,6 +64,28 @@ app.mount("/storage", StaticFiles(directory=storage_path), name="storage")
 def startup_event():
     from core.sync import run_historical_sync
     run_historical_sync()
+    
+    # Initialize APScheduler for Cron Jobs
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from services.risk_service import calculate_weekly_risk_scores
+        from services.nightly_inventory_audit import run_nightly_inventory_audit
+        from services.scheduled_reports_service import run_scheduled_reports_sync
+        
+        scheduler = BackgroundScheduler()
+        # Run every Monday at 6:00 AM
+        scheduler.add_job(calculate_weekly_risk_scores, 'cron', day_of_week='mon', hour=6, minute=0)
+        
+        # Run every night at midnight (00:00)
+        scheduler.add_job(run_nightly_inventory_audit, 'cron', hour=0, minute=0)
+        
+        # Run at the top of every hour to dispatch user-configured scheduled reports
+        scheduler.add_job(run_scheduled_reports_sync, 'cron', minute=0)
+        
+        scheduler.start()
+        print("Background cron scheduler started (Risk Scores, Inventory Audit, Scheduled Reports).")
+    except ImportError:
+        print("Warning: APScheduler is not installed. Background jobs will not run automatically. Run `pip install apscheduler` to enable.")
 
 @app.get("/")
 def read_root():
