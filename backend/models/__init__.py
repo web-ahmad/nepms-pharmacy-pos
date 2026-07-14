@@ -13,6 +13,7 @@ from .settings import TenantSettings, SystemModule
 from .system import Notification, BackupHistory, OCRQueue
 from .cash_register import CashSession, CashLedgerEntry
 from .expenses import ExpenseVoucher
+from .audit import AuditEvent, AlertHistory, CameraSnapshot, AlertConfig
 from .master_data import (
     MasterGeneric, MasterBrand, MasterCategory, MasterManufacturer,
     MasterDosageForm, MasterStrength, MasterStrengthUnit, MasterRoute,

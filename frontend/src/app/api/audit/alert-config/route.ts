@@ -1,65 +1,35 @@
 import { NextResponse } from 'next/server'
-import { validateAdminAccess } from '@/utils/auth-helpers'
+import { cookies } from 'next/headers'
+
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+
+async function getToken(): Promise<string | null> {
+  const cookieStore = await cookies()
+  return cookieStore.get('access_token')?.value ?? null
+}
 
 export async function GET(request: Request) {
-  const auth = await validateAdminAccess()
-  if (!auth.authorized) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
-  }
-  if ((auth as any).isDevFallback) return NextResponse.json([])
+  const token = await getToken()
+  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const branch_id = searchParams.get('branch_id')
-
-  let query = auth.supabase!.from('alert_config').select('*')
-  
-  if (branch_id) {
-    query = query.eq('branch_id', branch_id)
-  }
-
-  const { data, error } = await query
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  return NextResponse.json(data)
+  const qs = searchParams.toString()
+  const res = await fetch(`${BACKEND}/audit/alert-config${qs ? `?${qs}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  })
+  return NextResponse.json(await res.json(), { status: res.status })
 }
 
 export async function PATCH(request: Request) {
-  const auth = await validateAdminAccess()
-  if (!auth.authorized) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status })
-  }
-  if ((auth as any).isDevFallback) return NextResponse.json({ error: 'Supabase dev fallback active - cannot patch' }, { status: 400 })
+  const token = await getToken()
+  if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  try {
-    const body = await request.json()
-    const { id, is_enabled, threshold_value, schedule_hour, schedule_day_of_week } = body
-
-    if (!id) {
-      return NextResponse.json({ error: 'id is required' }, { status: 400 })
-    }
-
-    const updatePayload: Record<string, any> = {}
-    if (is_enabled !== undefined) updatePayload.is_enabled = is_enabled
-    if (threshold_value !== undefined) updatePayload.threshold_value = threshold_value
-    if (schedule_hour !== undefined) updatePayload.schedule_hour = schedule_hour
-    if (schedule_day_of_week !== undefined) updatePayload.schedule_day_of_week = schedule_day_of_week
-
-    const { data, error } = await auth.supabase!
-      .from('alert_config')
-      .update(updatePayload)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json(data)
-  } catch (error: any) {
-    return NextResponse.json({ error: 'Invalid request body', details: error.message }, { status: 400 })
-  }
+  const body = await request.json()
+  const res = await fetch(`${BACKEND}/audit/alert-config`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  return NextResponse.json(await res.json(), { status: res.status })
 }

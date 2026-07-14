@@ -2,7 +2,7 @@ import { createClient } from './supabase/server'
 
 export async function validateAdminAccess() {
   try {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL === 'http://127.0.0.1:54321') {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes('placeholder')) {
       // Fallback for local development if Supabase isn't properly configured or is using the placeholder
       return { authorized: true, user: { id: 'dev-user' }, supabase: null, status: 200, isDevFallback: true }
     }

@@ -55,15 +55,31 @@ import os
 
 app.include_router(api_router, prefix="/api/v1")
 
+# WhatsApp Bot endpoint (called by the Baileys Node service)
+from api.v1.endpoints.whatsapp_bot import router as bot_router
+app.include_router(bot_router, prefix="/api/v1")
+
 storage_path = os.path.join(os.getcwd(), "storage")
 os.makedirs(storage_path, exist_ok=True)
 app.mount("/storage", StaticFiles(directory=storage_path), name="storage")
 
 
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     from core.sync import run_historical_sync
     run_historical_sync()
+
+    # Auto-create audit tables (AuditEvent, AlertHistory, CameraSnapshot, AlertConfig, WhatsAppBotLog)
+    from models.audit import AuditEvent, AlertHistory, CameraSnapshot, AlertConfig, WhatsAppBotLog  # noqa – ensures registration
+    from database import engine, Base
+    Base.metadata.create_all(bind=engine, checkfirst=True)
+
+    # Start the continuous Audit Listener for real-time alerts (Voids, Discounts, etc.)
+    import asyncio
+    from services.audit_listener import poll_audit_events, scan_inventory_flags
+    asyncio.create_task(poll_audit_events(poll_interval=2.0))
+    # Scan inventory for expired/near-expiry batches immediately, then every hour
+    asyncio.create_task(scan_inventory_flags(scan_interval_seconds=3600.0))
     
     # Initialize APScheduler for Cron Jobs
     try:

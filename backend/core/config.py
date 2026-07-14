@@ -15,9 +15,20 @@ class Settings(BaseSettings):
     # Supabase (for cloud sync logic)
     SUPABASE_URL: Optional[str] = None
     SUPABASE_KEY: Optional[str] = None
+    SUPABASE_SERVICE_KEY: Optional[str] = None
 
     # POS Workflow Mode: SINGLE_COUNTER or DUAL_COUNTER
     POS_WORKFLOW_MODE: str = "SINGLE_COUNTER"
+    
+    # WhatsApp testing config
+    TEST_WHATSAPP_NUMBER: str = "+920000000000"
+
+    # WhatsApp Report Bot
+    # Comma-separated authorized phone numbers (E.164 without +), e.g. 923144236077
+    WHATSAPP_BOT_WHITELIST: Optional[str] = None
+    # URL of this FastAPI backend (used by the Node Baileys service)
+    BACKEND_URL: str = "http://localhost:8000"
+
     
     class Config:
         env_file = ".env"

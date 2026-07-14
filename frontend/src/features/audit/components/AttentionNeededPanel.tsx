@@ -1,126 +1,155 @@
 'use client';
 
 import { useMemo } from 'react';
-import { 
-  useStaffRiskScores, 
-  useCashReconciliation, 
-  useInventoryFlags, 
-  useAlertConfigs 
+import {
+  useStaffRiskScores,
+  useCashReconciliation,
+  useInventoryFlags,
+  useAlertConfigs,
 } from '../hooks/useAuditData';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { AlertCircle, AlertTriangle, ShieldAlert, Loader2 } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, PackageX, CheckCircle2, Loader2 } from 'lucide-react';
 
 export default function AttentionNeededPanel({ branchId }: { branchId?: string }) {
-  const { data: riskScores, isLoading: isLoadingRisk } = useStaffRiskScores(branchId);
-  const { data: reconciliations, isLoading: isLoadingCash } = useCashReconciliation(branchId);
-  const { data: inventoryFlags, isLoading: isLoadingInventory } = useInventoryFlags(branchId);
-  const { data: configs, isLoading: isLoadingConfigs } = useAlertConfigs(branchId);
+  const { data: riskScores,      isLoading: l1 } = useStaffRiskScores(branchId);
+  const { data: reconciliations, isLoading: l2 } = useCashReconciliation(branchId);
+  const { data: inventoryFlags,  isLoading: l3 } = useInventoryFlags(branchId);
+  const { data: configs,         isLoading: l4 } = useAlertConfigs(branchId);
+  const isLoading = l1 || l2 || l3 || l4;
 
-  const isLoading = isLoadingRisk || isLoadingCash || isLoadingInventory || isLoadingConfigs;
-
-  const criticalIssues = useMemo(() => {
+  const issues = useMemo(() => {
     if (isLoading) return [];
-    
-    const issues = [];
+    const list: any[] = [];
 
-    // 1. Red-Risk Staff
-    if (riskScores) {
-      const redStaff = riskScores.filter((r: any) => r.risk_level === 'red');
-      redStaff.forEach((staff: any) => {
-        issues.push({
-          type: 'staff_risk',
-          icon: <ShieldAlert className="w-5 h-5 text-red-500" />,
-          title: `Critical Staff Risk: ${staff.staff_id}`,
-          description: `Risk Score: ${staff.risk_score}/100. High voids/refunds detected.`,
-          severity: 'high'
-        });
+    (riskScores || []).filter((r: any) => r.risk_level === 'red').forEach((s: any) => {
+      list.push({
+        id:          `risk-${s.staff_id}`,
+        kind:        'staff',
+        title:       `High-Risk Staff: ${s.staff_name || s.staff_id}`,
+        detail:      `Score ${s.risk_score}/100 — ${s.void_count} voids, ${s.refund_count} refunds`,
+        severity:    'critical',
       });
-    }
+    });
 
-    // 2. Large Cash Variances (using dynamic threshold)
-    if (reconciliations && configs) {
-      // Find the cash_variance config threshold. Fallback to 50 if not found.
-      const cashConfig = configs.find((c: any) => c.event_type === 'cash_variance');
-      const threshold = cashConfig?.threshold_value ? Number(cashConfig.threshold_value) : 50;
-
-      const largeVariances = reconciliations.filter((r: any) => Math.abs(Number(r.variance)) >= threshold);
-      largeVariances.forEach((rec: any) => {
-        const isShortage = Number(rec.variance) < 0;
-        issues.push({
-          type: 'cash_variance',
-          icon: <AlertTriangle className="w-5 h-5 text-orange-500" />,
-          title: `Large Cash ${isShortage ? 'Shortage' : 'Overage'} on ${rec.shift_date}`,
-          description: `Variance of $${Math.abs(Number(rec.variance)).toFixed(2)} exceeds alert threshold of $${threshold}.`,
-          severity: 'medium'
-        });
+    const cashThreshold = (configs || []).find((c: any) => c.event_type === 'cash_variance')?.threshold_value ?? 50;
+    (reconciliations || []).filter((r: any) => Math.abs(Number(r.variance)) >= cashThreshold).forEach((r: any, i: number) => {
+      const short = Number(r.variance) < 0;
+      list.push({
+        id:          `cash-${i}`,
+        kind:        'cash',
+        title:       `Cash ${short ? 'Shortage' : 'Overage'} on ${r.shift_date || 'Unknown Date'}`,
+        detail:      `Rs ${Math.abs(Number(r.variance)).toFixed(2)} variance (threshold: Rs ${cashThreshold})`,
+        severity:    'high',
       });
-    }
+    });
 
-    // 3. Expired Stock
-    if (inventoryFlags) {
-      const expired = inventoryFlags.filter((f: any) => f.flag_type === 'expired');
-      expired.forEach((flag: any) => {
-        issues.push({
-          type: 'inventory',
-          icon: <AlertCircle className="w-5 h-5 text-red-500" />,
-          title: `Expired Stock Detected`,
-          description: `Product ID: ${flag.product_id}. Still in active stock!`,
-          severity: 'high'
-        });
+    (inventoryFlags || []).filter((f: any) => f.flag_type === 'expired').slice(0, 5).forEach((f: any) => {
+      list.push({
+        id:          `inv-${f.id}`,
+        kind:        'inventory',
+        title:       `Expired Stock: ${f.product_name}`,
+        detail:      `Batch ${f.batch_no || '—'} expired ${Math.abs(f.days_remaining ?? 0)}d ago — ${f.qty} units on shelf`,
+        severity:    'critical',
       });
-    }
+    });
 
-    return issues;
+    return list;
   }, [isLoading, riskScores, reconciliations, inventoryFlags, configs]);
+
+  const SEVERITY = {
+    critical: {
+      bg:     'bg-red-50 dark:bg-red-950/20',
+      border: 'border-red-200 dark:border-red-800/60',
+      bar:    'bg-red-500',
+      icon:   <ShieldAlert className="w-5 h-5 text-red-500" />,
+      badge:  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+      text:   'CRITICAL',
+    },
+    high: {
+      bg:     'bg-orange-50 dark:bg-orange-950/20',
+      border: 'border-orange-200 dark:border-orange-800/60',
+      bar:    'bg-orange-500',
+      icon:   <AlertTriangle className="w-5 h-5 text-orange-500" />,
+      badge:  'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+      text:   'HIGH',
+    },
+    medium: {
+      bg:     'bg-yellow-50 dark:bg-yellow-950/20',
+      border: 'border-yellow-200 dark:border-yellow-800/60',
+      bar:    'bg-yellow-500',
+      icon:   <PackageX className="w-5 h-5 text-yellow-600" />,
+      badge:  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+      text:   'MEDIUM',
+    },
+  } as const;
 
   if (isLoading) {
     return (
-      <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/10 dark:border-red-900/50">
-        <CardContent className="p-6 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-red-500" />
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-20 rounded-xl bg-zinc-100 dark:bg-zinc-800/60 animate-pulse" />
+        ))}
+      </div>
     );
   }
 
-  if (criticalIssues.length === 0) {
+  if (issues.length === 0) {
     return (
-      <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/10 dark:border-green-900/50">
-        <CardContent className="p-6">
-          <p className="text-green-700 dark:text-green-400 font-medium flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            All clear. No critical attention needed at this time.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-4 px-5 py-4 rounded-xl border border-green-200 dark:border-green-800/60 bg-green-50 dark:bg-green-950/20">
+        <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+        </div>
+        <div>
+          <p className="font-semibold text-green-800 dark:text-green-300 text-sm">All Clear</p>
+          <p className="text-green-600 dark:text-green-500 text-xs mt-0.5">No critical issues detected. System operating normally.</p>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-green-600 dark:text-green-400 text-xs font-medium">Live</span>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="border-red-200 bg-white dark:bg-zinc-950 dark:border-red-900/50 shadow-sm">
-      <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800">
-        <CardTitle className="text-red-600 dark:text-red-400 flex items-center gap-2 text-lg">
-          <AlertCircle className="w-5 h-5" />
-          Attention Needed
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-          {criticalIssues.map((issue, idx) => (
-            <div key={idx} className="flex items-start gap-4 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
-              <div className="mt-0.5">{issue.icon}</div>
-              <div>
-                <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  {issue.title}
-                </h4>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  {issue.description}
-                </p>
+    <div className="space-y-2">
+      {/* Summary bar */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+          {issues.length} issue{issues.length !== 1 ? 's' : ''} require attention
+        </p>
+        <span className="text-xs text-zinc-400">{new Date().toLocaleTimeString()}</span>
+      </div>
+
+      {/* Issue cards — horizontal scrolling row on mobile, grid on desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {issues.map((issue, idx) => {
+          const sev = SEVERITY[issue.severity as keyof typeof SEVERITY] || SEVERITY.medium;
+          return (
+            <div
+              key={issue.id}
+              className={`relative overflow-hidden rounded-xl border ${sev.bg} ${sev.border} p-4 transition-transform duration-200 hover:scale-[1.02] hover:shadow-md`}
+              style={{ animationDelay: `${idx * 80}ms`, animation: 'fadeSlideUp 0.4s ease both' }}
+            >
+              {/* Left accent bar */}
+              <div className={`absolute left-0 top-0 bottom-0 w-1 ${sev.bar}`} />
+
+              <div className="flex items-start gap-3 pl-2">
+                <div className="flex-shrink-0 mt-0.5">{sev.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${sev.badge}`}>
+                      {sev.text}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-1 leading-tight">{issue.title}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-snug">{issue.detail}</p>
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }

@@ -121,14 +121,22 @@ class CRUDBatch(CRUDBase[Batch, BatchCreate, BatchCreate]): # UpdateSchema not d
         Sorted by earliest expiry date.
         """
         from datetime import date
-        return db.query(Batch).filter(
+        from sqlalchemy import func
+        today = date.today()
+        q = db.query(Batch).filter(
             or_(Batch.tenant_id == tenant_id, Batch.tenant_id == None),
-            Batch.branch_id == branch_id,
             Batch.medicine_id == medicine_id,
             Batch.is_deleted == False,
             Batch.status == "Active",
-            Batch.expiry_date > date.today(),
-            (Batch.current_quantity - Batch.reserved_quantity) > 0
-        ).order_by(Batch.expiry_date.asc()).all()
+            # Include today — pharmacists can sell on the expiry date itself
+            Batch.expiry_date >= today,
+            # Use coalesce to treat NULL reserved_quantity as 0
+            Batch.current_quantity - func.coalesce(Batch.reserved_quantity, 0) > 0
+        )
+        # Only filter by branch when a real branch_id is provided
+        # (single-branch setups or POS may send empty string)
+        if branch_id:
+            q = q.filter(Batch.branch_id == branch_id)
+        return q.order_by(Batch.expiry_date.asc()).all()
 
 batch_repo = CRUDBatch(Batch)

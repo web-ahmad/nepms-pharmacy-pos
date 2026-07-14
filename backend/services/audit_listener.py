@@ -1,349 +1,428 @@
+"""
+Audit Listener – polls the local SQLite audit_events table every 2 seconds,
+runs the appropriate handler, captures a webcam snapshot, and sends a
+WhatsApp alert via the Baileys Node service.
+
+No Supabase required – uses the same SQLAlchemy session as the rest of the app.
+"""
+
 import asyncio
-import os
 import logging
 import datetime
-from supabase import create_client, Client
-from dotenv import load_dotenv
+import base64
+import os
+import uuid
 
-from services.camera_service import capture_snapshot
-from services.whatsapp_api import send_whatsapp_alert
+from database import SessionLocal
+from models.audit import AuditEvent, AlertHistory, CameraSnapshot, AlertConfig
 
-# Load environment variables
-load_dotenv()
-
-# Configure Logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Initialize Supabase Client
-SUPABASE_URL = os.getenv("SUPABASE_URL", "http://localhost:8000")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "your_service_key")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# ──────────────────────────────────────────────────────────────────────────────
+# Snapshot helper – laptop webcam via OpenCV
+# ──────────────────────────────────────────────────────────────────────────────
 
-# ==========================================
-# Snapshot Helper
-# ==========================================
-
-async def process_camera_snapshot(event_id: str, branch_id: str, created_at: str) -> str | None:
-    """Captures a snapshot and persists it to the database if successful."""
-    snapshot_url = await capture_snapshot(branch_id, created_at)
-    
-    if snapshot_url:
+async def _capture_webcam_snapshot(event_id: str, branch_id: str) -> str | None:
+    """Captures one frame from the default webcam, saves it to disk, returns path."""
+    def _do_capture():
         try:
-            supabase.table("camera_snapshots").insert({
-                "audit_event_id": event_id,
-                "branch_id": branch_id,
-                "camera_id": "POS_CAM_1",  # Configurable per branch in a real setup
-                "image_url": snapshot_url,
-                "captured_at": created_at
-            }).execute()
+            import cv2
+            import time
+
+            cap = cv2.VideoCapture(0)
+            if not cap.isOpened():
+                logger.warning("Webcam not available – skipping snapshot.")
+                return None
+
+            time.sleep(0.6)          # warm-up
+            ret, frame = cap.read()
+            cap.release()
+
+            if not ret:
+                logger.warning("Webcam read failed.")
+                return None
+
+            # Save to backend/storage/snapshots/
+            snap_dir = os.path.join(os.getcwd(), "storage", "snapshots")
+            os.makedirs(snap_dir, exist_ok=True)
+            filename = f"{event_id}_{uuid.uuid4().hex[:6]}.jpg"
+            filepath = os.path.join(snap_dir, filename)
+            cv2.imwrite(filepath, frame)
+            # Return a URL relative to the backend static mount
+            return f"/storage/snapshots/{filename}"
         except Exception as e:
-            logger.error(f"Failed to save camera snapshot record for event {event_id}: {e}")
-            
-    return snapshot_url
+            logger.error(f"Webcam capture error: {e}")
+            return None
+
+    return await asyncio.to_thread(_do_capture)
 
 
-# ==========================================
-# Handlers for Specific Audit Events
-# ==========================================
+# ──────────────────────────────────────────────────────────────────────────────
+# WhatsApp helper
+# ──────────────────────────────────────────────────────────────────────────────
 
-async def void_handler(event_data: dict):
-    event_id = event_data.get('id')
-    branch_id = event_data.get('branch_id')
-    event_type = event_data.get('event_type')
-    metadata = event_data.get('metadata', {})
-    created_at = event_data.get('created_at')
-    
-    logger.info(f"Handling void event: {event_id}")
-    
-    # 1. Fetch alert_config for this branch/event_type to check if alerts are enabled
-    config_resp = supabase.table("alert_config") \
-        .select("*") \
-        .eq("branch_id", branch_id) \
-        .eq("event_type", event_type) \
-        .eq("is_enabled", True) \
-        .execute()
-    
-    configs = config_resp.data
-    if not configs:
-        logger.info(f"Alerts disabled or not configured for branch {branch_id}, event {event_type}")
-        return
-
-    # 2. Trigger the camera snapshot service (Phase 3)
-    snapshot_url = await process_camera_snapshot(event_id, branch_id, created_at)
-
-    # 3. Format the alert message
-    staff_name = metadata.get('staff_name', 'Unknown Staff')
-    item_name = metadata.get('item_name', 'Unknown Item')
-    amount = metadata.get('amount', 0.0)
-    reason = metadata.get('reason', 'No reason provided')
-    
-    message = (
-        f"🚨 *Suspicious Void Detected*\n\n"
-        f"👤 *Staff*: {staff_name}\n"
-        f"📦 *Item*: {item_name}\n"
-        f"💰 *Amount*: ${amount:.2f}\n"
-        f"📝 *Reason*: {reason}\n"
-        f"🕒 *Time*: {created_at}\n\n"
-        f"Please check the attached snapshot from the POS camera."
-    )
-    
-    # 4 & 5. Call WhatsApp service and log in alert_history
-    for config in configs:
-        notify_via = config.get('notify_via')
-        owner_id = config.get('owner_id')
-        
-        # In a real scenario, fetch owner's phone number from a users/profiles table
-        phone_number = "+1234567890" 
-        
-        if notify_via in ['whatsapp', 'both']:
-            # Call WhatsApp service (Phase 4)
-            # Service inherently handles retries and logs to alert_history
-            await send_whatsapp_alert(event_id, owner_id, phone_number, message, snapshot_url)
-            
-        if notify_via in ['dashboard', 'both']:
-            supabase.table("alert_history").insert({
-                "audit_event_id": event_id,
-                "sent_to": owner_id,
-                "channel": "dashboard",
-                "status": "pending" # UI dashboard reads pending alerts
-            }).execute()
-
-async def discount_handler(event_data: dict):
-    event_id = event_data.get('id')
-    branch_id = event_data.get('branch_id')
-    event_type = event_data.get('event_type')
-    metadata = event_data.get('metadata', {})
-    created_at = event_data.get('created_at')
-    
-    logger.info(f"Handling discount event: {event_id}")
-    
-    config_resp = supabase.table("alert_config") \
-        .select("*") \
-        .eq("branch_id", branch_id) \
-        .eq("event_type", event_type) \
-        .eq("is_enabled", True) \
-        .execute()
-    
-    configs = config_resp.data
-    if not configs:
-        return
-        
-    discount_pct = float(metadata.get('discount_percent', 0.0))
-    # Only alert if the discount exceeds the owner's configured threshold
-    active_configs = [c for c in configs if discount_pct > float(c.get('threshold_value') or 100.0)]
-    
-    if not active_configs:
-        logger.info(f"Discount ({discount_pct}%) below threshold for event {event_id}")
-        return
-
-    snapshot_url = await process_camera_snapshot(event_id, branch_id, created_at)
-    
-    staff_name = metadata.get('staff_name', 'Unknown Staff')
-    item_name = metadata.get('item_name', 'Unknown Item')
-    original_price = metadata.get('original_price', 0.0)
-    
-    message = (
-        f"🚨 *Large Discount Detected*\n\n"
-        f"👤 *Staff*: {staff_name}\n"
-        f"📦 *Item*: {item_name}\n"
-        f"💰 *Original Price*: ${original_price:.2f}\n"
-        f"✂️ *Discount*: {discount_pct}%\n"
-        f"🕒 *Time*: {created_at}\n\n"
-        f"Check snapshot for visual confirmation."
-    )
-    
-    for config in active_configs:
-        notify_via = config.get('notify_via')
-        owner_id = config.get('owner_id')
-        phone_number = "+1234567890" 
-        
-        if notify_via in ['whatsapp', 'both']:
-            await send_whatsapp_alert(event_id, owner_id, phone_number, message, snapshot_url)
-            
-        if notify_via in ['dashboard', 'both']:
-            supabase.table("alert_history").insert({
-                "audit_event_id": event_id,
-                "sent_to": owner_id,
-                "channel": "dashboard",
-                "status": "pending"
-            }).execute()
-
-async def refund_handler(event_data: dict):
-    event_id = event_data.get('id')
-    branch_id = event_data.get('branch_id')
-    staff_id = event_data.get('staff_id')
-    event_type = event_data.get('event_type')
-    metadata = event_data.get('metadata', {})
-    created_at = event_data.get('created_at')
-    
-    logger.info(f"Handling refund event: {event_id}")
-    
-    customer_id = metadata.get('customer_id')
-    
-    config_resp = supabase.table("alert_config") \
-        .select("*") \
-        .eq("branch_id", branch_id) \
-        .eq("event_type", event_type) \
-        .eq("is_enabled", True) \
-        .execute()
-    
-    configs = config_resp.data
-    if not configs:
-        return
-        
-    is_repeated = False
-    
-    if customer_id:
-        thirty_days_ago = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=30)).isoformat()
-        
-        past_refunds = supabase.table("audit_events") \
-            .select("id") \
-            .eq("branch_id", branch_id) \
-            .eq("staff_id", staff_id) \
-            .eq("event_type", "refund") \
-            .gt("created_at", thirty_days_ago) \
-            .neq("id", event_id) \
-            .contains("metadata", {"customer_id": customer_id}) \
-            .execute()
-            
-        if past_refunds.data and len(past_refunds.data) > 0:
-            is_repeated = True
-            supabase.table("audit_events").update({"severity": "high"}).eq("id", event_id).execute()
-            logger.warning(f"Repeated refund detected for staff {staff_id} and customer {customer_id}. Severity escalated.")
-
-    snapshot_url = await process_camera_snapshot(event_id, branch_id, created_at)
-    
-    staff_name = metadata.get('staff_name', 'Unknown Staff')
-    amount = metadata.get('amount', 0.0)
-    reason = metadata.get('reason', 'No reason provided')
-    
-    alert_prefix = "🚨 *ESCALATED: Repeated Refund Detected*" if is_repeated else "⚠️ *Refund Issued*"
-    
-    message = (
-        f"{alert_prefix}\n\n"
-        f"👤 *Staff*: {staff_name}\n"
-        f"💰 *Amount*: ${amount:.2f}\n"
-        f"📝 *Reason*: {reason}\n"
-        f"🕒 *Time*: {created_at}\n\n"
-        f"Check snapshot for visual confirmation."
-    )
-    
-    for config in configs:
-        notify_via = config.get('notify_via')
-        owner_id = config.get('owner_id')
-        phone_number = "+1234567890"
-        
-        if notify_via in ['whatsapp', 'both']:
-            await send_whatsapp_alert(event_id, owner_id, phone_number, message, snapshot_url)
-            
-        if notify_via in ['dashboard', 'both']:
-            supabase.table("alert_history").insert({
-                "audit_event_id": event_id,
-                "sent_to": owner_id,
-                "channel": "dashboard",
-                "status": "pending"
-            }).execute()
-
-async def drawer_handler(event_data: dict):
-    event_id = event_data.get('id')
-    branch_id = event_data.get('branch_id')
-    created_at = event_data.get('created_at')
-    logger.info(f"Handling drawer_open event: {event_id}")
-    await process_camera_snapshot(event_id, branch_id, created_at)
-
-async def stock_handler(event_data: dict):
-    logger.info(f"Handling stock_adjustment event: {event_data.get('id')}")
-
-async def expiry_handler(event_data: dict):
-    logger.info(f"Handling expired_sale event: {event_data.get('id')}")
-
-async def after_hours_handler(event_data: dict):
-    event_id = event_data.get('id')
-    branch_id = event_data.get('branch_id')
-    created_at = event_data.get('created_at')
-    logger.info(f"Handling after_hours_login event: {event_id}")
-    await process_camera_snapshot(event_id, branch_id, created_at)
+WHATSAPP_SERVICE_URL = os.getenv("WHATSAPP_SERVICE_URL", "http://localhost:3001")
+TEST_WHATSAPP_NUMBER = os.getenv("TEST_WHATSAPP_NUMBER", "")
 
 
-# ==========================================
-# Event Router
-# ==========================================
+async def _send_whatsapp(event_id: str, message: str, image_url: str | None) -> bool:
+    """Calls the local Baileys Node service /send endpoint."""
+    if not TEST_WHATSAPP_NUMBER:
+        logger.warning("TEST_WHATSAPP_NUMBER not set – skipping WhatsApp alert.")
+        return False
 
-async def route_event(event_data: dict):
-    """
-    Routes the event to the appropriate handler asynchronously.
-    """
-    event_type = event_data.get('event_type')
-    
-    handlers = {
-        'void': void_handler,
-        'discount': discount_handler,
-        'refund': refund_handler,
-        'drawer_open': drawer_handler,
-        'stock_adjustment': stock_handler,
-        'expired_sale': expiry_handler,
-        'after_hours_login': after_hours_handler
-    }
-    
-    handler = handlers.get(event_type)
-    if handler:
-        try:
-            # Await the specific handler's logic
-            await handler(event_data)
-        except Exception as e:
-            logger.error(f"Error executing handler for {event_type}: {e}")
-    else:
-        logger.warning(f"No handler found for event_type: {event_type}")
+    # Build absolute image URL if local path
+    abs_image_url = None
+    if image_url and image_url.startswith("/storage"):
+        abs_image_url = f"http://localhost:8000{image_url}"
+    elif image_url:
+        abs_image_url = image_url
 
-
-# ==========================================
-# Listener Logic (Async Polling)
-# ==========================================
-# We use async polling here to guarantee event delivery even if the service 
-# restarts or websockets drop. It also integrates seamlessly with asyncio 
-# without thread synchronization complexities.
-
-async def poll_audit_events(poll_interval: float = 2.0):
-    logger.info("Starting async polling for audit_events...")
-    
-    # 1. On startup, fetch the most recent created_at to avoid re-processing old events.
-    last_processed_time = "1970-01-01T00:00:00Z"
     try:
-        response = supabase.table("audit_events").select("created_at").order("created_at", desc=True).limit(1).execute()
-        if response.data:
-            last_processed_time = response.data[0]['created_at']
-            logger.info(f"Resuming listener from: {last_processed_time}")
-    except Exception as e:
-        logger.error(f"Error fetching initial state: {e}")
+        import aiohttp
+        payload = {
+            "phone": TEST_WHATSAPP_NUMBER,
+            "message": message,
+        }
+        if abs_image_url:
+            payload["imageUrl"] = abs_image_url
 
-    # 2. Continuous async polling loop
+        async with aiohttp.ClientSession() as session:
+            # Check if Baileys service is running
+            try:
+                async with session.get(f"{WHATSAPP_SERVICE_URL}/health", timeout=aiohttp.ClientTimeout(total=3)) as r:
+                    if r.status != 200:
+                        logger.warning("WhatsApp service not ready – skipping alert.")
+                        return False
+                    health = await r.json()
+                    if not health.get("connected"):
+                        logger.warning("WhatsApp not connected (no QR scanned yet) – skipping alert.")
+                        return False
+            except Exception:
+                logger.warning("WhatsApp service unreachable – skipping alert.")
+                return False
+
+            async with session.post(
+                f"{WHATSAPP_SERVICE_URL}/send",
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
+                if resp.status == 200:
+                    logger.info(f"WhatsApp alert sent to {TEST_WHATSAPP_NUMBER}")
+                    return True
+                else:
+                    text = await resp.text()
+                    logger.error(f"WhatsApp send failed ({resp.status}): {text}")
+                    return False
+    except Exception as e:
+        logger.error(f"WhatsApp send error: {e}")
+        return False
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DB helpers
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _save_snapshot(db, event_id: str, branch_id: str, image_url: str):
+    snap = CameraSnapshot(
+        audit_event_id=event_id,
+        branch_id=branch_id,
+        image_url=image_url,
+    )
+    db.add(snap)
+    db.commit()
+
+
+def _log_alert(db, event_id: str, channel: str, status: str, error: str | None = None):
+    db.add(AlertHistory(
+        audit_event_id=event_id,
+        sent_to=TEST_WHATSAPP_NUMBER or "dashboard",
+        channel=channel,
+        status=status,
+        error_message=error,
+    ))
+    db.commit()
+
+
+def _get_configs(db, branch_id: str, event_type: str):
+    return db.query(AlertConfig).filter(
+        AlertConfig.branch_id == branch_id,
+        AlertConfig.event_type == event_type,
+        AlertConfig.is_enabled == True,
+    ).all()
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Event handlers
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def _handle_void(event: AuditEvent, db):
+    meta = event.metadata_ or {}
+    configs = _get_configs(db, event.branch_id, "void")
+
+    # If no alert_config rows exist yet, still capture + send to the test number
+    should_alert = bool(configs) or bool(TEST_WHATSAPP_NUMBER)
+
+    if not should_alert:
+        return
+
+    image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
+    if image_url:
+        _save_snapshot(db, event.id, event.branch_id, image_url)
+
+    staff_name = meta.get("staff_name", "Unknown Staff")
+    item_name  = meta.get("item_name",  "Unknown Item")
+    amount     = meta.get("amount", 0.0)
+    reason     = meta.get("reason", "No reason provided")
+    invoice    = meta.get("invoice_number", "")
+
+    msg = (
+        f"🚨 *Suspicious Void Detected*\n\n"
+        f"📋 *Invoice*: {invoice}\n"
+        f"👤 *Staff*: {staff_name}\n"
+        f"📦 *Item*: {item_name}\n"
+        f"💰 *Amount*: PKR {float(amount):.2f}\n"
+        f"📝 *Reason*: {reason}\n"
+        f"🕒 *Time*: {event.created_at}\n\n"
+        f"{'📷 Snapshot attached.' if image_url else '📷 Camera unavailable.'}"
+    )
+
+    success = await _send_whatsapp(event.id, msg, image_url)
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+
+
+async def _handle_discount(event: AuditEvent, db):
+    meta = event.metadata_ or {}
+    image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
+    if image_url:
+        _save_snapshot(db, event.id, event.branch_id, image_url)
+
+    msg = (
+        f"🚨 *Large Discount Applied*\n\n"
+        f"👤 *Staff*: {meta.get('staff_name', 'Unknown')}\n"
+        f"✂️ *Discount*: {meta.get('discount_percent', 0)}%\n"
+        f"🕒 *Time*: {event.created_at}"
+    )
+    success = await _send_whatsapp(event.id, msg, image_url)
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+
+
+async def _handle_refund(event: AuditEvent, db):
+    meta = event.metadata_ or {}
+    image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
+    if image_url:
+        _save_snapshot(db, event.id, event.branch_id, image_url)
+
+    msg = (
+        f"⚠️ *Refund Issued*\n\n"
+        f"👤 *Staff*: {meta.get('staff_name', 'Unknown')}\n"
+        f"💰 *Amount*: PKR {float(meta.get('amount', 0)):.2f}\n"
+        f"📝 *Reason*: {meta.get('reason', 'N/A')}\n"
+        f"🕒 *Time*: {event.created_at}"
+    )
+    success = await _send_whatsapp(event.id, msg, image_url)
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+
+
+async def _handle_cash_variance(event: AuditEvent, db):
+    meta = event.metadata_ or {}
+    variance = float(meta.get('variance', 0))
+
+    # Always capture a snapshot when a shift closes
+    image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
+    if image_url:
+        _save_snapshot(db, event.id, event.branch_id, image_url)
+
+    direction = meta.get('variance_type', 'SHORT' if variance < 0 else 'OVER')
+    emoji = '🔴' if variance < 0 else '🟡'
+
+    msg = (
+        f"{emoji} *Cash Drawer {direction} Detected*\n\n"
+        f"👤 *Cashier*: {meta.get('staff_name', 'Unknown')}\n"
+        f"📅 *Shift Date*: {meta.get('shift_date', 'N/A')}\n"
+        f"💵 *Expected*: PKR {float(meta.get('expected_cash', 0)):.2f}\n"
+        f"💵 *Actual*:   PKR {float(meta.get('actual_cash', 0)):.2f}\n"
+        f"⚖️  *Variance*:  PKR {abs(variance):.2f} ({direction})\n"
+        f"📝 *Notes*: {meta.get('notes', 'None')}\n"
+        f"🕒 *Closed At*: {event.created_at}\n\n"
+        f"{'📷 Snapshot attached.' if image_url else '📷 Camera unavailable.'}"
+    )
+    success = await _send_whatsapp(event.id, msg, image_url)
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+
+
+async def _handle_expired(event: AuditEvent, db):
+    """Camera + WhatsApp when an expired-stock alert fires."""
+    meta = event.metadata_ or {}
+    image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
+    if image_url:
+        _save_snapshot(db, event.id, event.branch_id, image_url)
+
+    msg = (
+        f"🔴 *Expired Stock Detected*\n\n"
+        f"💊 *Product*: {meta.get('product_name', 'Unknown')}\n"
+        f"🏷️  *Batch*:   {meta.get('batch_no', 'N/A')}\n"
+        f"📅 *Expired*: {meta.get('expiry_date', 'N/A')}\n"
+        f"📦 *Qty on Hand*: {meta.get('qty', 0)} units\n"
+        f"🕒 *Detected*: {event.created_at}\n\n"
+        f"⚠️ Please remove this batch from the shelf immediately."
+    )
+    success = await _send_whatsapp(event.id, msg, image_url)
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+
+
+async def _handle_near_expiry(event: AuditEvent, db):
+    """WhatsApp warning for stock expiring within 30 days."""
+    meta = event.metadata_ or {}
+    image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
+    if image_url:
+        _save_snapshot(db, event.id, event.branch_id, image_url)
+
+    msg = (
+        f"🟡 *Near-Expiry Stock Warning*\n\n"
+        f"💊 *Product*: {meta.get('product_name', 'Unknown')}\n"
+        f"🏷️  *Batch*:   {meta.get('batch_no', 'N/A')}\n"
+        f"📅 *Expires*: {meta.get('expiry_date', 'N/A')} "
+        f"({meta.get('days_remaining', '?')} days left)\n"
+        f"📦 *Qty on Hand*: {meta.get('qty', 0)} units\n"
+        f"🕒 *Detected*: {event.created_at}\n\n"
+        f"💡 Prioritise selling or returning this batch."
+    )
+    success = await _send_whatsapp(event.id, msg, image_url)
+    _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Inventory scanner – runs once on startup then every hour
+# Finds expired / near-expiry batches and inserts AuditEvents so the listener
+# fires camera + WhatsApp for each one (deduplicated by batch_no + day).
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def scan_inventory_flags(scan_interval_seconds: float = 3600.0):
+    """Background task: periodically scan for expired/near-expiry batches."""
+    import datetime
+    from database import SessionLocal
+    from models.audit import AuditEvent
+    from models.inventory import Batch, Medicine
+
+    logger.info("Inventory scanner started – interval %.0fs", scan_interval_seconds)
+
     while True:
         try:
-            # Query for events strictly newer than our last processed time
-            response = supabase.table("audit_events") \
-                .select("*") \
-                .gt("created_at", last_processed_time) \
-                .order("created_at", desc=False) \
-                .execute()
-            
-            for event in response.data:
-                # 3. Dispatch the router as an independent asyncio task 
-                # so the polling loop is never blocked by a slow handler (like an API call).
-                asyncio.create_task(route_event(event))
-                
-                # Update the watermark
-                last_processed_time = event['created_at']
-                
+            db = SessionLocal()
+            today = datetime.date.today()
+            soon  = today + datetime.timedelta(days=30)
+
+            try:
+                batches = (
+                    db.query(Batch, Medicine)
+                    .join(Medicine, Batch.medicine_id == Medicine.id)
+                    .filter(Batch.is_deleted == False, Batch.current_quantity > 0)
+                    .all()
+                )
+
+                for batch, medicine in batches:
+                    if not batch.expiry_date:
+                        continue
+
+                    exp = (
+                        batch.expiry_date
+                        if isinstance(batch.expiry_date, datetime.date)
+                        else batch.expiry_date.date()
+                    )
+
+                    if exp >= soon:          # more than 30 days away — skip
+                        continue
+
+                    flag_type = "expired" if exp < today else "near_expiry"
+                    days_rem  = (exp - today).days
+
+                    # Dedup: only one alert per batch per day
+                    dedup_key = f"{batch.id}:{today.isoformat()}"
+                    already   = (
+                        db.query(AuditEvent)
+                        .filter(
+                            AuditEvent.event_type == flag_type,
+                            AuditEvent.transaction_id == dedup_key,
+                        )
+                        .first()
+                    )
+                    if already:
+                        continue
+
+                    severity = "high" if flag_type == "expired" else "medium"
+                    ev = AuditEvent(
+                        branch_id      = str(batch.branch_id),
+                        staff_id       = "system",
+                        event_type     = flag_type,
+                        transaction_id = dedup_key,
+                        metadata_      = {
+                            "product_name":  medicine.name,
+                            "product_id":    str(medicine.id),
+                            "batch_no":      batch.batch_number or str(batch.id),
+                            "expiry_date":   exp.isoformat(),
+                            "days_remaining": days_rem,
+                            "qty":           batch.current_quantity,
+                        },
+                        severity       = severity,
+                    )
+                    db.add(ev)
+
+                db.commit()
+                logger.info("Inventory scan complete for %s – new events committed.", today)
+
+            except Exception as scan_err:
+                logger.warning("Inventory scan error: %s", scan_err)
+            finally:
+                db.close()
+
+        except Exception as outer_err:
+            logger.error("Inventory scanner outer error: %s", outer_err)
+
+        await asyncio.sleep(scan_interval_seconds)
+
+
+HANDLERS = {
+    "void":           _handle_void,
+    "discount":       _handle_discount,
+    "refund":         _handle_refund,
+    "cash_variance":  _handle_cash_variance,
+    "expired":        _handle_expired,
+    "near_expiry":    _handle_near_expiry,
+}
+
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Polling loop – runs as a background asyncio task inside FastAPI
+# ──────────────────────────────────────────────────────────────────────────────
+
+async def poll_audit_events(poll_interval: float = 2.0):
+    logger.info("Audit listener started – polling every %.1fs", poll_interval)
+
+    last_processed_at = datetime.datetime.utcnow() - datetime.timedelta(seconds=10)
+
+    while True:
+        try:
+            db = SessionLocal()
+            try:
+                events = (
+                    db.query(AuditEvent)
+                    .filter(AuditEvent.created_at > last_processed_at)
+                    .order_by(AuditEvent.created_at.asc())
+                    .all()
+                )
+
+                for event in events:
+                    last_processed_at = event.created_at
+                    handler = HANDLERS.get(event.event_type)
+                    if handler:
+                        asyncio.create_task(handler(event, db))
+                    else:
+                        logger.debug("No handler for event_type=%s", event.event_type)
+            finally:
+                db.close()
         except Exception as e:
-            logger.error(f"Polling error: {e}")
-            
-        # Non-blocking sleep
+            logger.error("Audit poll error: %s", e)
+
         await asyncio.sleep(poll_interval)
-
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(poll_audit_events(poll_interval=2.0))
-    except KeyboardInterrupt:
-        logger.info("Audit Listener stopped manually.")

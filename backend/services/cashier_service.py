@@ -74,6 +74,41 @@ class CashierService:
 
         db.commit()
         db.refresh(session)
+
+        # ── Audit Event: Cash Variance ──────────────────────────────────
+        # Log every shift close so Cash Reconciliation shows data.
+        # Also triggers an alert when the shortage/overage is significant.
+        try:
+            from models.audit import AuditEvent
+            import logging as _log
+            variance = closing_balance_actual - expected
+            severity = "high" if abs(variance) >= 100 else "medium" if abs(variance) >= 20 else "low"
+            cashier_name = session.cashier.username if session.cashier else str(user_id)
+            audit_ev = AuditEvent(
+                branch_id=str(branch_id),
+                staff_id=str(user_id),
+                event_type="cash_variance",
+                transaction_id=str(session.id),
+                metadata_={
+                    "staff_name":     cashier_name,
+                    "expected_cash":  float(expected),
+                    "actual_cash":    float(closing_balance_actual),
+                    "variance":       float(variance),
+                    "variance_type":  "SHORT" if variance < 0 else "OVER",
+                    "notes":          discrepancy_notes or "",
+                    "shift_date":     session.closed_at.date().isoformat(),
+                },
+                severity=severity,
+            )
+            db.add(audit_ev)
+            db.commit()
+            _log.getLogger(__name__).info(
+                f"Cash variance audit event logged for session {session.id}: variance={variance:.2f}"
+            )
+        except Exception as audit_err:
+            import logging as _log
+            _log.getLogger(__name__).warning(f"Failed to log cash variance audit event: {audit_err}")
+
         return session
 
     # ── Petty cash expense ─────────────────────────────────────────────────

@@ -1,79 +1,78 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
 
-// Base fetcher function to inject the Authorization token if needed by your API middleware, 
-// though our Next.js API routes rely on the Supabase cookies which are automatically sent.
-async function fetchAuditData(endpoint: string) {
-  const res = await fetch(endpoint);
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || 'Failed to fetch data');
-  }
-  return res.json();
+// All audit data is fetched directly from the Python backend (/api/v1/audit/*)
+// using the same axios instance that injects the JWT token automatically.
+// This bypasses Next.js API routes entirely (no Supabase required).
+
+const BASE = '/api/v1/audit';
+
+async function fetchAudit(path: string, params?: Record<string, string>) {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  const res = await api.get(`${BASE}${path}${qs}`);
+  return res.data;
 }
 
 export function useAuditEvents(branchId?: string) {
   return useQuery({
     queryKey: ['audit', 'events', branchId],
-    queryFn: () => fetchAuditData(`/api/audit/events${branchId ? `?branch_id=${branchId}` : ''}`),
+    queryFn: () => fetchAudit('/events', branchId ? { branch_id: branchId } : undefined),
+    refetchInterval: 5000, // auto-refresh every 5s for real-time feel
   });
 }
 
 export function useStaffRiskScores(branchId?: string) {
   return useQuery({
     queryKey: ['audit', 'risk-scores', branchId],
-    queryFn: () => fetchAuditData(`/api/audit/risk-scores${branchId ? `?branch_id=${branchId}` : ''}`),
+    queryFn: () => fetchAudit('/risk-scores', branchId ? { branch_id: branchId } : undefined),
+    refetchInterval: 15000,
   });
 }
 
 export function useCashReconciliation(branchId?: string) {
   return useQuery({
     queryKey: ['audit', 'cash-reconciliation', branchId],
-    queryFn: () => fetchAuditData(`/api/audit/cash-reconciliation${branchId ? `?branch_id=${branchId}` : ''}`),
+    queryFn: () => fetchAudit('/cash-reconciliation', branchId ? { branch_id: branchId } : undefined),
+    refetchInterval: 15000,
   });
 }
 
 export function useInventoryFlags(branchId?: string) {
   return useQuery({
     queryKey: ['audit', 'inventory-flags', branchId],
-    queryFn: () => fetchAuditData(`/api/audit/inventory-flags${branchId ? `?branch_id=${branchId}` : ''}`),
+    queryFn: () => fetchAudit('/inventory-flags', branchId ? { branch_id: branchId } : undefined),
+    refetchInterval: 30000,
   });
 }
 
 export function useAlertConfigs(branchId?: string) {
   return useQuery({
     queryKey: ['audit', 'alert-config', branchId],
-    queryFn: () => fetchAuditData(`/api/audit/alert-config${branchId ? `?branch_id=${branchId}` : ''}`),
+    queryFn: () => fetchAudit('/alert-config', branchId ? { branch_id: branchId } : undefined),
   });
 }
 
 export function usePrebuiltReport(reportType: string, branchId?: string, period: string = 'daily') {
   return useQuery({
     queryKey: ['audit', 'reports', reportType, branchId, period],
-    queryFn: () => {
-      if (!branchId) return null;
-      return fetchAuditData(`/api/audit/reports/${reportType}?branch_id=${branchId}&period=${period}`);
-    },
-    enabled: !!branchId && !!reportType,
-    retry: false, // Don't aggressively retry proxy errors
+    queryFn: () =>
+      fetchAudit(`/reports/${reportType}`, {
+        ...(branchId ? { branch_id: branchId } : {}),
+        period,
+      }),
+    enabled: !!reportType,
+    retry: false,
   });
 }
 
 export function useUpdateAlertConfig() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (payload: any) => {
-      const res = await fetch('/api/audit/alert-config', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        throw new Error('Failed to update config');
-      }
-      return res.json();
+      // Backend uses POST with upsert logic (id in body → update, no id → create)
+      const res = await api.post(`${BASE}/alert-config`, payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['audit', 'alert-config'] });

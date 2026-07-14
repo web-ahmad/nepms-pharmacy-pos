@@ -27,53 +27,29 @@ async def capture_snapshot(branch_id: str, camera_id: str, timestamp: str) -> st
     Returns None if it fails, allowing the caller to degrade gracefully.
     """
     try:
-        # 1. Lookup RTSP URL
-        branch_cams = CAMERA_REGISTRY.get(branch_id, {})
-        rtsp_url = branch_cams.get(camera_id)
-        
-        if not rtsp_url:
-            logger.error(f"Camera failure: No RTSP URL found for branch {branch_id}, camera {camera_id}")
-            return None
-
-        # 2. Capture Frame using ffmpeg asynchronously
-        # -stimeout is in microseconds (5,000,000 = 5 seconds) for RTSP connection timeout.
-        # -rtsp_transport tcp ensures reliable packet delivery.
-        # -vframes 1 captures exactly one frame.
-        # -f image2 -vcodec mjpeg outputs jpeg data directly to stdout.
-        
-        process = await asyncio.create_subprocess_exec(
-            'ffmpeg', 
-            '-y', 
-            '-rtsp_transport', 'tcp', 
-            '-stimeout', '5000000', 
-            '-i', rtsp_url, 
-            '-vframes', '1', 
-            '-f', 'image2', 
-            '-vcodec', 'mjpeg', 
-            '-',
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        # Wait for the process to finish with an overarching asyncio timeout 
-        # just in case ffmpeg hangs internally.
-        try:
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=8.0)
-        except asyncio.TimeoutError:
-            process.kill()
-            logger.error(f"Camera failure: Connection to {camera_id} at {branch_id} timed out.")
-            return None
-
-        if process.returncode != 0:
-            error_msg = stderr.decode('utf-8', errors='ignore')
-            logger.error(f"Camera failure: FFmpeg error for {camera_id}:\n{error_msg}")
-            return None
+        # 1. Capture Frame using OpenCV synchronously but wrapped in thread
+        def capture_webcam():
+            import cv2
+            cap = cv2.VideoCapture(0) # 0 is the default laptop camera
+            if not cap.isOpened():
+                return None
+            # Allow camera to warm up
+            import time
+            time.sleep(0.5)
+            ret, frame = cap.read()
+            cap.release()
             
-        if not stdout:
-            logger.error(f"Camera failure: No image data received from {camera_id}")
+            if ret:
+                success, buffer = cv2.imencode('.jpg', frame)
+                if success:
+                    return buffer.tobytes()
             return None
 
-        image_data = stdout
+        image_data = await asyncio.to_thread(capture_webcam)
+        
+        if not image_data:
+            logger.error(f"Camera failure: Could not capture image from laptop webcam.")
+            return None
         
         # 3. Upload to Supabase Storage
         # Sanitize timestamp for file path (remove colons, etc)

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 import uuid
+import logging
 from fastapi import HTTPException
 from models.sales import Sale, SaleItem, CustomerPayment, SaleReturn, CustomerLedger, SaleReturnItem
 from models.inventory import Batch, StockMovement, Medicine
@@ -8,6 +9,8 @@ from models.crm import Customer
 from schemas.sales import CheckoutRequest, SaleReturnRequest, SaleReturnCreateRequest
 from services.inventory_service import InventoryService
 from repositories.sales import sale_repo
+
+logger = logging.getLogger(__name__)
 
 class SalesService:
     @staticmethod
@@ -469,6 +472,39 @@ class SalesService:
 
             db.commit()
             db.refresh(sale)
+
+            # ── Audit Event ────────────────────────────────────────────────
+            # Write directly to the local SQLite audit_events table so the
+            # background listener picks it up and fires the camera + WhatsApp.
+            try:
+                from models.audit import AuditEvent
+                total_amount = float(sale.total_amount) if sale.total_amount else 0.0
+                first_item = sale.items[0] if sale.items else None
+                item_name = (
+                    first_item.medicine.name
+                    if (first_item and hasattr(first_item, 'medicine') and first_item.medicine)
+                    else "Unknown Item"
+                )
+                audit_event = AuditEvent(
+                    branch_id=str(branch_id),
+                    staff_id=str(user_id),
+                    event_type="void",
+                    transaction_id=str(sale.id),
+                    metadata_={
+                        "staff_name": voided_by or "Unknown",
+                        "item_name": item_name,
+                        "amount": total_amount,
+                        "reason": void_reason or "No reason provided",
+                        "invoice_number": sale.invoice_number,
+                    },
+                    severity="medium",
+                )
+                db.add(audit_event)
+                db.commit()
+                logger.info(f"Audit event logged for void of sale {sale.id}")
+            except Exception as audit_err:
+                logger.warning(f"Failed to log audit event for void: {audit_err}")
+
             return sale
             
         except Exception as e:
