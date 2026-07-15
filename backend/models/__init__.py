@@ -51,7 +51,12 @@ __all__ = [
     "MedicineMaster", "MedicineTemplate", "MedicinePackaging", "MedicineConversionRule",
     "MedicinePricing", "MedicineSupplierMapping", "MedicineBarcode", "MedicineImage",
     "MedicineDocument", "MedicineAuditLog", "MedicineVersion", "MedicineCustomField",
-    "MedicineAiTag"
+    "MedicineAiTag",
+    # Enterprise
+    "PharmacyBranch", "BranchStaffAssignment",
 ]
 
 from .billing import SubscriptionPlan, PharmacySubscription, PaymentTransaction
+
+# Enterprise multi-branch models
+from .enterprise.branch import PharmacyBranch, BranchStaffAssignment

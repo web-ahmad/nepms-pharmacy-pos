@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ShieldAlert } from 'lucide-react';
+import { SuperAdminShell } from './SuperAdminShell';
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -54,32 +55,55 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       });
   }, [hydrated, isAuthenticated, accessToken, user, router]);
 
+  // ── Loading spinner (using SA tokens via inline style) ──────────────────────
   if (!hydrated || checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'var(--sa-bg)' }}
+      >
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400 text-sm animate-pulse">Verifying access…</p>
+          <div
+            className="w-12 h-12 border-4 border-t-transparent rounded-full animate-spin"
+            style={{ borderColor: 'var(--sa-accent)', borderTopColor: 'transparent' }}
+          />
+          <p className="text-sm animate-pulse" style={{ color: 'var(--sa-text-muted)' }}>
+            Verifying access…
+          </p>
         </div>
       </div>
     );
   }
 
+  // ── Access denied ───────────────────────────────────────────────────────────
   if (!authorized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-red-950 to-slate-900">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'var(--sa-bg)' }}
+      >
         <div className="text-center px-6">
-          <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-6 animate-pulse">
-            <ShieldAlert className="w-10 h-10 text-red-400" />
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse"
+            style={{ background: 'var(--sa-danger-muted)', border: '1px solid var(--sa-danger)30' }}
+          >
+            <ShieldAlert className="w-10 h-10" style={{ color: 'var(--sa-danger)' }} />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Access Denied</h1>
-          <p className="text-slate-400 text-sm max-w-sm mx-auto leading-relaxed">
-            This area is restricted to Super Administrators only.<br />
-            Your account does not have the required privileges.
+          <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--sa-text)' }}>
+            Access Denied
+          </h1>
+          <p className="text-sm max-w-sm mx-auto leading-relaxed" style={{ color: 'var(--sa-text-muted)' }}>
+            This area is restricted to Super Administrators only.
+            <br />Your account does not have the required privileges.
           </p>
           <button
             onClick={() => router.replace('/')}
-            className="mt-6 px-6 py-2 rounded-lg bg-red-500/20 border border-red-500/40 text-red-300 hover:bg-red-500/30 transition-colors text-sm"
+            className="mt-6 px-6 py-2 rounded-xl text-sm font-medium transition-colors"
+            style={{
+              background: 'var(--sa-danger-muted)',
+              border: '1px solid var(--sa-danger)40',
+              color: 'var(--sa-danger)',
+            }}
           >
             ← Return to Dashboard
           </button>
@@ -88,9 +112,6 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900">
-      {children}
-    </div>
-  );
+  // ── Authorized — render the shell ──────────────────────────────────────────
+  return <SuperAdminShell>{children}</SuperAdminShell>;
 }
