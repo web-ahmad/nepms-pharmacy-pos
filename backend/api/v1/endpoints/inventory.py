@@ -38,6 +38,7 @@ def list_or_search_medicines(
     category: Optional[str] = None,
     status: Optional[str] = None,
     expiry: Optional[str] = None,
+    warehouse_id: Optional[str] = None,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -65,6 +66,12 @@ def list_or_search_medicines(
     if category:
         query = query.join(Category, Medicine.category_id == Category.id).filter(Category.name.ilike(f"%{category}%"))
 
+    if warehouse_id:
+        query = query.join(Batch, Medicine.id == Batch.medicine_id).filter(
+            Batch.warehouse_id == warehouse_id,
+            Batch.is_deleted == False
+        )
+
     if status or expiry:
         batch_stats = db.query(
             Batch.medicine_id,
@@ -73,7 +80,11 @@ def list_or_search_medicines(
         ).filter(
             Batch.status == "Active",
             Batch.is_deleted == False
-        ).group_by(Batch.medicine_id).subquery()
+        )
+        if warehouse_id:
+            batch_stats = batch_stats.filter(Batch.warehouse_id == warehouse_id)
+            
+        batch_stats = batch_stats.group_by(Batch.medicine_id).subquery()
         
         query = query.outerjoin(batch_stats, Medicine.id == batch_stats.c.medicine_id)
         
@@ -188,7 +199,10 @@ def create_medicine(
                 mrp=initial_batch.mrp,
                 initial_quantity=initial_batch.current_stock,
                 current_quantity=initial_batch.current_stock,
-                cost_per_base_unit=med.cost_per_base_unit
+                cost_per_base_unit=med.cost_per_base_unit,
+                warehouse_id=initial_batch.warehouse_id,
+                rack_id=initial_batch.rack_id,
+                bin_id=initial_batch.bin_id
             )
             db.add(batch)
             db.flush()
@@ -202,7 +216,10 @@ def create_medicine(
                 movement_type="Opening Balance",
                 quantity_change=initial_batch.current_stock,
                 balance_after=initial_batch.current_stock,
-                notes="Initial stock from Medicine Creation"
+                notes="Initial stock from Medicine Creation",
+                warehouse_id=initial_batch.warehouse_id,
+                rack_id=initial_batch.rack_id,
+                bin_id=initial_batch.bin_id
             )
             db.add(movement)
             
@@ -502,7 +519,10 @@ def bulk_import_medicines(
                     mrp=initial_batch.mrp,
                     initial_quantity=initial_batch.current_stock,
                     current_quantity=initial_batch.current_stock,
-                    cost_per_base_unit=med.cost_per_base_unit
+                    cost_per_base_unit=med.cost_per_base_unit,
+                    warehouse_id=initial_batch.warehouse_id,
+                    rack_id=initial_batch.rack_id,
+                    bin_id=initial_batch.bin_id
                 )
                 db.add(batch)
                 db.flush()
@@ -516,7 +536,10 @@ def bulk_import_medicines(
                     movement_type="Opening Balance",
                     quantity_change=initial_batch.current_stock,
                     balance_after=initial_batch.current_stock,
-                    notes="Initial stock from Bulk Import"
+                    notes="Initial stock from Bulk Import",
+                    warehouse_id=initial_batch.warehouse_id,
+                    rack_id=initial_batch.rack_id,
+                    bin_id=initial_batch.bin_id
                 )
                 db.add(movement)
             
@@ -602,7 +625,10 @@ def adjust_stock(
         user_id=current_user.id,
         quantity_adjusted=qty_change,
         reason=payload.reason,
-        tenant_id=scope.tenant_id
+        tenant_id=scope.tenant_id,
+        warehouse_id=payload.warehouse_id or batch.warehouse_id,
+        rack_id=payload.rack_id or batch.rack_id,
+        bin_id=payload.bin_id or batch.bin_id
     )
     db.add(adjustment)
     db.flush()
@@ -617,7 +643,10 @@ def adjust_stock(
         balance_after=batch.current_quantity,
         reference_id=adjustment.id,
         notes=payload.reason,
-        tenant_id=scope.tenant_id
+        tenant_id=scope.tenant_id,
+        warehouse_id=payload.warehouse_id or batch.warehouse_id,
+        rack_id=payload.rack_id or batch.rack_id,
+        bin_id=payload.bin_id or batch.bin_id
     )
     db.add(movement)
     db.commit()

@@ -26,6 +26,22 @@ class Sale(BaseModel):
     notes = Column(Text, nullable=True)
     journal_entry_id = Column(String(36), ForeignKey("journal_entries.id"), nullable=True)
     
+    # Enterprise fields
+    warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    counter_id = Column(String(36), ForeignKey("branch_counters.id"), nullable=True)
+    shift_id = Column(String(36), ForeignKey("cash_sessions.id"), nullable=True)
+    salesperson_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    delivery_type = Column(String(50), nullable=True)
+    order_source = Column(String(50), nullable=True)
+    loyalty_points_used = Column(Integer, default=0)
+    loyalty_points_earned = Column(Integer, default=0)
+    promotion_id = Column(String(36), ForeignKey("promotion_campaigns.id"), nullable=True)
+    coupon_id = Column(String(36), ForeignKey("coupons.id"), nullable=True)
+    approval_status = Column(String(50), nullable=True)
+    hold_status = Column(String(50), nullable=True)
+    payment_status = Column(String(50), nullable=True)
+    price_level_id = Column(String(50), nullable=True)
+    
     items = relationship("SaleItem", back_populates="sale", lazy="selectin")
     returns = relationship("SaleReturn", back_populates="sale", lazy="selectin")
     cashier = relationship("User", foreign_keys=[cashier_id], lazy="selectin")
@@ -43,6 +59,15 @@ class SaleItem(BaseModel):
     discount = Column(Float, default=0.0)
     tax = Column(Float, default=0.0)
     total = Column(Float, default=0.0)
+    
+    # Enterprise fields
+    warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    promotion_discount = Column(Float, default=0.0)
+    scheme_discount = Column(Float, default=0.0)
+    manual_discount = Column(Float, default=0.0)
+    cost_price = Column(Float, default=0.0)
+    gross_profit = Column(Float, default=0.0)
+    margin_percentage = Column(Float, default=0.0)
     
     sale = relationship("Sale", back_populates="items")
     medicine = relationship("Medicine", lazy="selectin")
@@ -128,3 +153,104 @@ class CustomerLedger(BaseModel):
     balance_after = Column(Float, nullable=False)
     
     notes = Column(Text)
+
+# --- Enterprise Multi-Branch Extended Models ---
+
+class PromotionCampaign(BaseModel):
+    __tablename__ = "promotion_campaigns"
+    
+    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    discount_type = Column(String(50)) # Percentage, Fixed Amount, BOGO
+    discount_value = Column(Float, default=0.0)
+    is_active = Column(Boolean, default=True)
+
+
+class Coupon(BaseModel):
+    __tablename__ = "coupons"
+    
+    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
+    code = Column(String(100), unique=True, index=True)
+    discount_type = Column(String(50)) # Percentage, Fixed Amount
+    discount_value = Column(Float, default=0.0)
+    max_uses = Column(Integer, nullable=True)
+    current_uses = Column(Integer, default=0)
+    expiry_date = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+
+class GiftVoucher(BaseModel):
+    __tablename__ = "gift_vouchers"
+    
+    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
+    voucher_code = Column(String(100), unique=True, index=True)
+    customer_id = Column(String(36), ForeignKey("customers.id"), nullable=True)
+    amount = Column(Float, nullable=False)
+    balance = Column(Float, nullable=False)
+    issue_date = Column(DateTime, nullable=False)
+    expiry_date = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+
+class CustomerCredit(BaseModel):
+    __tablename__ = "customer_credits"
+    
+    customer_id = Column(String(36), ForeignKey("customers.id"))
+    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
+    credit_limit = Column(Float, default=0.0)
+    available_credit = Column(Float, default=0.0)
+    total_due = Column(Float, default=0.0)
+    is_active = Column(Boolean, default=True)
+
+
+class SalesQuotation(BaseModel):
+    __tablename__ = "sales_quotations"
+    
+    quotation_number = Column(String(100), unique=True, index=True)
+    branch_id = Column(String(36), ForeignKey("branches.id"))
+    customer_id = Column(String(36), ForeignKey("customers.id"), nullable=True)
+    salesperson_id = Column(String(36), ForeignKey("users.id"))
+    quotation_date = Column(DateTime)
+    valid_until = Column(DateTime, nullable=True)
+    subtotal = Column(Float, default=0.0)
+    discount_amount = Column(Float, default=0.0)
+    tax_amount = Column(Float, default=0.0)
+    total_amount = Column(Float, default=0.0)
+    status = Column(String(50), default="Draft") # Draft, Sent, Accepted, Rejected, Expired
+    notes = Column(Text, nullable=True)
+
+
+class SalesOrder(BaseModel):
+    __tablename__ = "sales_orders"
+    
+    order_number = Column(String(100), unique=True, index=True)
+    branch_id = Column(String(36), ForeignKey("branches.id"))
+    customer_id = Column(String(36), ForeignKey("customers.id"), nullable=True)
+    salesperson_id = Column(String(36), ForeignKey("users.id"))
+    quotation_id = Column(String(36), ForeignKey("sales_quotations.id"), nullable=True)
+    order_date = Column(DateTime)
+    expected_delivery_date = Column(DateTime, nullable=True)
+    subtotal = Column(Float, default=0.0)
+    discount_amount = Column(Float, default=0.0)
+    tax_amount = Column(Float, default=0.0)
+    total_amount = Column(Float, default=0.0)
+    status = Column(String(50), default="Pending") # Pending, Confirmed, Processing, Shipped, Delivered, Cancelled
+    notes = Column(Text, nullable=True)
+
+
+class SalesDelivery(BaseModel):
+    __tablename__ = "sales_deliveries"
+    
+    delivery_number = Column(String(100), unique=True, index=True)
+    branch_id = Column(String(36), ForeignKey("branches.id"))
+    sale_id = Column(String(36), ForeignKey("sales.id"), nullable=True)
+    order_id = Column(String(36), ForeignKey("sales_orders.id"), nullable=True)
+    delivery_date = Column(DateTime)
+    delivery_method = Column(String(100), nullable=True)
+    tracking_number = Column(String(100), nullable=True)
+    driver_name = Column(String(100), nullable=True)
+    status = Column(String(50), default="Pending") # Pending, In Transit, Delivered, Failed
+    notes = Column(Text, nullable=True)

@@ -196,9 +196,7 @@ class AccountsService:
     def get_journal_entries(self, tenant_id: str):
         return self.repo.get_journal_entries(tenant_id)
 
-    def get_dashboard_stats(self, tenant_id: str):
-        accounts = self.repo.get_accounts(tenant_id)
-        
+    def get_dashboard_stats(self, tenant_id: str, branch_id: str = None):
         total_revenue = 0.0
         total_expenses = 0.0
         total_assets = 0.0
@@ -207,24 +205,63 @@ class AccountsService:
         ar_balance = 0.0
         ap_balance = 0.0
         
-        for acc in accounts:
-            bal = acc.current_balance or 0.0
-            
-            if acc.category == AccountCategory.REVENUE:
-                total_revenue += bal
-            elif acc.category == AccountCategory.EXPENSE:
-                total_expenses += bal
-            elif acc.category == AccountCategory.ASSET:
-                total_assets += bal
-                if acc.code == "1000":
-                    cash_balance = bal
-                elif acc.code == "1010":
-                    bank_balance = bal
-                elif acc.code == "1030":
-                    ar_balance += bal
-            elif acc.category == AccountCategory.LIABILITY:
-                if acc.code == "2000":
-                    ap_balance += bal
+        if branch_id:
+            from sqlalchemy import func
+            from models.accounts import JournalEntry, JournalEntryLine, AccountCategory, Account
+            rows = (
+                self.db.query(
+                    Account,
+                    func.sum(JournalEntryLine.debit).label("total_debit"),
+                    func.sum(JournalEntryLine.credit).label("total_credit"),
+                )
+                .join(JournalEntryLine, JournalEntryLine.account_id == Account.id)
+                .join(JournalEntry, JournalEntry.id == JournalEntryLine.journal_entry_id)
+                .filter(JournalEntry.tenant_id == tenant_id, JournalEntry.status == "Approved", JournalEntryLine.branch_id == branch_id)
+                .group_by(Account.id)
+                .all()
+            )
+            for acc, td, tc in rows:
+                td = td or 0.0
+                tc = tc or 0.0
+                if acc.category in [AccountCategory.ASSET, AccountCategory.EXPENSE]:
+                    bal = td - tc
+                else:
+                    bal = tc - td
+                    
+                if acc.category == AccountCategory.REVENUE:
+                    total_revenue += bal
+                elif acc.category == AccountCategory.EXPENSE:
+                    total_expenses += bal
+                elif acc.category == AccountCategory.ASSET:
+                    total_assets += bal
+                    if acc.code == "1000":
+                        cash_balance = bal
+                    elif acc.code == "1010":
+                        bank_balance = bal
+                    elif acc.code == "1030":
+                        ar_balance += bal
+                elif acc.category == AccountCategory.LIABILITY:
+                    if acc.code == "2000":
+                        ap_balance += bal
+        else:
+            accounts = self.repo.get_accounts(tenant_id)
+            for acc in accounts:
+                bal = acc.current_balance or 0.0
+                if acc.category == AccountCategory.REVENUE:
+                    total_revenue += bal
+                elif acc.category == AccountCategory.EXPENSE:
+                    total_expenses += bal
+                elif acc.category == AccountCategory.ASSET:
+                    total_assets += bal
+                    if acc.code == "1000":
+                        cash_balance = bal
+                    elif acc.code == "1010":
+                        bank_balance = bal
+                    elif acc.code == "1030":
+                        ar_balance += bal
+                elif acc.category == AccountCategory.LIABILITY:
+                    if acc.code == "2000":
+                        ap_balance += bal
 
         net_profit = total_revenue - total_expenses
         

@@ -150,3 +150,111 @@ export interface CreatePaymentPayload {
   reference_number?: string;
   notes?: string;
 }
+
+// Enterprise Types
+
+export interface PurchaseRequestItem {
+  id: string;
+  medicine_id: string;
+  medicine_name?: string;
+  requested_quantity: number;
+  priority: string;
+}
+
+export interface PurchaseRequest {
+  id: string;
+  request_number: string;
+  branch_id: string;
+  requested_by_id: string;
+  status: string; // Pending, Approved, Rejected, Partially Ordered, Completed
+  notes?: string;
+  items: PurchaseRequestItem[];
+}
+
+export interface PurchaseQuotationItem {
+  id: string;
+  medicine_id: string;
+  medicine_name?: string;
+  quoted_quantity: number;
+  quoted_unit_price: number;
+  is_selected: boolean;
+}
+
+export interface PurchaseQuotation {
+  id: string;
+  quotation_number: string;
+  request_id?: string;
+  supplier_id: string;
+  supplier_name?: string;
+  valid_until?: string;
+  status: string; // Draft, Submitted, Accepted, Rejected
+  items: PurchaseQuotationItem[];
+}
+
+export interface PurchaseApproval {
+  id: string;
+  po_id: string;
+  approver_id: string;
+  level: number;
+  status: string; // Pending, Approved, Rejected
+  comments?: string;
+}
+
+export interface PurchaseReceivingItem {
+  id: string;
+  po_item_id: string;
+  medicine_id: string;
+  batch_number: string;
+  expiry_date?: string;
+  manufacturing_date?: string;
+  received_quantity: number;
+  accepted_quantity: number;
+  rejected_quantity: number;
+  rejection_reason?: string;
+}
+
+export interface PurchaseReceiving {
+  id: string;
+  receiving_number: string;
+  po_id: string;
+  warehouse_id?: string;
+  received_by_id: string;
+  status: string; // Draft, Completed
+  items: PurchaseReceivingItem[];
+}
+
+export interface CreatePurchaseRequestPayload {
+  priority: string;
+  notes?: string;
+  items: { medicine_id: string; requested_quantity: number; }[];
+}
+
+export interface CreatePurchaseQuotationPayload {
+  supplier_id: string;
+  request_id?: string;
+  valid_until?: string;
+  items: { medicine_id: string; quoted_quantity: number; quoted_unit_price: number; }[];
+}
+
+export interface CreatePurchaseApprovalPayload {
+  po_id: string;
+  status: string;
+  comments?: string;
+}
+
+export interface CreatePurchaseReceivingPayload {
+  po_id: string;
+  warehouse_id?: string;
+  items: { 
+    po_item_id: string; 
+    medicine_id: string; 
+    batch_number: string; 
+    expiry_date?: string; 
+    manufacturing_date?: string; 
+    received_quantity: number; 
+    accepted_quantity: number; 
+    rejected_quantity: number; 
+    rejection_reason?: string; 
+  }[];
+}
+

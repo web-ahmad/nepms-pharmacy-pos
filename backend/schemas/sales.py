@@ -16,13 +16,28 @@ class PaginatedResponse(BaseModel):
 class SaleItemCreate(BaseModel):
     medicine_id: str
     batch_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     quantity: int
     unit_price: float
     discount: float = 0.0
+    promotion_discount: float = 0.0
+    scheme_discount: float = 0.0
+    manual_discount: float = 0.0
 
 
 class CheckoutRequest(BaseModel):
     customer_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
+    counter_id: Optional[str] = None
+    shift_id: Optional[str] = None
+    salesperson_id: Optional[str] = None
+    delivery_type: Optional[str] = None
+    order_source: Optional[str] = None
+    loyalty_points_used: int = 0
+    promotion_id: Optional[str] = None
+    coupon_id: Optional[str] = None
+    price_level_id: Optional[str] = None
+    
     items: List[SaleItemCreate]
     discount_amount: float = 0.0
     tax_amount: float = 0.0
@@ -47,6 +62,7 @@ class SaleItemResponse(BaseModel):
     medicine_id: str
     medicine_name: Optional[str] = None
     batch_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     quantity: int
     unit_price: float
     discount: float = 0.0
@@ -59,6 +75,14 @@ class SaleResponse(BaseModel):
     id: str
     invoice_number: str
     customer_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
+    counter_id: Optional[str] = None
+    shift_id: Optional[str] = None
+    salesperson_id: Optional[str] = None
+    loyalty_points_used: int = 0
+    loyalty_points_earned: int = 0
+    promotion_id: Optional[str] = None
+    coupon_id: Optional[str] = None
     cashier_id: str
     cashier_name: Optional[str] = None
     sale_date: datetime
@@ -194,6 +218,19 @@ class CustomerPaymentRequest(BaseModel):
     sale_id: Optional[str] = None
     amount: float
     payment_method: str
+
+
+class SplitPaymentItem(BaseModel):
+    amount: float
+    payment_method: str
+
+class SplitPaymentRequest(BaseModel):
+    payments: List[SplitPaymentItem]
+
+class ShiftActionRequest(BaseModel):
+    opening_balance: Optional[float] = 0.0
+    closing_balance_actual: Optional[float] = None
+    discrepancy_notes: Optional[str] = None
 
 
 class CustomerPaymentResponse(BaseModel):

@@ -115,7 +115,7 @@ class CRUDMedicine(CRUDBase[Medicine, MedicineCreate, MedicineUpdate]):
 medicine_repo = CRUDMedicine(Medicine)
 
 class CRUDBatch(CRUDBase[Batch, BatchCreate, BatchCreate]): # UpdateSchema not defined yet but reusing Create
-    def get_active_batches_for_medicine(self, db: Session, tenant_id: str, branch_id: str, medicine_id: str) -> List[Batch]:
+    def get_active_batches_for_medicine(self, db: Session, tenant_id: str, branch_id: str, medicine_id: str, warehouse_id: str = None, rack_id: str = None, bin_id: str = None) -> List[Batch]:
         """
         Retrieves batches for FEFO. Must be active, have available quantity > 0, and not expired.
         Sorted by earliest expiry date.
@@ -134,9 +134,14 @@ class CRUDBatch(CRUDBase[Batch, BatchCreate, BatchCreate]): # UpdateSchema not d
             Batch.current_quantity - func.coalesce(Batch.reserved_quantity, 0) > 0
         )
         # Only filter by branch when a real branch_id is provided
-        # (single-branch setups or POS may send empty string)
         if branch_id:
             q = q.filter(Batch.branch_id == branch_id)
+        if warehouse_id:
+            q = q.filter(Batch.warehouse_id == warehouse_id)
+        if rack_id:
+            q = q.filter(Batch.rack_id == rack_id)
+        if bin_id:
+            q = q.filter(Batch.bin_id == bin_id)
         return q.order_by(Batch.expiry_date.asc()).all()
 
 batch_repo = CRUDBatch(Batch)

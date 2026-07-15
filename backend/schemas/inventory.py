@@ -28,6 +28,9 @@ class InitialBatch(BaseModel):
     purchase_invoice_id: Optional[str] = None
     mrp: Optional[float] = None
     current_stock: int
+    warehouse_id: Optional[str] = None
+    rack_id: Optional[str] = None
+    bin_id: Optional[str] = None
 
 # Packaging Levels
 class PackagingLevelBase(BaseModel):
@@ -233,6 +236,9 @@ class BatchBase(BaseModel):
     supplier_id: Optional[str] = None
     purchase_invoice_id: Optional[str] = None
     status: str = "Active"
+    warehouse_id: Optional[str] = None
+    rack_id: Optional[str] = None
+    bin_id: Optional[str] = None
 
 class BatchCreate(BatchBase):
     branch_id: Optional[str] = None
@@ -260,6 +266,9 @@ class StockMovementResponse(BaseModel):
     medicine_id: str
     batch_id: str
     branch_id: str
+    warehouse_id: Optional[str] = None
+    rack_id: Optional[str] = None
+    bin_id: Optional[str] = None
     user_id: str
     movement_type: str
     quantity_change: int
@@ -276,6 +285,9 @@ class StockAdjustmentPayload(BaseModel):
     adjustment_type: str
     quantity: int
     reason: str
+    warehouse_id: Optional[str] = None
+    rack_id: Optional[str] = None
+    bin_id: Optional[str] = None
 
 class LowStockAlert(BaseModel):
     medicine_id: str
@@ -312,3 +324,110 @@ class BulkDeletePayload(BaseModel):
 
 class BulkImportPayload(BaseModel):
     medicines: List[MedicineCreate]
+
+# Enterprise Multi-Branch Additions
+
+class WarehouseRackBase(BaseModel):
+    warehouse_id: str
+    name: str
+    description: Optional[str] = None
+    is_active: bool = True
+
+class WarehouseRackCreate(WarehouseRackBase):
+    pass
+
+class WarehouseRackResponse(WarehouseRackBase):
+    id: str
+    model_config = ConfigDict(from_attributes=True)
+
+class WarehouseBinBase(BaseModel):
+    rack_id: str
+    name: str
+    description: Optional[str] = None
+    max_weight: Optional[float] = None
+    max_volume: Optional[float] = None
+    is_active: bool = True
+
+class WarehouseBinCreate(WarehouseBinBase):
+    pass
+
+class WarehouseBinResponse(WarehouseBinBase):
+    id: str
+    model_config = ConfigDict(from_attributes=True)
+
+class StockTransferItemBase(BaseModel):
+    medicine_id: str
+    batch_id: Optional[str] = None
+    requested_qty: int
+    dispatched_qty: int = 0
+    received_qty: int = 0
+    damaged_qty: int = 0
+
+class StockTransferItemCreate(StockTransferItemBase):
+    pass
+
+class StockTransferItemResponse(StockTransferItemBase):
+    id: str
+    transfer_id: str
+    model_config = ConfigDict(from_attributes=True)
+
+class StockTransferBase(BaseModel):
+    source_branch_id: str
+    destination_branch_id: str
+    source_warehouse_id: Optional[str] = None
+    destination_warehouse_id: Optional[str] = None
+    status: str = "Draft"
+    reference_no: Optional[str] = None
+    notes: Optional[str] = None
+
+class StockTransferCreate(StockTransferBase):
+    items: List[StockTransferItemCreate]
+
+class StockTransferResponse(StockTransferBase):
+    id: str
+    requested_by: Optional[str] = None
+    approved_by: Optional[str] = None
+    dispatched_by: Optional[str] = None
+    received_by: Optional[str] = None
+    dispatch_date: Optional[datetime] = None
+    receive_date: Optional[datetime] = None
+    items: List[StockTransferItemResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+class InventoryCycleCountItemBase(BaseModel):
+    medicine_id: str
+    batch_id: str
+    bin_id: Optional[str] = None
+    system_qty: int = 0
+    counted_qty: Optional[int] = None
+    variance_qty: Optional[int] = None
+    reason: Optional[str] = None
+
+class InventoryCycleCountItemCreate(InventoryCycleCountItemBase):
+    pass
+
+class InventoryCycleCountItemResponse(InventoryCycleCountItemBase):
+    id: str
+    cycle_count_id: str
+    model_config = ConfigDict(from_attributes=True)
+
+class InventoryCycleCountBase(BaseModel):
+    branch_id: str
+    warehouse_id: Optional[str] = None
+    rack_id: Optional[str] = None
+    name: str
+    status: str = "Draft"
+    notes: Optional[str] = None
+
+class InventoryCycleCountCreate(InventoryCycleCountBase):
+    items: List[InventoryCycleCountItemCreate]
+
+class InventoryCycleCountResponse(InventoryCycleCountBase):
+    id: str
+    assigned_to: Optional[str] = None
+    created_by: str
+    start_date: Optional[datetime] = None
+    completion_date: Optional[datetime] = None
+    items: List[InventoryCycleCountItemResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+

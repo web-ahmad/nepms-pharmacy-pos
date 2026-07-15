@@ -18,6 +18,9 @@ class SalesOverviewSchema(BaseModel):
 class InventoryOverviewSchema(BaseModel):
     total_medicines: int
     stock_valuation: float
+    available_value: float = 0.0
+    reserved_value: float = 0.0
+    inventory_turnover: float = 0.0
     expired_stock_value: float
     near_expiry_value: float
     dead_stock_count: int
@@ -41,6 +44,8 @@ class PurchaseSummarySchema(BaseModel):
     pending_purchase_orders: int
     recent_grns_count: int
     supplier_payable_amount: float
+    pending_purchase_requests: int = 0
+    pending_approvals: int = 0
 
 class ChartDataPoint(BaseModel):
     date: str

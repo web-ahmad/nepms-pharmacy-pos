@@ -12,7 +12,8 @@ import HeldSalesDrawer from '@/features/pos/components/HeldSalesDrawer';
 import VerificationQueueDrawer from '@/features/pos/components/VerificationQueueDrawer';
 import CashierVerificationModal from '@/features/pos/components/CashierVerificationModal';
 import { useCheckout, useWorkflowMode } from '@/features/pos/services/pos.api';
-import { Clock, Calendar } from 'lucide-react';
+import { Clock, Calendar, Building2, Store, MonitorSmartphone, LayoutGrid } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function LiveClock() {
   const [time, setTime] = useState(new Date());
@@ -153,59 +154,113 @@ export default function POSFullScreen() {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-on-surface font-sans">
-      {/* Header */}
-      <header className="flex justify-between items-center w-full px-gutter h-16 bg-surface border-b border-outline-variant shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="h-10 w-10 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-gradient-to-br from-surface to-surface-variant/30 text-on-surface font-sans">
+      {/* Premium Header */}
+      <motion.header 
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="flex justify-between items-center w-full px-6 h-20 bg-surface/80 backdrop-blur-md border-b border-outline-variant/50 shadow-sm shrink-0 z-10"
+      >
+        <div className="flex items-center gap-6">
+          <motion.div 
+            whileHover={{ scale: 1.05, rotate: 5 }}
+            whileTap={{ scale: 0.95 }}
+            className="h-12 w-12 bg-gradient-to-br from-primary to-primary/80 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-primary/30"
+          >
             P
+          </motion.div>
+          <div>
+            <h1 className="font-headline-lg text-headline-lg bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 tracking-tight font-extrabold leading-tight">
+              PharmaPOS
+            </h1>
+            <span className="text-xs font-semibold text-primary/60 tracking-widest uppercase">Enterprise Edition</span>
           </div>
-          <h1 className="font-headline-lg text-headline-lg text-primary tracking-tight">PharmaPOS Elite</h1>
+
+          {/* New Selectors (Branch, Warehouse, Counter) */}
+          <div className="hidden lg:flex items-center gap-3 ml-8 pl-8 border-l border-outline-variant/30">
+             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-outline-variant/50 shadow-sm transition-all hover:border-primary/30 hover:shadow-md cursor-pointer">
+               <Building2 size={16} className="text-primary/70" />
+               <span className="text-sm font-semibold">Main Branch</span>
+             </div>
+             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-outline-variant/50 shadow-sm transition-all hover:border-primary/30 hover:shadow-md cursor-pointer">
+               <Store size={16} className="text-primary/70" />
+               <span className="text-sm font-semibold">Retail WH</span>
+             </div>
+             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-outline-variant/50 shadow-sm transition-all hover:border-primary/30 hover:shadow-md cursor-pointer">
+               <MonitorSmartphone size={16} className="text-primary/70" />
+               <span className="text-sm font-semibold">Counter 01</span>
+             </div>
+          </div>
         </div>
-        <div className="hidden md:flex items-center gap-8 h-full">
-          <div className="flex items-center gap-4">
-            <button 
+        
+        <div className="hidden md:flex items-center gap-6 h-full">
+          <div className="flex items-center gap-3">
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setShowHeldSales(true)} 
-              className="px-4 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-md font-semibold text-sm transition-colors relative"
+              className="px-4 py-2 bg-blue-50/50 backdrop-blur-sm text-blue-700 hover:bg-blue-100/80 border border-blue-200/50 rounded-xl font-semibold text-sm transition-all shadow-sm relative overflow-hidden group"
             >
+              <div className="absolute inset-0 bg-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               Held Sales
-              {activeShortcut === 'F9' && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-500 rounded-full"></span>}
-            </button>
+              {activeShortcut === 'F9' && <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-500 rounded-t-md"></span>}
+            </motion.button>
           </div>
-          <div className="flex items-center gap-4 ml-8">
+          <div className="flex items-center gap-4 pl-4 border-l border-outline-variant/30">
             <LiveClock />
-            <button 
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/')} 
-              className="px-4 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 rounded-md font-semibold text-sm transition-colors ml-2"
+              className="px-5 py-2 bg-red-50/50 backdrop-blur-sm text-red-600 hover:bg-red-100/80 border border-red-200/50 rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-2"
             >
+              <LayoutGrid size={16} />
               Exit POS
-            </button>
+            </motion.button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {/* Main Grid */}
-      <main className="flex-1 flex overflow-hidden p-2 gap-2">
-        {/* Left: Search (1/4) min-w-[320px] */}
-        <aside className="w-1/4 min-w-[320px] bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col overflow-hidden">
+      <main className="flex-1 flex overflow-hidden p-3 gap-3 z-0">
+        {/* Left: Search */}
+        <motion.aside 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="w-[30%] min-w-[340px] bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
+        >
           <MedicineSearch searchInputRef={searchInputRef} />
-        </aside>
+        </motion.aside>
 
-        {/* Center: Cart (1/2) */}
-        <section className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-lg flex flex-col overflow-hidden">
+        {/* Center: Cart */}
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="flex-1 bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
+        >
           <CartPanel onHoldSale={handleHoldSale} />
-        </section>
+        </motion.section>
 
-        {/* Right: Checkout (1/4) min-w-[340px] */}
-        <aside className="w-1/4 min-w-[340px] flex flex-col gap-2 overflow-hidden">
-          <PaymentPanel 
-            checkoutButtonRef={checkoutButtonRef} 
-            onSuccess={(data) => {
-              setInvoiceData(data);
-              setShowInvoice(true);
-            }} 
-          />
-        </aside>
+        {/* Right: Checkout */}
+        <motion.aside 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="w-[28%] min-w-[380px] flex flex-col gap-3 overflow-hidden"
+        >
+          <div className="flex-1 bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl overflow-hidden shadow-lg shadow-black/5">
+            <PaymentPanel 
+              checkoutButtonRef={checkoutButtonRef} 
+              onSuccess={(data) => {
+                setInvoiceData(data);
+                setShowInvoice(true);
+              }} 
+            />
+          </div>
+        </motion.aside>
       </main>
       
       {/* Footer Status Bar */}

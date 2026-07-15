@@ -134,6 +134,9 @@ class Batch(BaseModel):
     batch_number = Column(String(100), nullable=False, index=True)
     medicine_id = Column(String(36), ForeignKey("medicines.id"))
     branch_id = Column(String(36), ForeignKey("branches.id")) # stock is branch specific
+    warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    rack_id = Column(String(36), ForeignKey("warehouse_racks.id"), nullable=True)
+    bin_id = Column(String(36), ForeignKey("warehouse_bins.id"), nullable=True)
     
     manufacturing_date = Column(Date)
     
@@ -148,6 +151,11 @@ class Batch(BaseModel):
     initial_quantity = Column(Integer, nullable=False) # Base Units
     current_quantity = Column(Integer, default=0) # Base Units
     reserved_quantity = Column(Integer, default=0) # Base Units
+    damaged_qty = Column(Integer, default=0)
+    quarantine_qty = Column(Integer, default=0)
+    in_transit_qty = Column(Integer, default=0)
+    last_count_date = Column(DateTime, nullable=True)
+    cycle_count_due = Column(Date, nullable=True)
     
     cost_per_base_unit = Column(Float, nullable=True) # Override default medicine cost for this batch
     
@@ -158,7 +166,7 @@ class Batch(BaseModel):
     
     @property
     def available_quantity(self):
-        return self.current_quantity - self.reserved_quantity
+        return self.current_quantity - self.reserved_quantity - self.damaged_qty - self.quarantine_qty - self.in_transit_qty
 
     @property
     def selling_price(self) -> float:
@@ -171,11 +179,18 @@ class StockAdjustment(BaseModel):
 
     batch_id = Column(String(36), ForeignKey("batches.id"))
     branch_id = Column(String(36), ForeignKey("branches.id"))
+    warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    rack_id = Column(String(36), ForeignKey("warehouse_racks.id"), nullable=True)
+    bin_id = Column(String(36), ForeignKey("warehouse_bins.id"), nullable=True)
     user_id = Column(String(36), ForeignKey("users.id"))
     
     quantity_adjusted = Column(Integer, nullable=False) # positive or negative
     reason = Column(String(255))
     notes = Column(Text)
+    
+    approval_status = Column(String(50), default="Approved")
+    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    approval_date = Column(DateTime, nullable=True)
 
 class StockMovement(BaseModel):
     __tablename__ = "stock_movements"
@@ -183,6 +198,9 @@ class StockMovement(BaseModel):
     medicine_id = Column(String(36), ForeignKey("medicines.id"))
     batch_id = Column(String(36), ForeignKey("batches.id"))
     branch_id = Column(String(36), ForeignKey("branches.id"))
+    warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    rack_id = Column(String(36), ForeignKey("warehouse_racks.id"), nullable=True)
+    bin_id = Column(String(36), ForeignKey("warehouse_bins.id"), nullable=True)
     user_id = Column(String(36), ForeignKey("users.id"))
     
     # Movement Types: Purchase, Sale, Sale Return, Purchase Return, Adjustment Increase, Adjustment Decrease, Transfer In, Transfer Out, Expiry, Damage
@@ -192,6 +210,10 @@ class StockMovement(BaseModel):
     balance_after = Column(Integer, nullable=False)
     
     reference_id = Column(String(100), index=True) # ID of Sale, GRN, Adjustment, etc.
+    reference_branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
+    reference_transfer_id = Column(String(36), ForeignKey("stock_transfers.id"), nullable=True)
+    movement_reason = Column(String(255))
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     notes = Column(Text)
     
     medicine = relationship("Medicine")
@@ -236,3 +258,112 @@ class AuditItem(BaseModel):
     session = relationship("AuditSession", back_populates="items")
     medicine = relationship("Medicine")
     batch = relationship("Batch")
+
+class WarehouseRack(BaseModel):
+    __tablename__ = "warehouse_racks"
+    
+    warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"))
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+
+class WarehouseBin(BaseModel):
+    __tablename__ = "warehouse_bins"
+    
+    rack_id = Column(String(36), ForeignKey("warehouse_racks.id"))
+    name = Column(String(100), nullable=False)
+    description = Column(Text)
+    max_weight = Column(Float, nullable=True)
+    max_volume = Column(Float, nullable=True)
+    is_active = Column(Boolean, default=True)
+
+class StockTransfer(BaseModel):
+    __tablename__ = "stock_transfers"
+    
+    source_branch_id = Column(String(36), ForeignKey("branches.id"), nullable=False)
+    destination_branch_id = Column(String(36), ForeignKey("branches.id"), nullable=False)
+    source_warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    destination_warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    
+    status = Column(String(50), default="Draft") # Draft, Approved, Packed, Dispatched, In Transit, Partially Received, Received, Cancelled, Rejected
+    reference_no = Column(String(100), unique=True, index=True)
+    
+    requested_by = Column(String(36), ForeignKey("users.id"))
+    approved_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    dispatched_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    received_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    
+    dispatch_date = Column(DateTime, nullable=True)
+    receive_date = Column(DateTime, nullable=True)
+    
+    notes = Column(Text)
+    
+    items = relationship("StockTransferItem", back_populates="transfer", cascade="all, delete-orphan")
+
+class StockTransferItem(BaseModel):
+    __tablename__ = "stock_transfer_items"
+    
+    transfer_id = Column(String(36), ForeignKey("stock_transfers.id"))
+    medicine_id = Column(String(36), ForeignKey("medicines.id"))
+    batch_id = Column(String(36), ForeignKey("batches.id"), nullable=True) # Optional until packed
+    
+    requested_qty = Column(Integer, nullable=False)
+    dispatched_qty = Column(Integer, default=0)
+    received_qty = Column(Integer, default=0)
+    damaged_qty = Column(Integer, default=0)
+    
+    transfer = relationship("StockTransfer", back_populates="items")
+    medicine = relationship("Medicine")
+    batch = relationship("Batch")
+
+class InventoryReservation(BaseModel):
+    __tablename__ = "inventory_reservations"
+    
+    medicine_id = Column(String(36), ForeignKey("medicines.id"))
+    batch_id = Column(String(36), ForeignKey("batches.id"), nullable=True)
+    branch_id = Column(String(36), ForeignKey("branches.id"))
+    warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    
+    reference_type = Column(String(50)) # e.g., 'Sale', 'Transfer'
+    reference_id = Column(String(100))
+    
+    quantity = Column(Integer, nullable=False)
+    status = Column(String(50), default="Active") # Active, Consumed, Released
+    
+    expires_at = Column(DateTime, nullable=True)
+
+class InventoryCycleCount(BaseModel):
+    __tablename__ = "inventory_cycle_counts"
+    
+    branch_id = Column(String(36), ForeignKey("branches.id"))
+    warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
+    rack_id = Column(String(36), ForeignKey("warehouse_racks.id"), nullable=True)
+    
+    name = Column(String(255), nullable=False)
+    status = Column(String(50), default="Draft") # Draft, In Progress, Review, Completed, Cancelled
+    
+    assigned_to = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"))
+    
+    start_date = Column(DateTime, nullable=True)
+    completion_date = Column(DateTime, nullable=True)
+    
+    notes = Column(Text)
+    
+    items = relationship("InventoryCycleCountItem", back_populates="cycle_count", cascade="all, delete-orphan")
+
+class InventoryCycleCountItem(BaseModel):
+    __tablename__ = "inventory_cycle_count_items"
+    
+    cycle_count_id = Column(String(36), ForeignKey("inventory_cycle_counts.id"))
+    medicine_id = Column(String(36), ForeignKey("medicines.id"))
+    batch_id = Column(String(36), ForeignKey("batches.id"))
+    bin_id = Column(String(36), ForeignKey("warehouse_bins.id"), nullable=True)
+    
+    system_qty = Column(Integer, default=0)
+    counted_qty = Column(Integer, nullable=True)
+    variance_qty = Column(Integer, nullable=True)
+    
+    reason = Column(String(255))
+    
+    cycle_count = relationship("InventoryCycleCount", back_populates="items")

@@ -36,9 +36,9 @@ export default function GeneralLedgerTable({ data, isLoading, searchRef = '' }: 
 
   if (!data || data.rows.length === 0) {
     return (
-      <div className="flex h-60 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-900 bg-emerald-50/40 dark:bg-emerald-950/20 gap-2">
-        <p className="text-sm font-medium text-gray-400 dark:text-zinc-500">No ledger entries found.</p>
-        <p className="text-xs text-gray-400 dark:text-zinc-600">Select an account or run Force Rebuild.</p>
+      <div className="flex h-60 flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300/50 bg-white/50 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/50 gap-3 shadow-lg">
+        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">No ledger entries found</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Select an account or run Force Rebuild.</p>
       </div>
     );
   }
@@ -81,16 +81,15 @@ export default function GeneralLedgerTable({ data, isLoading, searchRef = '' }: 
 
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Closing balance summary */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
         {[
-          { label: 'Total Debits',   value: data.total_debit,    color: 'text-blue-700 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900' },
-          { label: 'Total Credits',  value: data.total_credit,   color: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900' },
-          { label: 'Net Balance',    value: data.closing_balance, color: data.closing_balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400', bg: 'bg-gray-50 dark:bg-zinc-900 border-gray-200 dark:border-zinc-800' },
+          { label: 'Total Debits',   value: data.total_debit,    color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-500/10 border-blue-500/20 dark:bg-blue-500/20' },
+          { label: 'Total Credits',  value: data.total_credit,   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20 dark:bg-emerald-500/20' },
+          { label: 'Net Balance',    value: data.closing_balance, color: data.closing_balance >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 dark:text-rose-400', bg: 'bg-white/70 dark:bg-gray-900/50 border-gray-200/50 dark:border-gray-700/50' },
         ].map((s) => (
-          <div key={s.label} className={`rounded-xl border p-4 ${s.bg}`}>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-zinc-500">{s.label}</p>
-            <p className={`text-lg font-bold font-mono mt-1 ${s.color}`}>{fmt(s.value)}</p>
+          <div key={s.label} className={`rounded-2xl border backdrop-blur-xl p-6 shadow-xl transition-all hover:shadow-2xl ${s.bg}`}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{s.label}</p>
+            <p className={`text-3xl font-bold mt-2 ${s.color}`}>{fmt(s.value)}</p>
           </div>
         ))}
       </div>
@@ -105,19 +104,19 @@ export default function GeneralLedgerTable({ data, isLoading, searchRef = '' }: 
         />
       </div>
 
-      <div id="gl-print-area" className="overflow-hidden rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
+      <div id="gl-print-area" className="overflow-hidden rounded-2xl border border-gray-200/50 bg-white/70 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/50 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900">
+              <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200/50 dark:border-gray-700/50">
                 {['Date', 'Reference', 'Account', 'Description', 'Status', 'Debit', 'Credit', 'Balance'].map((h) => (
-                  <th key={h} className={`px-4 py-3.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 ${['Debit','Credit','Balance'].includes(h) ? 'text-right' : h === 'Status' ? 'text-center' : 'text-left'}`}>{h}</th>
+                  <th key={h} className={`px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 ${['Debit','Credit','Balance'].includes(h) ? 'text-right' : h === 'Status' ? 'text-center' : 'text-left'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/80">
+            <tbody className="divide-y divide-gray-100/50 dark:divide-gray-800/50">
               {filteredRows.map((row, i) => (
-                <tr key={i} className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors">
+                <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                   <td className="px-4 py-3 font-mono text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">
                     {format(new Date(row.date), 'dd MMM yyyy')}
                   </td>
@@ -157,11 +156,11 @@ export default function GeneralLedgerTable({ data, isLoading, searchRef = '' }: 
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-emerald-50 dark:bg-emerald-950/40 border-t-2 border-emerald-300 dark:border-emerald-700 font-bold">
-                <td colSpan={5} className="px-4 py-4 text-right text-xs uppercase tracking-wider text-emerald-700 dark:text-emerald-400">Totals</td>
-                <td className="px-4 py-4 text-right font-mono text-blue-700 dark:text-blue-400">{fmt(data.total_debit)}</td>
-                <td className="px-4 py-4 text-right font-mono text-emerald-700 dark:text-emerald-400">{fmt(data.total_credit)}</td>
-                <td className={`px-4 py-4 text-right font-mono ${data.closing_balance >= 0 ? 'text-gray-900 dark:text-zinc-100' : 'text-red-600 dark:text-red-400'}`}>{fmt(data.closing_balance)}</td>
+              <tr className="bg-gray-50/80 dark:bg-gray-800/80 border-t-2 border-gray-200 dark:border-gray-700 font-bold">
+                <td colSpan={5} className="px-6 py-4 text-right text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Totals</td>
+                <td className="px-6 py-4 text-right font-mono text-sm text-blue-600 dark:text-blue-400">{fmt(data.total_debit)}</td>
+                <td className="px-6 py-4 text-right font-mono text-sm text-emerald-600 dark:text-emerald-400">{fmt(data.total_credit)}</td>
+                <td className={`px-6 py-4 text-right font-mono text-sm ${data.closing_balance >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'}`}>{fmt(data.closing_balance)}</td>
               </tr>
             </tfoot>
           </table>

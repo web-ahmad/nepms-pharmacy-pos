@@ -9,6 +9,10 @@ api_router = APIRouter()
 
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
+
+# Enterprise — Inventory operations extensions (Phase 4)
+from api.v1.endpoints import inventory_enterprise
+api_router.include_router(inventory_enterprise.router, prefix="/inventory", tags=["inventory-enterprise"])
 api_router.include_router(purchase.router, prefix="/purchase", tags=["purchase"])
 api_router.include_router(sales.router, prefix="/sales", tags=["sales"])
 api_router.include_router(crm.router, prefix="/crm", tags=["crm"])
@@ -46,3 +50,17 @@ api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 
 # Super Admin — platform-level pharmacy management
 api_router.include_router(super_admin.router, prefix="/super-admin", tags=["super-admin"])
+
+# Enterprise — multi-branch management (Phase 1)
+from api.v1.endpoints.enterprise.branches import router as enterprise_branches_router
+api_router.include_router(enterprise_branches_router, prefix="/enterprise/branches", tags=["enterprise-branches"])
+
+# Enterprise — users & identity management (Phase 2)
+from api.v1.endpoints.enterprise.users import router as enterprise_users_router
+from api.v1.endpoints.enterprise.roles import router as enterprise_roles_router
+api_router.include_router(enterprise_users_router, prefix="/enterprise/users", tags=["enterprise-users"])
+api_router.include_router(enterprise_roles_router, prefix="/enterprise/roles", tags=["enterprise-roles"])
+
+# Enterprise — branch operations & configuration (Phase 3)
+from api.v1.endpoints.enterprise.branch_config import router as enterprise_branch_config_router
+api_router.include_router(enterprise_branch_config_router, prefix="/enterprise/branches", tags=["enterprise-branch-config"])

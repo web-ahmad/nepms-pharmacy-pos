@@ -54,6 +54,9 @@ class AccountsRepository:
     def create_journal_entry(self, tenant_id: str, user_id: str, obj_in: JournalEntryCreate, status: str = "Approved"):
         db_obj = JournalEntry(
             tenant_id=tenant_id,
+            branch_id=obj_in.branch_id,
+            source_module=obj_in.source_module,
+            source_id=obj_in.source_id,
             reference=obj_in.reference,
             description=obj_in.description,
             date=obj_in.date or datetime.utcnow(),
@@ -66,6 +69,9 @@ class AccountsRepository:
         for line in obj_in.lines:
             db_line = JournalEntryLine(
                 journal_entry_id=db_obj.id,
+                tenant_id=tenant_id,
+                branch_id=line.branch_id or obj_in.branch_id,
+                warehouse_id=line.warehouse_id,
                 account_id=line.account_id,
                 description=line.description,
                 debit=line.debit,

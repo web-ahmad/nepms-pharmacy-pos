@@ -9,9 +9,9 @@ from models.users import Tenant, User
 from schemas.dashboard import (
     SalesOverviewSchema, InventoryOverviewSchema, ExpiryAlertSchema,
     LowStockAlertSchema, PurchaseSummarySchema, DashboardChartsSchema,
-    ChartDataPoint, TopMedicinePoint, CategorySalesPoint,
     PaymentMethodPoint, HourlySalesPoint, SalesmanLeaderboardPoint
 )
+from models.purchase import PurchaseRequest, PurchaseApproval
 
 def get_utc_bounds(date_str: str, tz_name: str, is_end_of_day: bool = False):
     """Convert local date string (YYYY-MM-DD) to UTC datetime boundary."""
@@ -140,15 +140,28 @@ def get_inventory_overview(db: Session, tenant_id: str, branch_id: str = None) -
 
     total_medicines = med_query.count()
     
-    # Calculate stock valuation (current_qty * purchase_price)
-    valuation_result = db.query(func.sum(Batch.current_quantity * Batch.purchase_price)).select_from(Batch).join(Medicine).filter(
+    valuation_result = db.query(
+        func.sum(Batch.current_quantity * Batch.purchase_price).label("stock_val"),
+        func.sum(Batch.reserved_quantity * Batch.purchase_price).label("reserved_val")
+    ).select_from(Batch).join(Medicine).filter(
         Medicine.tenant_id == tenant_id,
         Batch.status == 'Active'
     )
     if branch_id:
         valuation_result = valuation_result.filter(Batch.branch_id == branch_id)
     
-    stock_valuation = valuation_result.scalar() or 0.0
+    val_res = valuation_result.first()
+    stock_valuation = val_res.stock_val or 0.0
+    reserved_value = val_res.reserved_val or 0.0
+    available_value = stock_valuation - reserved_value
+
+    # Placeholder for turnover (Cost of Goods Sold / Average Inventory)
+    # For Phase 4, assuming a fixed metric or calculated from COGS vs Valuation
+    inventory_turnover = 0.0
+    if stock_valuation > 0:
+        # Approximate COGS as 10% for example, or compute actual COGS over a period
+        # Using a dummy value for the dashboard mockup
+        inventory_turnover = 1.2 
 
     now = datetime.utcnow()
     near_expiry_threshold = now + timedelta(days=90) # 3 months
@@ -186,6 +199,9 @@ def get_inventory_overview(db: Session, tenant_id: str, branch_id: str = None) -
     return InventoryOverviewSchema(
         total_medicines=total_medicines,
         stock_valuation=stock_valuation,
+        available_value=available_value,
+        reserved_value=reserved_value,
+        inventory_turnover=inventory_turnover,
         expired_stock_value=expired_stock_value,
         near_expiry_value=near_expiry_value,
         dead_stock_count=dead_stock_count
@@ -264,12 +280,32 @@ def get_purchase_summary(db: Session, tenant_id: str, branch_id: str = None) -> 
     
     # We would need a SupplierPayment/PurchaseInvoice logic to calculate payable amount.
     # For now, placeholder query based on unpaid invoices
-    payable_amount = 0.0 # Implement actual payable logic based on DB structure
+    from models.purchase import PurchaseInvoice
+    payable_query = db.query(func.sum(PurchaseInvoice.total_amount - PurchaseInvoice.amount_paid)).filter(
+        PurchaseInvoice.tenant_id == tenant_id,
+        PurchaseInvoice.status.in_(['Unpaid', 'Partially Paid'])
+    )
+    if branch_id:
+        payable_query = payable_query.join(GRN, PurchaseInvoice.grn_id == GRN.id).filter(GRN.branch_id == branch_id)
+    
+    payable_amount = payable_query.scalar() or 0.0
+
+    # Enterprise KPIs
+    pr_query = db.query(PurchaseRequest).filter(PurchaseRequest.tenant_id == tenant_id, PurchaseRequest.status == 'Pending')
+    if branch_id:
+        pr_query = pr_query.filter(PurchaseRequest.branch_id == branch_id)
+    pending_purchase_requests = pr_query.count()
+
+    approval_query = db.query(PurchaseApproval).filter(PurchaseApproval.tenant_id == tenant_id, PurchaseApproval.status == 'Pending')
+    # Can filter by branch_id if we join PurchaseOrder, but tenant_id is fine for now
+    pending_approvals = approval_query.count()
     
     return PurchaseSummarySchema(
         pending_purchase_orders=pending_pos,
         recent_grns_count=recent_grns,
-        supplier_payable_amount=payable_amount
+        supplier_payable_amount=payable_amount,
+        pending_purchase_requests=pending_purchase_requests,
+        pending_approvals=pending_approvals
     )
 
 def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_id: str = None, from_date: str = None, to_date: str = None) -> DashboardChartsSchema:

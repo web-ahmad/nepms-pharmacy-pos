@@ -1,123 +1,405 @@
-"use client";
+'use client';
+// app/(dashboard)/roles/page.tsx
+// Enterprise Role & Permission Management page.
 
-import React, { useState } from 'react';
-import { useRoles, usePermissions } from '@/features/roles/services/roles.api';
-import { Role } from '@/features/roles/types/roles';
-import { RolePermissionModal } from '@/features/roles/components/RolePermissionModal';
-import { Plus, Shield, Edit2, Eye } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Shield, Plus, Copy, Trash2, ChevronDown, ChevronRight, Loader2, RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
-export default function RolesPage() {
-  const { data: roles, isLoading: rolesLoading } = useRoles();
-  const { data: permissions, isLoading: permissionsLoading } = usePermissions();
+import {
+  useEnterpriseRoles, usePermissionsCatalogue,
+  useCreateRole, useUpdateRole, useDeleteRole,
+  useCloneRole, useSetRolePermissions, useSeedDefaults,
+  roleKeys,
+} from '@/features/users/services/role.api';
+import type { Role, RoleListItem, PermissionGrouped, Permission } from '@/features/users/types/user';
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
+// ── Permission matrix ─────────────────────────────────────────────────────────
 
-  const handleCreateNew = () => {
-    setSelectedRole(null);
-    setIsModalOpen(true);
-  };
+function PermissionMatrix({
+  groups,
+  selectedIds,
+  onToggle,
+}: {
+  groups: PermissionGrouped[];
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(groups.map((g) => g.module)));
 
-  const handleEdit = (role: Role) => {
-    setSelectedRole(role);
-    setIsModalOpen(true);
-  };
-
-  const isLoading = rolesLoading || permissionsLoading;
+  const toggle = (module: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(module) ? next.delete(module) : next.add(module);
+      return next;
+    });
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <Shield className="w-8 h-8 text-blue-600" />
-            Roles & Permissions
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-2">
-            Manage system roles, create custom access profiles, and enforce granular RBAC security policies.
-          </p>
-        </div>
-        <button
-          onClick={handleCreateNew}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-lg shadow-blue-500/30"
+    <div className="space-y-2">
+      {groups.map((group) => {
+        const isOpen = expanded.has(group.module);
+        const selectedInGroup = group.permissions.filter((p) => selectedIds.has(p.id)).length;
+        const totalInGroup = group.permissions.length;
+        const allSelected = selectedInGroup === totalInGroup;
+
+        return (
+          <div key={group.module} className="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+            <button
+              onClick={() => toggle(group.module)}
+              className="w-full flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800/60 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                {/* Select-all for group */}
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    group.permissions.forEach((p) => {
+                      if (allSelected ? selectedIds.has(p.id) : !selectedIds.has(p.id)) onToggle(p.id);
+                    });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="font-semibold text-sm text-zinc-800 dark:text-zinc-200 capitalize">
+                  {group.module.replace(/_/g, ' ')}
+                </span>
+                <span className="text-xs text-zinc-400">{selectedInGroup}/{totalInGroup}</span>
+              </div>
+              {isOpen ? <ChevronDown size={15} className="text-zinc-400" /> : <ChevronRight size={15} className="text-zinc-400" />}
+            </button>
+
+            {isOpen && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-y divide-zinc-100 dark:divide-zinc-800">
+                {group.permissions.map((perm) => (
+                  <label
+                    key={perm.id}
+                    className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/40 ${
+                      perm.is_sensitive ? 'border-l-2 border-amber-400' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(perm.id)}
+                      onChange={() => onToggle(perm.id)}
+                      className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 capitalize">
+                        {perm.action.replace(/_/g, ' ')}
+                        {perm.is_sensitive && (
+                          <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">sensitive</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-zinc-400 font-mono">{perm.code}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Role card ─────────────────────────────────────────────────────────────────
+
+function RoleCard({
+  role,
+  selected,
+  onClick,
+}: {
+  role: RoleListItem;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const cloneMut  = useCloneRole();
+  const deleteMut = useDeleteRole();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      onClick={onClick}
+      className={`relative flex flex-col rounded-2xl border cursor-pointer transition-all duration-200 p-4 shadow-sm hover:shadow-md ${
+        selected
+          ? 'border-indigo-400 dark:border-indigo-600 bg-indigo-50/60 dark:bg-indigo-900/20 ring-2 ring-indigo-400/30'
+          : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-indigo-300 dark:hover:border-indigo-700'
+      }`}
+    >
+      {/* Color dot + name */}
+      <div className="flex items-center gap-3 mb-2">
+        <div
+          className="h-9 w-9 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0"
+          style={{ background: role.color ?? '#6366f1' }}
         >
-          <Plus className="w-5 h-5" />
-          Create Role
-        </button>
+          <Shield size={16} />
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold text-sm text-zinc-900 dark:text-zinc-100 truncate">{role.name}</p>
+          {role.is_system_default && (
+            <span className="text-xs text-indigo-500 dark:text-indigo-400">System default</span>
+          )}
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center p-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 text-sm uppercase tracking-wider">
-                <tr>
-                  <th className="px-6 py-4 font-semibold">Role Name</th>
-                  <th className="px-6 py-4 font-semibold">Description</th>
-                  <th className="px-6 py-4 font-semibold">Type</th>
-                  <th className="px-6 py-4 font-semibold text-center">Permissions</th>
-                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {roles?.map((role) => (
-                  <tr key={role.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                        {role.name}
-                        {role.is_system_default && (
-                          <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs px-2 py-0.5 rounded-full font-medium">
-                            System
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                      {role.description || '-'}
-                    </td>
-                    <td className="px-6 py-4">
-                      {role.is_system_default ? (
-                        <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
-                          <Shield className="w-4 h-4" /> Default
-                        </span>
-                      ) : (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                          Custom
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="inline-flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg text-sm font-medium">
-                        {role.permissions?.length || 0}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleEdit(role)}
-                        className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                        title={role.is_system_default ? "View Role" : "Edit Role"}
-                      >
-                        {role.is_system_default ? <Eye className="w-5 h-5" /> : <Edit2 className="w-5 h-5" />}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Stats */}
+      <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+        <span>{role.permission_count} permissions</span>
+        <span>•</span>
+        <span>{role.user_count} users</span>
+      </div>
+
+      {/* Actions (hover) */}
+      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            cloneMut.mutateAsync({ id: role.id, newName: `${role.name} (Copy)` });
+            toast.success('Role cloned');
+          }}
+          className="rounded-lg p-1.5 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+          title="Clone"
+        >
+          <Copy size={13} />
+        </button>
+        {!role.is_system_default && (
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (role.user_count > 0) { toast.error(`${role.user_count} users are assigned this role`); return; }
+              if (!confirm('Delete this role?')) return;
+              await deleteMut.mutateAsync(role.id);
+              toast.success('Role deleted');
+            }}
+            className="rounded-lg p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            title="Delete"
+          >
+            <Trash2 size={13} />
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+export default function RolesPage() {
+  const qc = useQueryClient();
+  const { data: rolesData, isLoading: rolesLoading } = useEnterpriseRoles();
+  const { data: permsData, isLoading: permsLoading } = usePermissionsCatalogue();
+  const seedMut = useSeedDefaults();
+
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [selectedPerms, setSelectedPerms] = useState<Set<string>>(new Set());
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleColor, setNewRoleColor] = useState('#6366f1');
+
+  const createRole = useCreateRole();
+  const setPerms   = useSetRolePermissions(selectedRoleId ?? '');
+
+  // Load selected role's permissions into set
+  const selectedRole = rolesData?.items.find((r) => r.id === selectedRoleId);
+
+  const handleSelectRole = async (role: RoleListItem) => {
+    setSelectedRoleId(role.id);
+    // Fetch full role detail to get permission IDs (from full detail endpoint)
+    try {
+      const res = await fetch(`/api/v1/enterprise/roles/${role.id}`);
+      const data = await res.json();
+      setSelectedPerms(new Set((data.permissions ?? []).map((p: Permission) => p.id)));
+    } catch {
+      setSelectedPerms(new Set());
+    }
+  };
+
+  const handleTogglePermission = (permId: string) => {
+    setSelectedPerms((prev) => {
+      const next = new Set(prev);
+      next.has(permId) ? next.delete(permId) : next.add(permId);
+      return next;
+    });
+  };
+
+  const handleSavePermissions = async () => {
+    if (!selectedRoleId) return;
+    await setPerms.mutateAsync([...selectedPerms]);
+    toast.success('Permissions saved');
+    qc.invalidateQueries({ queryKey: roleKeys.lists() });
+  };
+
+  const handleCreateRole = async () => {
+    if (!newRoleName.trim()) return;
+    await createRole.mutateAsync({
+      name: newRoleName.trim(),
+      color: newRoleColor,
+      permission_ids: [...selectedPerms],
+    });
+    toast.success('Role created');
+    setNewRoleName('');
+    setShowNewForm(false);
+  };
+
+  const handleSeedDefaults = async () => {
+    const res = await seedMut.mutateAsync();
+    toast.success(`Seeded: ${res.permissions_created} permissions, ${res.roles_created} roles`);
+  };
+
+  return (
+    <div className="space-y-6 p-6">
+      {/* Page header */}
+      <motion.div
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-md">
+            <Shield size={20} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Roles & Permissions</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Manage access roles and permission matrices
+            </p>
           </div>
         </div>
-      )}
 
-      <RolePermissionModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        role={selectedRole}
-        permissions={permissions || []}
-      />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSeedDefaults}
+            disabled={seedMut.isPending}
+            className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          >
+            {seedMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            Seed Defaults
+          </button>
+          <button
+            onClick={() => setShowNewForm((v) => !v)}
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all"
+          >
+            <Plus size={16} /> New Role
+          </button>
+        </div>
+      </motion.div>
+
+      {/* New role quick form */}
+      <AnimatePresence>
+        {showNewForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10 p-5 flex flex-wrap items-center gap-4">
+              <input
+                value={newRoleName}
+                onChange={(e) => setNewRoleName(e.target.value)}
+                placeholder="Role name…"
+                className="flex-1 min-w-[180px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
+              />
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-zinc-600 dark:text-zinc-400">Color:</label>
+                <input type="color" value={newRoleColor} onChange={(e) => setNewRoleColor(e.target.value)}
+                  className="h-9 w-14 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer" />
+              </div>
+              <button
+                onClick={handleCreateRole}
+                disabled={createRole.isPending || !newRoleName.trim()}
+                className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+              >
+                {createRole.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                Create
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Two-panel layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Role list */}
+        <div className="lg:col-span-4 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400 px-1">
+            {rolesData?.total ?? 0} Roles
+          </p>
+          {rolesLoading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-20 rounded-2xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+              ))
+            : rolesData?.items.map((role) => (
+                <div key={role.id} className="group">
+                  <RoleCard
+                    role={role}
+                    selected={selectedRoleId === role.id}
+                    onClick={() => handleSelectRole(role)}
+                  />
+                </div>
+              ))
+          }
+        </div>
+
+        {/* Right: Permission matrix */}
+        <div className="lg:col-span-8">
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800">
+              <div>
+                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                  {selectedRole ? `Permissions — ${selectedRole.name}` : 'Select a role to configure permissions'}
+                </h2>
+                {selectedRole && (
+                  <p className="text-sm text-zinc-500 mt-0.5">
+                    {selectedPerms.size} permissions selected
+                    {selectedRole.is_system_default && ' · System default role'}
+                  </p>
+                )}
+              </div>
+              {selectedRoleId && (
+                <button
+                  onClick={handleSavePermissions}
+                  disabled={setPerms.isPending}
+                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  {setPerms.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Save
+                </button>
+              )}
+            </div>
+
+            <div className="p-5">
+              {!selectedRoleId ? (
+                <div className="py-20 flex flex-col items-center gap-3 text-center">
+                  <div className="h-16 w-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                    <Shield size={28} className="text-zinc-400" />
+                  </div>
+                  <p className="font-medium text-zinc-500">No role selected</p>
+                  <p className="text-sm text-zinc-400">Click a role on the left to configure its permissions</p>
+                </div>
+              ) : permsLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <PermissionMatrix
+                  groups={permsData ?? []}
+                  selectedIds={selectedPerms}
+                  onToggle={handleTogglePermission}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

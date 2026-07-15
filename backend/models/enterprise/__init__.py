@@ -1,5 +1,6 @@
 """
 enterprise/__init__.py
-Exposes all enterprise-domain models.
+─────────────────────────
+Enterprise-domain model package.
+Models are imported through models/__init__.py to avoid double-registration.
 """
-from .branch import PharmacyBranch, BranchStaffAssignment

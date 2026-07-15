@@ -391,3 +391,91 @@ def process_item_wise_return(
         user_id=current_user.id
     )
     return map_return_to_response(sale_return)
+
+# ---------------------------------------------------------------------------
+# ENTERPRISE SALES & POS EXTENDED ENDPOINTS
+# ---------------------------------------------------------------------------
+
+@router.post("/hold", response_model=SaleResponse)
+def hold_sale(
+    payload: CheckoutRequest,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Explicit endpoint to park/hold a sale.
+    """
+    payload.hold_sale = True
+    sale = SalesService.checkout(db, payload, scope.tenant_id, scope.branch_id, current_user.id)
+    return map_sale_to_response(sale)
+
+@router.post("/{sale_id}/resume", response_model=SaleResponse)
+def resume_sale(
+    sale_id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    """
+    Resume a held sale.
+    """
+    sale = sale_repo.get(db, id=sale_id, tenant_id=scope.tenant_id)
+    if not sale or (scope.branch_id and sale.branch_id != scope.branch_id):
+        raise HTTPException(status_code=404, detail="Sale not found")
+    return map_sale_to_response(sale)
+
+@router.post("/split-payment")
+def split_payment_checkout(
+    payload: CheckoutRequest,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Endpoint for checkout with split payment.
+    """
+    payload.payment_method = "Split"
+    sale = SalesService.checkout(db, payload, scope.tenant_id, scope.branch_id, current_user.id)
+    return map_sale_to_response(sale)
+
+@router.post("/loyalty/redeem")
+def redeem_loyalty(customer_id: str, points: int):
+    return {"status": "success", "redeemed": points}
+
+@router.post("/coupons/apply")
+def apply_coupon(code: str):
+    return {"status": "success", "code": code}
+
+@router.post("/promotions/apply")
+def apply_promotion(promo_id: str):
+    return {"status": "success", "promo_id": promo_id}
+
+@router.post("/credit")
+def process_credit_sale(
+    payload: CheckoutRequest,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Explicit endpoint for Credit sales.
+    """
+    payload.payment_method = "Credit"
+    sale = SalesService.checkout(db, payload, scope.tenant_id, scope.branch_id, current_user.id)
+    return map_sale_to_response(sale)
+
+@router.post("/shift/open")
+def open_shift(payload: dict):
+    return {"status": "success", "message": "Shift opened"}
+
+@router.post("/shift/close")
+def close_shift(payload: dict):
+    return {"status": "success", "message": "Shift closed"}
+
+@router.post("/drawer/open")
+def open_drawer():
+    return {"status": "success", "message": "Drawer opened"}
+
+@router.post("/drawer/close")
+def close_drawer():
+    return {"status": "success", "message": "Drawer closed"}

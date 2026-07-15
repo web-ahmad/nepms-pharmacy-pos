@@ -12,18 +12,18 @@ function Section({ title, items, total, totalLabel, color }: {
 }) {
   return (
     <div>
-      <p className={`text-[11px] font-bold uppercase tracking-widest mb-2 ${color}`}>{title}</p>
+      <p className={`text-[11px] font-bold uppercase tracking-widest mb-3 ${color}`}>{title}</p>
       <div className="space-y-1">
         {items.map((item, i) => (
-          <div key={i} className="flex justify-between text-sm py-1.5 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-zinc-900 transition-colors">
-            <span className="text-gray-600 dark:text-zinc-400">{item.account_name}</span>
-            <span className="font-mono font-medium text-gray-900 dark:text-zinc-100">{fmt(item.amount)}</span>
+          <div key={i} className="flex justify-between text-sm py-2 px-3 rounded-lg hover:bg-white/40 dark:hover:bg-gray-800/40 transition-colors">
+            <span className="text-gray-600 dark:text-gray-300">{item.account_name}</span>
+            <span className="font-mono font-medium text-gray-900 dark:text-white">{fmt(item.amount)}</span>
           </div>
         ))}
-        {items.length === 0 && <p className="text-xs text-gray-400 italic px-2 py-1">No entries</p>}
+        {items.length === 0 && <p className="text-xs text-gray-400 italic px-3 py-2">No entries</p>}
       </div>
-      <div className="flex justify-between mt-2 pt-2 border-t border-dashed border-gray-200 dark:border-zinc-700 text-sm font-bold px-2">
-        <span className="text-gray-800 dark:text-zinc-200">{totalLabel}</span>
+      <div className="flex justify-between mt-3 pt-3 border-t border-dashed border-gray-200/50 dark:border-gray-700/50 text-sm font-bold px-3">
+        <span className="text-gray-800 dark:text-gray-200">{totalLabel}</span>
         <span className={`font-mono ${color}`}>{fmt(total)}</span>
       </div>
     </div>
@@ -77,7 +77,7 @@ export default function BalanceSheetView({ data, isLoading }: Props) {
         </div>
         <div className="flex items-center gap-2">
           {!isBalanced && (
-            <span className="flex items-center gap-1 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-3 py-1.5 rounded-full border border-red-200 dark:border-red-800">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-500/20 px-3 py-1.5 rounded-full border border-rose-500/20">
               <AlertTriangle className="h-3.5 w-3.5" /> Out of balance
             </span>
           )}
@@ -91,15 +91,19 @@ export default function BalanceSheetView({ data, isLoading }: Props) {
       </div>
 
       {/* Accounting equation banner */}
-      <div className={`rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${isBalanced ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800' : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'}`}>
-        <p className={`text-xs font-bold uppercase tracking-wide ${isBalanced ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
+      <div className={`rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-xl border shadow-lg ${
+        isBalanced 
+          ? 'bg-emerald-500/10 dark:bg-emerald-500/20 border-emerald-500/20 dark:border-emerald-500/20' 
+          : 'bg-rose-500/10 dark:bg-rose-500/20 border-rose-500/20 dark:border-rose-500/20'
+      }`}>
+        <p className={`text-xs font-bold uppercase tracking-widest ${isBalanced ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
           Accounting Equation: Assets = Liabilities + Equity
         </p>
-        <div className="flex gap-4 text-xs font-mono font-bold">
+        <div className="flex gap-4 text-sm font-mono font-bold items-center">
           <span className="text-blue-600 dark:text-blue-400">Assets: {fmt(data.total_assets)}</span>
-          <span className="text-gray-400">=</span>
-          <span className="text-violet-600 dark:text-violet-400">L+E: {fmt(totalLE)}</span>
-          {isBalanced && <span className="text-emerald-600">✓ Balanced</span>}
+          <span className="text-gray-400 dark:text-gray-500">=</span>
+          <span className="text-purple-600 dark:text-purple-400">L+E: {fmt(totalLE)}</span>
+          {isBalanced && <span className="text-emerald-600 dark:text-emerald-400 ml-2">✓ Balanced</span>}
         </div>
       </div>
 
@@ -107,31 +111,31 @@ export default function BalanceSheetView({ data, isLoading }: Props) {
       <div id="bs-print-area">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Assets */}
-          <div className="rounded-2xl border border-blue-200 dark:border-blue-900 bg-white dark:bg-zinc-950 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 bg-blue-50 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900">
-              <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300">Assets</h3>
-              <p className="text-[11px] text-blue-500 dark:text-blue-500 mt-0.5">What the business owns</p>
+          <div className="rounded-2xl border border-blue-500/20 dark:border-blue-500/20 bg-blue-500/5 backdrop-blur-xl shadow-xl overflow-hidden flex flex-col">
+            <div className="px-6 py-5 bg-blue-500/10 dark:bg-blue-500/20 border-b border-blue-500/20 dark:border-blue-500/20">
+              <h3 className="text-base font-bold text-blue-800 dark:text-blue-300">Assets</h3>
+              <p className="text-[11px] text-blue-600/70 dark:text-blue-400/70 mt-1 uppercase tracking-wider">What the business owns</p>
             </div>
-            <div className="p-5 min-h-[260px]">
+            <div className="p-6 flex-1 min-h-[300px]">
               <Section title="Current & Fixed Assets" items={data.assets} total={data.total_assets} totalLabel="Total Assets" color="text-blue-700 dark:text-blue-400" />
             </div>
           </div>
 
           {/* Liabilities + Equity */}
-          <div className="rounded-2xl border border-violet-200 dark:border-violet-900 bg-white dark:bg-zinc-950 shadow-sm overflow-hidden">
-            <div className="px-5 py-4 bg-violet-50 dark:bg-violet-950/40 border-b border-violet-100 dark:border-violet-900">
-              <h3 className="text-sm font-bold text-violet-800 dark:text-violet-300">Liabilities &amp; Equity</h3>
-              <p className="text-[11px] text-violet-500 dark:text-violet-500 mt-0.5">What the business owes &amp; owner's stake</p>
+          <div className="rounded-2xl border border-purple-500/20 dark:border-purple-500/20 bg-purple-500/5 backdrop-blur-xl shadow-xl overflow-hidden flex flex-col">
+            <div className="px-6 py-5 bg-purple-500/10 dark:bg-purple-500/20 border-b border-purple-500/20 dark:border-purple-500/20">
+              <h3 className="text-base font-bold text-purple-800 dark:text-purple-300">Liabilities &amp; Equity</h3>
+              <p className="text-[11px] text-purple-600/70 dark:text-purple-400/70 mt-1 uppercase tracking-wider">What the business owes &amp; owner's stake</p>
             </div>
-            <div className="p-5 min-h-[260px] space-y-5">
+            <div className="p-6 flex-1 min-h-[300px] space-y-6">
               <Section title="Liabilities" items={data.liabilities} total={data.total_liabilities} totalLabel="Total Liabilities" color="text-orange-600 dark:text-orange-400" />
-              <div className="border-t border-dashed border-gray-200 dark:border-zinc-700 pt-4">
-                <Section title="Equity" items={data.equity} total={data.total_equity} totalLabel="Total Equity" color="text-violet-700 dark:text-violet-400" />
+              <div className="border-t border-dashed border-purple-200/50 dark:border-purple-700/50 pt-6">
+                <Section title="Equity" items={data.equity} total={data.total_equity} totalLabel="Total Equity" color="text-purple-700 dark:text-purple-400" />
               </div>
             </div>
-            <div className="px-5 py-4 border-t-2 border-violet-300 dark:border-violet-700 bg-violet-50/60 dark:bg-violet-950/20 flex justify-between items-center">
-              <span className="text-sm font-bold text-violet-900 dark:text-violet-200">Total L + E</span>
-              <span className="font-mono font-bold text-violet-700 dark:text-violet-300">{fmt(totalLE)}</span>
+            <div className="px-6 py-5 border-t border-purple-500/20 dark:border-purple-500/20 bg-purple-500/10 dark:bg-purple-500/20 flex justify-between items-center mt-auto">
+              <span className="text-sm font-bold text-purple-900 dark:text-purple-200">Total L + E</span>
+              <span className="font-mono text-lg font-bold text-purple-700 dark:text-purple-300">{fmt(totalLE)}</span>
             </div>
           </div>
         </div>

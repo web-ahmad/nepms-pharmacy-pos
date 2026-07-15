@@ -20,26 +20,33 @@ from schemas.accounts import (
 )
 from services.accounts_service import AccountsService
 from services.auto_posting_service import AutoPostingService
+from services.closing_service import ClosingService
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter(dependencies=[Depends(require_module("journals"))])
 
 def require_accounts_view(current_user: User = Depends(get_current_user)):
-    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin"]):
+    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin", "Pharmacy Owner", "Owner"]):
+        return current_user
+    if "*" in current_user.permissions:
         return current_user
     if "accounts.view" not in current_user.permissions:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
 
 def require_accounts_create(current_user: User = Depends(get_current_user)):
-    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin"]):
+    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin", "Pharmacy Owner", "Owner"]):
+        return current_user
+    if "*" in current_user.permissions:
         return current_user
     if "accounts.create" not in current_user.permissions:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
 
 def require_accounts_approve(current_user: User = Depends(get_current_user)):
-    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin"]):
+    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin", "Pharmacy Owner", "Owner"]):
+        return current_user
+    if "*" in current_user.permissions:
         return current_user
     if "accounts.approve" not in current_user.permissions:
         raise HTTPException(status_code=403, detail="Not enough permissions")
@@ -131,10 +138,11 @@ def get_journal_entries(
 @router.get("/dashboard-stats", response_model=DashboardStatsResponse)
 def get_dashboard_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view)
+    current_user: User = Depends(require_accounts_view),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
-    return service.get_dashboard_stats(scope.tenant_id)
+    return service.get_dashboard_stats(scope.tenant_id, scope.branch_id)
 
 
 @router.post("/force-rebuild")
@@ -277,4 +285,15 @@ def force_rebuild_accounting(
         "synced": synced,
         "accounts_recalculated": recalculated,
     }
+
+
+@router.post("/close-year")
+def close_year(
+    year: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_accounts_create),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    service = ClosingService(db)
+    return service.perform_year_end_closing(scope.tenant_id, current_user.id, year, scope.branch_id)
 

@@ -71,6 +71,24 @@ async def startup_event():
 
     # Auto-create audit tables (AuditEvent, AlertHistory, CameraSnapshot, AlertConfig, WhatsAppBotLog)
     from models.audit import AuditEvent, AlertHistory, CameraSnapshot, AlertConfig, WhatsAppBotLog  # noqa – ensures registration
+    # Enterprise multi-branch tables
+    from models.enterprise.branch import PharmacyBranch, BranchStaffAssignment  # noqa
+    # Enterprise user & identity tables (Phase 2)
+    from models.enterprise.user import (  # noqa
+        EnterpriseUser, EnterpriseRole, EnterprisePermission, EnterpriseRolePermission,
+        BranchUserAssignment, UserSession, UserTrustedDevice,
+        UserLoginHistory, UserActivityLog, UserApprovalRequest,
+    )
+    # Enterprise Branch Operations & Configuration (Phase 3)
+    from models.enterprise.branch_configuration import (  # noqa
+        BranchConfiguration, BranchWorkingHours, BranchHoliday,
+        BranchWarehouse, BranchCounter, BranchPrinter, BranchDevice,
+        BranchDocumentSeries, BranchTaxSetting, BranchPreference,
+        BranchLicense, BranchFinancialAccount, BranchPaymentMethod,
+        BranchNotificationSetting, BranchBranding, BranchPosConfig,
+        BranchSecuritySetting, BranchBackupSetting,
+        BranchConfigAuditLog, BranchHealthSnapshot,
+    )
     from database import engine, Base
     Base.metadata.create_all(bind=engine, checkfirst=True)
 

@@ -8,6 +8,7 @@ export interface Account {
   is_active: boolean;
   is_system: boolean;
   current_balance: number;
+  parent_id?: string;
 }
 
 export interface JournalEntryLine {

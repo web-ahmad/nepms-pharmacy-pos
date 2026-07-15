@@ -2,7 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { 
   Supplier, SupplierLedger, PurchaseOrder, GRN, PurchaseInvoice, SupplierPayment,
-  CreateSupplierPayload, CreatePOPayload, CreateGRNPayload, CreateInvoicePayload, CreatePaymentPayload
+  CreateSupplierPayload, CreatePOPayload, CreateGRNPayload, CreateInvoicePayload, CreatePaymentPayload,
+  PurchaseRequest, PurchaseQuotation, PurchaseApproval, PurchaseReceiving,
+  CreatePurchaseRequestPayload, CreatePurchaseQuotationPayload, CreatePurchaseApprovalPayload, CreatePurchaseReceivingPayload
 } from '../types/purchase';
 
 // --- Suppliers ---
@@ -415,6 +417,89 @@ export const useCreatePurchaseReturn = () => {
       queryClient.invalidateQueries({ queryKey: ['purchase_returns'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    }
+  });
+};
+
+// --- Enterprise Purchase Module ---
+
+export const usePurchaseRequests = () => {
+  return useQuery({
+    queryKey: ['purchase_requests'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/purchase/requests');
+      return res.data as PurchaseRequest[];
+    }
+  });
+};
+
+export const useCreatePurchaseRequest = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreatePurchaseRequestPayload) => {
+      const res = await api.post('/api/v1/purchase/requests', payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_requests'] });
+    }
+  });
+};
+
+export const usePurchaseQuotations = (requestId?: string) => {
+  return useQuery({
+    queryKey: ['purchase_quotations', requestId],
+    queryFn: async () => {
+      const url = requestId ? `/api/v1/purchase/quotations?request_id=${requestId}` : '/api/v1/purchase/quotations';
+      const res = await api.get(url);
+      return res.data as PurchaseQuotation[];
+    }
+  });
+};
+
+export const useCreatePurchaseQuotation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreatePurchaseQuotationPayload) => {
+      const res = await api.post('/api/v1/purchase/quotations', payload);
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_quotations'] });
+      if (variables.request_id) {
+        queryClient.invalidateQueries({ queryKey: ['purchase_quotations', variables.request_id] });
+      }
+    }
+  });
+};
+
+export const useCreatePurchaseApproval = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreatePurchaseApprovalPayload) => {
+      const res = await api.post('/api/v1/purchase/approvals', payload);
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders', variables.po_id] });
+    }
+  });
+};
+
+export const useCreateEnterpriseReceiving = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreatePurchaseReceivingPayload) => {
+      const res = await api.post('/api/v1/purchase/receiving', payload);
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders', variables.po_id] });
+      queryClient.invalidateQueries({ queryKey: ['grns'] });
+      queryClient.invalidateQueries({ queryKey: ['medicines'] });
+      queryClient.invalidateQueries({ queryKey: ['batches'] });
     }
   });
 };

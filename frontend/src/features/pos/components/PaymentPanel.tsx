@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { usePOSStore } from '../store/pos-store';
 import { useCheckout, useWorkflowMode } from '../services/pos.api';
 import { CheckoutPayload } from '../types/pos';
-import { CreditCard, Banknote, Landmark, Loader2, AlertCircle, Search, ClipboardList, X } from 'lucide-react';
+import { CreditCard, Banknote, Landmark, Loader2, AlertCircle, Search, ClipboardList, X, Split, Gift } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCustomers } from '@/features/crm/services/crm.api';
 import { Customer } from '@/features/crm/types/crm';
 import POSPrescriptions from './POSPrescriptions';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function PaymentPanel({ 
   checkoutButtonRef, 
@@ -91,17 +92,17 @@ export default function PaymentPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Customer Information Card */}
-      <div className="bg-white rounded-lg border border-outline-variant p-3 relative flex-shrink-0">
-        <h3 className="font-label-md text-[10px] text-on-surface-variant mb-2 uppercase tracking-wide">Customer Info</h3>
+      <div className="bg-surface/50 rounded-2xl border border-outline-variant/40 p-4 relative flex-shrink-0 shadow-sm backdrop-blur-sm">
+        <h3 className="text-xs font-bold text-primary/70 mb-3 uppercase tracking-widest">Customer Info</h3>
         
         {/* Customer Selection Input */}
         <div className="relative mb-2">
-          <div className="flex items-center border border-outline-variant rounded-md bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
-            <Search className="ml-2 text-outline w-4 h-4" />
+          <div className="flex items-center border border-outline-variant/50 rounded-xl bg-surface focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 transition-all shadow-inner">
+            <Search className="ml-3 text-primary/50 w-4 h-4" />
             <input 
               type="text"
               placeholder="Search by name, phone, CNIC..."
-              className="w-full p-2 text-body-md focus:outline-none bg-transparent text-on-surface"
+              className="w-full p-2.5 text-sm focus:outline-none bg-transparent text-on-surface font-medium"
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
             />
@@ -248,27 +249,33 @@ export default function PaymentPanel({
 
       {/* Payment Methods */}
       {!isDualCounter && (
-        <div className="mt-4 flex-1 overflow-y-auto">
-            <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-2 block">Payment Method</label>
+        <div className="mt-4 flex-1 overflow-y-auto pr-1">
+            <label className="text-xs text-on-surface-variant font-bold tracking-widest uppercase mb-3 block">Payment Method</label>
             <div className="grid grid-cols-2 gap-2">
-              {['Cash', 'Card', 'Credit', 'Bank Transfer'].map((method) => {
+              {['Cash', 'Card', 'Credit', 'Bank Transfer', 'Split', 'Gift Voucher'].map((method) => {
                 let Icon = Banknote;
                 if (method === 'Card') Icon = CreditCard;
                 if (method === 'Bank Transfer') Icon = Landmark;
+                if (method === 'Split') Icon = Split;
+                if (method === 'Gift Voucher') Icon = Gift;
+
+                const isSelected = paymentMethod === method;
 
                 return (
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     key={method}
                     onClick={() => setPaymentMethod(method as any)}
-                    className={`flex items-center gap-2 p-2 rounded border transition-colors ${
-                      paymentMethod === method
-                        ? 'border-primary bg-primary-container text-on-primary-container'
-                        : 'border-outline-variant bg-white text-on-surface-variant hover:bg-surface-container-low'
+                    className={`flex items-center gap-2 p-3 rounded-xl border transition-all shadow-sm ${
+                      isSelected
+                        ? 'border-primary bg-gradient-to-br from-primary to-primary/80 text-white shadow-primary/20'
+                        : 'border-outline-variant/50 bg-surface text-on-surface-variant hover:border-primary/30 hover:bg-surface-container-low'
                     }`}
                   >
-                    <Icon size={18} className={paymentMethod === method ? 'text-primary' : ''} />
-                    <span className="font-label-md text-label-md">{method}</span>
-                  </button>
+                    <Icon size={18} className={isSelected ? 'text-white' : 'text-primary/70'} />
+                    <span className="font-semibold text-sm">{method}</span>
+                  </motion.button>
                 )
               })}
             </div>
@@ -276,54 +283,67 @@ export default function PaymentPanel({
       )}
 
       {/* Summary Box */}
-      <div className="mt-auto pt-4 border-t border-outline-variant shrink-0">
-        <div className="bg-primary-container rounded-lg p-4 mb-4">
+      <div className="mt-auto pt-4 border-t border-outline-variant/30 shrink-0">
+        <motion.div 
+          layout
+          className="bg-gradient-to-br from-primary-container to-primary/20 rounded-2xl p-5 mb-4 border border-primary/10 shadow-inner"
+        >
           <div className="flex justify-between items-center text-on-primary-container mb-1">
-            <span className="font-body-sm opacity-80">Payable Amount</span>
-            <span className="text-[28px] font-[Arial] font-bold tracking-tight text-white">Rs {finalTotal.toFixed(2)}</span>
+            <span className="font-semibold opacity-80 uppercase tracking-wider text-xs">Payable Amount</span>
+            <span className="text-3xl font-[Arial] font-extrabold tracking-tight text-primary drop-shadow-sm">Rs {finalTotal.toFixed(2)}</span>
           </div>
           
           {!isDualCounter && (
-            <>
+            <AnimatePresence>
                 {amountPaid > finalTotal ? (
-                  <div className="flex justify-between items-center mt-2 border-t border-primary/20 pt-2">
-                    <span className="font-body-sm text-on-primary-container opacity-90">Change Due</span>
-                    <span className="text-[20px] font-[Arial] font-bold text-emerald-300">Rs {changeDue.toFixed(2)}</span>
-                  </div>
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex justify-between items-center mt-3 border-t border-primary/20 pt-3">
+                    <span className="font-semibold text-on-primary-container opacity-90 uppercase tracking-wider text-xs">Change Due</span>
+                    <span className="text-2xl font-[Arial] font-extrabold text-emerald-600 dark:text-emerald-400">Rs {changeDue.toFixed(2)}</span>
+                  </motion.div>
                 ) : amountPaid < finalTotal && amountPaid > 0 ? (
-                  <div className="flex justify-between items-center mt-2 border-t border-primary/20 pt-2">
-                    <span className="font-body-sm text-rose-200">Remaining Balance</span>
-                    <span className="text-[20px] font-[Arial] font-bold text-rose-300">Rs {(finalTotal - amountPaid).toFixed(2)}</span>
-                  </div>
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex justify-between items-center mt-3 border-t border-primary/20 pt-3">
+                    <span className="font-semibold text-rose-600/80 dark:text-rose-300/80 uppercase tracking-wider text-xs">Remaining Balance</span>
+                    <span className="text-2xl font-[Arial] font-extrabold text-rose-600 dark:text-rose-400">Rs {(finalTotal - amountPaid).toFixed(2)}</span>
+                  </motion.div>
                 ) : (amountPaid === 0 || isNaN(amountPaid)) && (paymentMethod === 'Credit' || selectedCustomer) ? (
-                  <div className="flex justify-between items-center mt-2 border-t border-primary/20 pt-2">
-                    <span className="font-body-sm text-rose-200">Remaining Balance</span>
-                    <span className="text-[20px] font-[Arial] font-bold text-rose-300">Rs {finalTotal.toFixed(2)}</span>
-                  </div>
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex justify-between items-center mt-3 border-t border-primary/20 pt-3">
+                    <span className="font-semibold text-rose-600/80 dark:text-rose-300/80 uppercase tracking-wider text-xs">Remaining Balance</span>
+                    <span className="text-2xl font-[Arial] font-extrabold text-rose-600 dark:text-rose-400">Rs {finalTotal.toFixed(2)}</span>
+                  </motion.div>
                 ) : null}
-            </>
+            </AnimatePresence>
           )}
-        </div>
+        </motion.div>
 
-        {errorMsg && (
-          <div className="mb-4 flex items-center gap-2 rounded-md bg-error-container p-3 text-body-sm text-on-error-container border border-error/20">
-            <AlertCircle size={16} />
-            {errorMsg}
-          </div>
-        )}
+        <AnimatePresence>
+          {errorMsg && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="mb-4 flex items-center gap-2 rounded-xl bg-error/10 p-3 text-sm font-medium text-error border border-error/20"
+            >
+              <AlertCircle size={18} className="shrink-0" />
+              {errorMsg}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
           ref={checkoutButtonRef}
           onClick={() => handleCheckout(false)}
           disabled={checkoutMutation.isPending || cartItems.length === 0}
-          className="w-full bg-primary text-on-primary font-title-md text-title-md py-4 rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center"
+          className="w-full bg-gradient-to-r from-primary to-primary/80 text-white font-bold text-lg py-4 rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50 flex items-center justify-center relative overflow-hidden group"
         >
+          <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
           {checkoutMutation.isPending ? (
             <Loader2 className="h-6 w-6 animate-spin" />
           ) : (
             isDualCounter ? 'Save Order (Ctrl+S)' : 'Process Sale (Ctrl+S)'
           )}
-        </button>
+        </motion.button>
       </div>
     </div>
   );

@@ -9,7 +9,11 @@ from schemas.purchase import (
     PurchaseInvoiceCreate, PurchaseInvoiceResponse,
     SupplierPaymentCreate, SupplierPaymentResponse,
     PurchaseReturnCreate, PurchaseReturnResponse,
-    SupplierLedgerResponse
+    SupplierLedgerResponse,
+    PurchaseRequestCreate, PurchaseRequestResponse,
+    PurchaseQuotationCreate, PurchaseQuotationResponse,
+    PurchaseApprovalCreate, PurchaseApprovalResponse,
+    PurchaseReceivingCreate, PurchaseReceivingResponse
 )
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from repositories.purchase import supplier_repo, po_repo, grn_repo, invoice_repo
@@ -415,3 +419,43 @@ def get_purchase_returns(
             pass
             
     return returns
+
+# =====================================================================
+# Enterprise Endpoints
+# =====================================================================
+
+@router.post("/requests", response_model=PurchaseRequestResponse)
+def create_purchase_request(
+    req_in: PurchaseRequestCreate,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    return PurchaseService.create_purchase_request(db, req_in, scope.tenant_id, scope.branch_id, current_user.id)
+
+@router.post("/quotations", response_model=PurchaseQuotationResponse)
+def create_purchase_quotation(
+    quot_in: PurchaseQuotationCreate,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    return PurchaseService.create_purchase_quotation(db, quot_in, scope.tenant_id, scope.branch_id)
+
+@router.post("/approvals", response_model=PurchaseApprovalResponse)
+def add_po_approval(
+    approval_in: PurchaseApprovalCreate,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    return PurchaseService.add_po_approval(db, approval_in, scope.tenant_id, current_user.id)
+
+@router.post("/receiving", response_model=PurchaseReceivingResponse)
+def receive_enterprise_grn(
+    rec_in: PurchaseReceivingCreate,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    return PurchaseService.receive_enterprise_grn(db, rec_in, scope.tenant_id, scope.branch_id, current_user.id)
+

@@ -9,6 +9,8 @@ import { Plus, Search, Edit, MoreVertical, PackageOpen, Eye, Trash, Loader2, Fil
 import StockAdjustmentModal from './StockAdjustmentModal';
 import { Medicine } from '../types/inventory';
 import { useDeleteMedicine, useBulkDeleteMedicines } from '../services/medicine.api';
+import { branchConfigService } from '@/features/branches/services/branchConfigService';
+import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { parseApiError } from '@/utils/errorParser';
 import {
@@ -32,13 +34,20 @@ export default function InventoryTable() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
-  const [filters, setFilters] = useState<{category?: string, status?: string, expiry?: string}>({});
+  const [filters, setFilters] = useState<{category?: string, status?: string, expiry?: string, warehouse_id?: string}>({});
   
   // Temporary state for the filter panel before
   const [tempFilters, setTempFilters] = useState<{category?: string, status?: string, expiry?: string}>({});
   const deleteMutation = useDeleteMedicine();
   const bulkDeleteMutation = useBulkDeleteMedicines();
-  const { user } = useAuthStore();
+  const { user, branchId } = useAuthStore();
+
+  const { data: branchSettings } = useQuery({
+    queryKey: ['branchSettings', branchId],
+    queryFn: () => branchConfigService.getSettingsOverview(branchId!),
+    enabled: !!branchId
+  });
+  const warehouses = branchSettings?.warehouses || [];
 
   const canCreate = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Inventory Manager';
   const canEdit = canCreate;
@@ -133,7 +142,22 @@ export default function InventoryTable() {
             Monitor clinical stock levels, valuations, and expiry tracking.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {warehouses.length > 0 && (
+            <select
+              value={filters.warehouse_id || ''}
+              onChange={(e) => {
+                setFilters(prev => ({ ...prev, warehouse_id: e.target.value || undefined }));
+                setPage(1);
+              }}
+              className="px-3 py-2 border border-[#c6c6cd] rounded-[4px] text-[14px] focus:outline-none focus:border-[#0058be]"
+            >
+              <option value="">All Warehouses</option>
+              {warehouses.map(w => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+          )}
           <button 
             onClick={() => {
               setTempFilters(filters);
@@ -190,7 +214,11 @@ export default function InventoryTable() {
           </div>
           <p className="text-[12px] font-bold text-[#004395] tracking-widest uppercase mb-1">Inventory Value</p>
           <h3 className="text-[24px] font-bold text-[#001a42]">Rs {totalValuation.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</h3>
-          <p className="text-[14px] text-[#004395] mt-1">Total stock valuation</p>
+          <div className="flex items-center gap-3 mt-1 text-[12px] font-medium text-[#004395]">
+            <span>Available: Rs {(inventoryOverview?.available_value || 0).toLocaleString()}</span>
+            <span className="text-[#0b1c30]/20">•</span>
+            <span>Reserved: Rs {(inventoryOverview?.reserved_value || 0).toLocaleString()}</span>
+          </div>
         </div>
 
         {/* Active Inventory Card */}
@@ -200,7 +228,9 @@ export default function InventoryTable() {
           </div>
           <p className="text-[12px] font-bold text-[#475569] tracking-widest uppercase mb-1">Active Inventory</p>
           <h3 className="text-[24px] font-bold text-[#0f172a]">{activeSKUs} SKUs</h3>
-          <p className="text-[14px] text-[#475569] mt-1">Currently tracked medicines</p>
+          <div className="flex items-center gap-2 mt-1 text-[12px] font-medium text-[#475569]">
+            <span>Turnover Rate: <span className="font-bold text-[#0b1c30]">{inventoryOverview?.inventory_turnover || 0}x</span></span>
+          </div>
         </div>
       </div>
 

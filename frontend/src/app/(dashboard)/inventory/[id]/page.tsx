@@ -11,8 +11,10 @@ import StockMovementsList from '@/features/inventory/components/StockMovementsLi
 import AuditHistoryList from '@/features/inventory/components/AuditHistoryList';
 import StockAdjustmentModal from '@/features/inventory/components/StockAdjustmentModal';
 import MedicineOverview from '@/features/inventory/components/MedicineOverview';
+import WarehouseDistribution from '@/features/inventory/components/WarehouseDistribution';
+import ReservationPanel from '@/features/inventory/components/ReservationPanel';
 
-type TabId = 'overview' | 'batches' | 'movements' | 'audit';
+type TabId = 'overview' | 'batches' | 'distribution' | 'movements' | 'reservations' | 'audit';
 
 export default function MedicineDetailPage() {
   const params = useParams();
@@ -52,8 +54,10 @@ export default function MedicineDetailPage() {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Settings },
+    { id: 'distribution', label: 'Warehouse Dist', icon: Box },
     { id: 'batches', label: 'Batches', icon: Package },
     { id: 'movements', label: 'Stock Movements', icon: Activity },
+    { id: 'reservations', label: 'Reservations', icon: Activity },
     { id: 'audit', label: 'Audit Logs', icon: Box },
   ];
 
@@ -119,8 +123,14 @@ export default function MedicineDetailPage() {
         {activeTab === 'batches' && (
           <BatchDetails medicineId={medicine.id} />
         )}
+        {activeTab === 'distribution' && (
+          <WarehouseDistribution medicineId={medicine.id} />
+        )}
         {activeTab === 'movements' && (
           <StockMovementsList medicineId={medicine.id} />
+        )}
+        {activeTab === 'reservations' && (
+          <ReservationPanel medicineId={medicine.id} />
         )}
         {activeTab === 'audit' && (
           <AuditHistoryList entityId={medicine.id} />

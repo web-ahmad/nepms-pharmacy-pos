@@ -86,6 +86,16 @@ class SalesService:
                 tenant_id=tenant_id,
                 customer_id=checkout_in.customer_id,
                 cashier_id=user_id,
+                warehouse_id=checkout_in.warehouse_id,
+                counter_id=checkout_in.counter_id,
+                shift_id=checkout_in.shift_id,
+                salesperson_id=checkout_in.salesperson_id,
+                delivery_type=checkout_in.delivery_type,
+                order_source=checkout_in.order_source,
+                loyalty_points_used=checkout_in.loyalty_points_used,
+                promotion_id=checkout_in.promotion_id,
+                coupon_id=checkout_in.coupon_id,
+                price_level_id=checkout_in.price_level_id,
                 sale_date=datetime.utcnow(),
                 subtotal=sum([i.quantity * i.unit_price for i in checkout_in.items]),
                 discount_amount=checkout_in.discount_amount,
@@ -113,34 +123,53 @@ class SalesService:
                         user_id=user_id, 
                         reference_id=sale.id, 
                         movement_type="Sale",
-                        preferred_batch_id=item.batch_id
+                        preferred_batch_id=item.batch_id,
+                        warehouse_id=item.warehouse_id or checkout_in.warehouse_id
                     )
                     
                     # Create SaleItem records per batch allocated
                     for alloc in allocations:
+                        med = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
                         sale_item = SaleItem(
                             sale_id=sale.id,
                             medicine_id=item.medicine_id,
                             batch_id=alloc["batch_id"],
                             tenant_id=tenant_id,
+                            warehouse_id=item.warehouse_id or checkout_in.warehouse_id,
                             quantity=alloc["quantity_taken"],
                             unit_price=item.unit_price,
                             discount=item.discount * (alloc["quantity_taken"]/item.quantity), # Pro-rate discount
+                            promotion_discount=item.promotion_discount * (alloc["quantity_taken"]/item.quantity),
+                            scheme_discount=item.scheme_discount * (alloc["quantity_taken"]/item.quantity),
+                            manual_discount=item.manual_discount * (alloc["quantity_taken"]/item.quantity),
+                            cost_price=med.cost_per_base_unit if med else 0.0,
                             total=(alloc["quantity_taken"] * item.unit_price) - (item.discount * (alloc["quantity_taken"]/item.quantity))
                         )
+                        sale_item.gross_profit = sale_item.total - (sale_item.cost_price * sale_item.quantity)
+                        if sale_item.total > 0:
+                            sale_item.margin_percentage = (sale_item.gross_profit / sale_item.total) * 100
                         db.add(sale_item)
                 else:
                     # Held Sale or Pending Verification: No batch allocation, just save the intent
+                    med = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
                     sale_item = SaleItem(
                         sale_id=sale.id,
                         medicine_id=item.medicine_id,
                         batch_id=item.batch_id,
                         tenant_id=tenant_id,
+                        warehouse_id=item.warehouse_id or checkout_in.warehouse_id,
                         quantity=item.quantity,
                         unit_price=item.unit_price,
                         discount=item.discount,
+                        promotion_discount=item.promotion_discount,
+                        scheme_discount=item.scheme_discount,
+                        manual_discount=item.manual_discount,
+                        cost_price=med.cost_per_base_unit if med else 0.0,
                         total=(item.quantity * item.unit_price) - item.discount
                     )
+                    sale_item.gross_profit = sale_item.total - (sale_item.cost_price * sale_item.quantity)
+                    if sale_item.total > 0:
+                        sale_item.margin_percentage = (sale_item.gross_profit / sale_item.total) * 100
                     db.add(sale_item)
             
             # 3. Handle Loyalty and Customer Ledger (if not Held/Pending Verification)
@@ -149,7 +178,10 @@ class SalesService:
                 if customer:
                     # Loyalty Points
                     points_earned = SalesService.calculate_loyalty_points(sale.total_amount)
-                    customer.loyalty_points += points_earned
+                    customer.loyalty_points = (customer.loyalty_points or 0) + points_earned
+                    if checkout_in.loyalty_points_used > 0:
+                        customer.loyalty_points -= checkout_in.loyalty_points_used
+                    sale.loyalty_points_earned = points_earned
                     
                     # Credit System Handling
                     if checkout_in.payment_method == "Credit" or sale.amount_paid < sale.total_amount:

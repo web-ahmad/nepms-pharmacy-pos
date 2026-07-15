@@ -33,6 +33,7 @@ import {
   Stethoscope,
   Wallet,
   PlusCircle,
+  Building2,
 } from 'lucide-react';
 
 interface SidebarState {
@@ -73,6 +74,7 @@ export const NAV_ITEMS = [
   { label: 'Reports', href: '/reports', icon: PieChart, permission: 'reports:view', moduleKey: 'reports' },
   { label: 'Accounting', href: '/accounts', icon: DollarSign, permission: 'profit:view', moduleKey: 'journals' },
   { label: 'HR & Payroll', href: '/hr', icon: UserCog, permission: 'settings:manage', moduleKey: 'employees' },
+  { label: 'Branches', href: '/branches', icon: Building2, permission: 'settings:manage', moduleKey: null },
   { label: 'Compliance', href: '/compliance', icon: ClipboardList, permission: null, moduleKey: null },
   { label: 'Audit Center', href: '/audit', icon: ShieldCheck, permission: null, moduleKey: null },
   { label: 'Notifications', href: '/notifications', icon: Bell, permission: null, moduleKey: null },

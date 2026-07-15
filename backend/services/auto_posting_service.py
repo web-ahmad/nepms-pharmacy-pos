@@ -23,7 +23,7 @@ class AutoPostingService:
             acc = self.accounts_svc.repo.create_account(tenant_id, AccountCreate(code=code, name=name, category=enum_cat))
         return acc.id
 
-    def post_cash_sale(self, tenant_id: str, user_id: str, reference: str, amount: float, payment_method: str = "Cash"):
+    def post_cash_sale(self, tenant_id: str, user_id: str, reference: str, amount: float, payment_method: str = "Cash", branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         if payment_method and payment_method.lower() in ['bank transfer', 'card', 'credit card']:
             asset_acc = self._get_or_create_account(tenant_id, "1010", "Bank", AccountCategory.ASSET)
@@ -33,6 +33,9 @@ class AutoPostingService:
         sales_rev_acc = self._get_account_id(tenant_id, "4000")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description=f"Auto Post: Sale ({payment_method})",
             lines=[
@@ -42,11 +45,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_credit_sale(self, tenant_id: str, user_id: str, reference: str, amount: float):
+    def post_credit_sale(self, tenant_id: str, user_id: str, reference: str, amount: float, branch_id: str = None, source_module: str = None, source_id: str = None):
         ar_acc = self._get_account_id(tenant_id, "1030")
         sales_rev_acc = self._get_account_id(tenant_id, "4000")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description="Auto Post: Credit Sale",
             lines=[
@@ -56,11 +62,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_customer_payment(self, tenant_id: str, user_id: str, reference: str, amount: float):
+    def post_customer_payment(self, tenant_id: str, user_id: str, reference: str, amount: float, branch_id: str = None, source_module: str = None, source_id: str = None):
         cash_acc = self._get_account_id(tenant_id, "1000")
         ar_acc = self._get_account_id(tenant_id, "1030")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description="Auto Post: Customer Payment",
             lines=[
@@ -70,11 +79,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_cash_purchase(self, tenant_id: str, user_id: str, reference: str, amount: float):
+    def post_cash_purchase(self, tenant_id: str, user_id: str, reference: str, amount: float, branch_id: str = None, source_module: str = None, source_id: str = None):
         inv_acc = self._get_account_id(tenant_id, "1020")
         cash_acc = self._get_account_id(tenant_id, "1000")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description="Auto Post: Cash Purchase (GRN)",
             lines=[
@@ -84,11 +96,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_credit_purchase(self, tenant_id: str, user_id: str, reference: str, amount: float):
+    def post_credit_purchase(self, tenant_id: str, user_id: str, reference: str, amount: float, branch_id: str = None, source_module: str = None, source_id: str = None):
         inv_acc = self._get_account_id(tenant_id, "1020")
         ap_acc = self._get_account_id(tenant_id, "2000")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description="Auto Post: Credit Purchase (GRN)",
             lines=[
@@ -98,11 +113,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_supplier_payment(self, tenant_id: str, user_id: str, reference: str, amount: float):
+    def post_supplier_payment(self, tenant_id: str, user_id: str, reference: str, amount: float, branch_id: str = None, source_module: str = None, source_id: str = None):
         ap_acc = self._get_account_id(tenant_id, "2000")
         cash_acc = self._get_account_id(tenant_id, "1000")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description="Auto Post: Supplier Payment",
             lines=[
@@ -112,11 +130,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_inventory_loss(self, tenant_id: str, user_id: str, reference: str, amount: float):
+    def post_inventory_loss(self, tenant_id: str, user_id: str, reference: str, amount: float, branch_id: str = None, source_module: str = None, source_id: str = None):
         loss_acc = self._get_account_id(tenant_id, "5020")
         inv_acc = self._get_account_id(tenant_id, "1020")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description="Auto Post: Inventory Loss Adjustment",
             lines=[
@@ -126,11 +147,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_expense(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Auto Post: Expense"):
+    def post_expense(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Auto Post: Expense", branch_id: str = None, source_module: str = None, source_id: str = None):
         exp_acc = self._get_account_id(tenant_id, "5030")
         cash_acc = self._get_account_id(tenant_id, "1000")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description=description,
             lines=[
@@ -140,11 +164,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_purchase_return(self, tenant_id: str, user_id: str, reference: str, amount: float):
+    def post_purchase_return(self, tenant_id: str, user_id: str, reference: str, amount: float, branch_id: str = None, source_module: str = None, source_id: str = None):
         ap_acc = self._get_account_id(tenant_id, "2000") # Accounts Payable
         pr_acc = self._get_account_id(tenant_id, "5000") # Purchase Returns
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description=f"Auto Post: Purchase Return Debit Note",
             lines=[
@@ -154,11 +181,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_payroll(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Auto Post: Payroll"):
+    def post_payroll(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Auto Post: Payroll", branch_id: str = None, source_module: str = None, source_id: str = None):
         salary_exp_acc = self._get_account_id(tenant_id, "5030") # using 5030 as general expense
         cash_acc = self._get_account_id(tenant_id, "1000")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description=description,
             lines=[
@@ -168,12 +198,15 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_advance_salary(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Advance Salary Disbursed"):
+    def post_advance_salary(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Advance Salary Disbursed", branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         advance_rec_acc = self._get_or_create_account(tenant_id, "1040", "Advance Salary Receivable", AccountCategory.ASSET)
         cash_acc = self._get_account_id(tenant_id, "1000")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description=description,
             lines=[
@@ -183,12 +216,15 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_opening_stock(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Opening Stock"):
+    def post_opening_stock(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Opening Stock", branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         inv_acc = self._get_account_id(tenant_id, "1020")
         equity_acc = self._get_or_create_account(tenant_id, "3000", "Opening Balance Equity", AccountCategory.EQUITY)
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description=description,
             lines=[
@@ -198,12 +234,15 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_cogs(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Cost of Goods Sold"):
+    def post_cogs(self, tenant_id: str, user_id: str, reference: str, amount: float, description: str = "Cost of Goods Sold", branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         cogs_acc = self._get_or_create_account(tenant_id, "5010", "Cost of Goods Sold", AccountCategory.EXPENSE)
         inv_acc = self._get_account_id(tenant_id, "1020")
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description=description,
             lines=[
@@ -213,12 +252,15 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_purchase_invoice(self, tenant_id: str, user_id: str, invoice_reference: str, total_amount: float, supplier_name: str):
+    def post_purchase_invoice(self, tenant_id: str, user_id: str, invoice_reference: str, total_amount: float, supplier_name: str, branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         inv_acc = self._get_account_id(tenant_id, "1020")
         ap_acc = self._get_or_create_account(tenant_id, "2000", "Accounts Payable", AccountCategory.LIABILITY)
         
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=invoice_reference,
             description=f"Purchase Invoice: {invoice_reference} from {supplier_name}",
             lines=[
@@ -228,7 +270,7 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_purchase_payment(self, tenant_id: str, user_id: str, invoice_reference: str, amount_paid: float, payment_method: str, supplier_name: str):
+    def post_purchase_payment(self, tenant_id: str, user_id: str, invoice_reference: str, amount_paid: float, payment_method: str, supplier_name: str, branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         ap_acc = self._get_or_create_account(tenant_id, "2000", "Accounts Payable", AccountCategory.LIABILITY)
         
@@ -238,6 +280,9 @@ class AutoPostingService:
             asset_acc = self._get_account_id(tenant_id, "1000")
             
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=f"PAY-{invoice_reference}",
             description=f"Payment to {supplier_name} for Invoice: {invoice_reference}",
             lines=[
@@ -247,7 +292,7 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_sales_return(self, tenant_id: str, user_id: str, refund_reference: str, original_invoice: str, refund_amount: float, cost_of_items_returned: float, payment_method: str):
+    def post_sales_return(self, tenant_id: str, user_id: str, refund_reference: str, original_invoice: str, refund_amount: float, cost_of_items_returned: float, payment_method: str, branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         
         if payment_method and payment_method.lower() in ['bank transfer', 'card', 'credit card']:
@@ -284,7 +329,7 @@ class AutoPostingService:
             
         return je_refund
 
-    def post_expense_voucher(self, tenant_id: str, user_id: str, reference: str, amount: float, category_id: str, payment_method: str = "Cash"):
+    def post_expense_voucher(self, tenant_id: str, user_id: str, reference: str, amount: float, category_id: str, payment_method: str = "Cash", branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         if payment_method and payment_method.lower() in ['bank transfer', 'card', 'credit card', 'bank']:
             asset_acc = self._get_or_create_account(tenant_id, "1010", "Bank", AccountCategory.ASSET)
@@ -292,6 +337,9 @@ class AutoPostingService:
             asset_acc = self._get_account_id(tenant_id, "1000")
             
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description=f"Auto Post: Expense Voucher ({payment_method})",
             lines=[
@@ -301,11 +349,14 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_petty_cash(self, tenant_id: str, user_id: str, reference: str, amount: float, category_id: str):
+    def post_petty_cash(self, tenant_id: str, user_id: str, reference: str, amount: float, category_id: str, branch_id: str = None, source_module: str = None, source_id: str = None):
         from models.accounts import AccountCategory
         petty_cash_acc = self._get_or_create_account(tenant_id, "1005", "Petty Cash", AccountCategory.ASSET)
             
         entry = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=reference,
             description="Auto Post: Petty Cash Dispense",
             lines=[

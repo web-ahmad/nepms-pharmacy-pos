@@ -32,6 +32,8 @@ class DashboardStatsResponse(BaseModel):
 
 class JournalEntryLineBase(BaseModel):
     account_id: str
+    branch_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     description: Optional[str] = None
     debit: float = Field(default=0.0, ge=0)
     credit: float = Field(default=0.0, ge=0)
@@ -48,6 +50,9 @@ class JournalEntryLineResponse(JournalEntryLineBase):
 class JournalEntryBase(BaseModel):
     reference: str
     description: str
+    branch_id: Optional[str] = None
+    source_module: Optional[str] = None
+    source_id: Optional[str] = None
     date: Optional[datetime] = None
 
 class JournalEntryCreate(JournalEntryBase):

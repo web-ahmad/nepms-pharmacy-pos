@@ -19,9 +19,14 @@ export default function JournalTable({ data, isLoading }: Props) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-60 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-emerald-200 dark:border-emerald-900 bg-emerald-50/40 dark:bg-emerald-950/20 gap-2">
-        <p className="text-sm font-medium text-gray-400 dark:text-zinc-500">No journal entries yet.</p>
-        <p className="text-xs text-gray-400 dark:text-zinc-600">Make a POS sale or click Force Rebuild to auto-post.</p>
+      <div className="flex h-60 flex-col items-center justify-center rounded-2xl border border-dashed border-gray-300/50 bg-white/50 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/50 gap-3 shadow-lg">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 dark:bg-indigo-900/20">
+          <Printer className="h-6 w-6 text-indigo-500" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">No journal entries found</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Make a POS sale or click Force Rebuild to auto-post.</p>
+        </div>
       </div>
     );
   }
@@ -47,23 +52,23 @@ export default function JournalTable({ data, isLoading }: Props) {
         />
       </div>
 
-      <div id="jnl-print-area" className="overflow-hidden rounded-2xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-sm">
+      <div id="jnl-print-area" className="overflow-hidden rounded-2xl border border-gray-200/50 bg-white/70 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/50 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900">
+              <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-200/50 dark:border-gray-700/50">
                 {['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Status'].map((h) => (
-                  <th key={h} className={`px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 ${h === 'Debit' || h === 'Credit' ? 'text-right' : 'text-left'}`}>{h}</th>
+                  <th key={h} className={`px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 ${h === 'Debit' || h === 'Credit' ? 'text-right' : 'text-left'}`}>{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-zinc-800/80">
+            <tbody className="divide-y divide-gray-100/50 dark:divide-gray-800/50">
               {data.map((j) => {
                 const totalDebit  = j.lines.reduce((s, l) => s + l.debit, 0);
                 const totalCredit = j.lines.reduce((s, l) => s + l.credit, 0);
                 return (
-                  <tr key={j.id} className="hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 transition-colors">
-                    <td className="px-5 py-3.5 font-mono text-xs text-gray-500 dark:text-zinc-400 whitespace-nowrap">
+                  <tr key={j.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
                       {format(new Date(j.date), 'dd MMM yyyy')}
                     </td>
                     <td className="px-5 py-3.5 font-semibold text-gray-900 dark:text-zinc-100 whitespace-nowrap font-mono text-xs">
@@ -87,13 +92,13 @@ export default function JournalTable({ data, isLoading }: Props) {
                         j.reference
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-gray-600 dark:text-zinc-400 max-w-xs truncate">{j.description}</td>
-                    <td className="px-5 py-3.5 text-right font-mono text-gray-900 dark:text-zinc-100 whitespace-nowrap">{fmt(totalDebit)}</td>
-                    <td className="px-5 py-3.5 text-right font-mono text-gray-900 dark:text-zinc-100 whitespace-nowrap">{fmt(totalCredit)}</td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-6 py-4 text-gray-600 dark:text-gray-300 max-w-xs truncate">{j.description}</td>
+                    <td className="px-6 py-4 text-right font-mono text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">{fmt(totalDebit)}</td>
+                    <td className="px-6 py-4 text-right font-mono text-sm font-semibold text-gray-900 dark:text-white whitespace-nowrap">{fmt(totalCredit)}</td>
+                    <td className="px-6 py-4">
                       {j.status === 'Approved'
-                        ? <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-0.5 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle className="h-3 w-3" />Approved</span>
-                        : <span className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2.5 py-0.5 bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400"><Clock className="h-3 w-3" />Draft</span>
+                        ? <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-500/20"><CheckCircle className="h-3.5 w-3.5" />Approved</span>
+                        : <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-500/10 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:bg-gray-500/20 dark:text-gray-400 border border-gray-500/20"><Clock className="h-3.5 w-3.5" />Draft</span>
                       }
                     </td>
                   </tr>

@@ -20,14 +20,31 @@ SYSTEM_PERMISSIONS = [
     {"module": "users", "action": "manage", "code": "users:manage"},
     {"module": "inventory", "action": "view", "code": "inventory:view"},
     {"module": "inventory", "action": "manage", "code": "inventory:manage"},
+    {"module": "inventory", "action": "transfer", "code": "inventory:transfer"},
     {"module": "reports", "action": "view", "code": "reports:view"},
     {"module": "crm", "action": "view", "code": "crm:view"},
     {"module": "purchase", "action": "view", "code": "purchase:view"},
     {"module": "purchase", "action": "manage", "code": "purchase:manage"},
+    {"module": "purchase", "action": "approve", "code": "purchase:approve"},
+    {"module": "purchase", "action": "receive", "code": "purchase:receive"},
+    {"module": "purchase", "action": "request", "code": "purchase:request"},
     {"module": "analytics", "action": "view", "code": "analytics:view"},
     {"module": "prescription", "action": "view", "code": "prescription:view"},
     {"module": "prescription", "action": "manage", "code": "prescription:manage"},
-    {"module": "audit", "action": "view", "code": "audit:view"}
+    {"module": "audit", "action": "view", "code": "audit:view"},
+    {"module": "sales", "action": "discount", "code": "sales:discount"},
+    {"module": "sales", "action": "override", "code": "sales:override"},
+    {"module": "sales", "action": "credit", "code": "sales:credit"},
+    {"module": "sales", "action": "loyalty", "code": "sales:loyalty"},
+    {"module": "sales", "action": "promotion", "code": "sales:promotion"},
+    {"module": "sales", "action": "coupon", "code": "sales:coupon"},
+    {"module": "sales", "action": "shift", "code": "sales:shift"},
+    {"module": "sales", "action": "drawer", "code": "sales:drawer"},
+    {"module": "sales", "action": "transfer", "code": "sales:transfer"},
+    {"module": "sales", "action": "analytics", "code": "sales:analytics"},
+    {"module": "accounts", "action": "view", "code": "accounts:view"},
+    {"module": "accounts", "action": "create", "code": "accounts:create"},
+    {"module": "accounts", "action": "approve", "code": "accounts:approve"}
 ]
 
 # Define default roles and their assigned permission codes
@@ -36,8 +53,10 @@ DEFAULT_ROLES = {
     "Owner": [p["code"] for p in SYSTEM_PERMISSIONS], # Alias for full access
     "Branch Manager": [
         "pos:create_order", "pos:approve_refund", "profit:view", "stock:adjust",
-        "shift:manage", "inventory:view", "inventory:manage", "reports:view",
-        "crm:view", "purchase:view", "purchase:manage", "analytics:view"
+        "shift:manage", "inventory:view", "inventory:manage", "inventory:transfer", "reports:view",
+        "crm:view", "purchase:view", "purchase:manage", "purchase:approve", "purchase:receive", "purchase:request", "analytics:view",
+        "sales:discount", "sales:override", "sales:credit", "sales:loyalty", "sales:promotion", "sales:coupon", "sales:shift", "sales:drawer", "sales:transfer", "sales:analytics",
+        "accounts:view", "accounts:create"
     ],
     "Senior Pharmacist": [
         "pos:create_order", "narcotics:dispense", "inventory:view", "prescription:view", "prescription:manage"
@@ -46,22 +65,23 @@ DEFAULT_ROLES = {
         "pos:create_order", "inventory:view"
     ],
     "Cashier": [
-        "pos:create_order", "shift:manage"
+        "pos:create_order", "shift:manage",
+        "sales:discount", "sales:loyalty", "sales:promotion", "sales:coupon", "sales:shift", "sales:drawer"
     ],
     "Order Taker": [
         "pos:create_order"
     ],
     "Inventory Controller": [
-        "inventory:view", "inventory:manage", "stock:adjust", "purchase:view", "purchase:manage"
+        "inventory:view", "inventory:manage", "inventory:transfer", "stock:adjust", "purchase:view", "purchase:manage", "purchase:receive", "purchase:request"
     ],
     "Accounts Manager": [
-        "reports:view", "profit:view"
+        "reports:view", "profit:view", "accounts:view", "accounts:create", "accounts:approve"
     ],
     "Auditor": [
-        "reports:view", "analytics:view", "audit:view", "profit:view"
+        "reports:view", "analytics:view", "audit:view", "profit:view", "accounts:view"
     ],
     "Inventory Manager": [
-        "inventory:view", "inventory:manage", "stock:adjust", "purchase:view", "purchase:manage"
+        "inventory:view", "inventory:manage", "inventory:transfer", "stock:adjust", "purchase:view", "purchase:manage", "purchase:approve", "purchase:receive", "purchase:request"
     ]
 }
 

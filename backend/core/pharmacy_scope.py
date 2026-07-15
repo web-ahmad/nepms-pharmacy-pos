@@ -69,10 +69,12 @@ class PharmacyScope:
         pharmacy_id: Optional[str],
         is_super_admin: bool,
         tenant_id: str,
+        branch_id: Optional[str] = None,
     ):
         self.pharmacy_id    = pharmacy_id
         self.is_super_admin = is_super_admin
         self.tenant_id      = tenant_id
+        self.branch_id      = branch_id
 
     # ── read filter ──────────────────────────────────────────────────────────
 
@@ -166,6 +168,7 @@ def get_pharmacy_scope(
         user_id:     str  = payload.get("sub", "")
         tenant_id:   str  = payload.get("tenant_id", "")
         pharmacy_id: str  = payload.get("pharmacy_id", "")
+        branch_id:   str  = payload.get("branch_id", "")
         is_sa_claim: bool = bool(payload.get("is_super_admin", False))
     except JWTError:
         raise creds_exc
@@ -175,7 +178,7 @@ def get_pharmacy_scope(
 
     # Super-admin path: JWT claim + DB double-check
     if is_sa_claim or _db_is_super_admin(db, user_id):
-        return PharmacyScope(pharmacy_id=None, is_super_admin=True, tenant_id=tenant_id)
+        return PharmacyScope(pharmacy_id=None, is_super_admin=True, tenant_id=tenant_id, branch_id=branch_id or None)
 
     # Suspended pharmacy check
     if pharmacy_id:
@@ -191,6 +194,7 @@ def get_pharmacy_scope(
         pharmacy_id=pharmacy_id or None,
         is_super_admin=False,
         tenant_id=tenant_id,
+        branch_id=branch_id or None,
     )
 
 

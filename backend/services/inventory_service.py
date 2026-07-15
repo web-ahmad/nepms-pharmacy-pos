@@ -6,11 +6,25 @@ from repositories.inventory import batch_repo
 
 class InventoryService:
     @staticmethod
-    def allocate_fefo(db: Session, tenant_id: str, branch_id: str, medicine_id: str, quantity_required: int, user_id: str, reference_id: str, movement_type: str = "Sale", preferred_batch_id: str = None):
+    def allocate_fefo(
+        db: Session, 
+        tenant_id: str, 
+        branch_id: str, 
+        medicine_id: str, 
+        quantity_required: int, 
+        user_id: str, 
+        reference_id: str, 
+        movement_type: str = "Sale", 
+        preferred_batch_id: str = None,
+        warehouse_id: str = None,
+        rack_id: str = None,
+        bin_id: str = None
+    ):
         """
         Production-grade FEFO allocation logic.
         Allocates stock from earliest expiring valid batches.
         Logs every allocation into stock movements.
+        Supports location-specific allocation (Warehouse/Rack/Bin).
         """
         # Debug logging
         try:
@@ -24,10 +38,14 @@ class InventoryService:
                 f.write(f"reference_id: {reference_id!r}\n")
                 f.write(f"movement_type: {movement_type!r}\n")
                 f.write(f"preferred_batch_id: {preferred_batch_id!r}\n")
+                f.write(f"warehouse_id: {warehouse_id!r}\n")
         except Exception as log_err:
             print("Log error:", log_err)
 
-        batches = batch_repo.get_active_batches_for_medicine(db, tenant_id, branch_id, medicine_id)
+        batches = batch_repo.get_active_batches_for_medicine(
+            db, tenant_id, branch_id, medicine_id, 
+            warehouse_id=warehouse_id, rack_id=rack_id, bin_id=bin_id
+        )
         
         if preferred_batch_id:
             batches.sort(key=lambda b: (0 if b.id == preferred_batch_id else 1, b.expiry_date))
@@ -47,7 +65,7 @@ class InventoryService:
             if remaining_qty <= 0:
                 break
                 
-            available = batch.current_quantity - batch.reserved_quantity
+            available = batch.current_quantity - (batch.reserved_quantity or 0)
             qty_to_take = min(available, remaining_qty)
             
             # Deduct from batch
@@ -59,6 +77,9 @@ class InventoryService:
             movement = StockMovement(
                 tenant_id=tenant_id,
                 branch_id=branch_id,
+                warehouse_id=batch.warehouse_id or warehouse_id,
+                rack_id=batch.rack_id or rack_id,
+                bin_id=batch.bin_id or bin_id,
                 medicine_id=medicine_id,
                 batch_id=batch.id,
                 user_id=user_id,
@@ -72,7 +93,10 @@ class InventoryService:
             allocation_logs.append({
                 "batch_id": batch.id,
                 "batch_number": batch.batch_number,
-                "quantity_taken": qty_to_take
+                "quantity_taken": qty_to_take,
+                "warehouse_id": batch.warehouse_id,
+                "rack_id": batch.rack_id,
+                "bin_id": batch.bin_id
             })
             
         if remaining_qty > 0:
@@ -85,6 +109,76 @@ class InventoryService:
             
         # Do not commit here! Let the caller manage the transaction to ensure atomicity.
         return allocation_logs
+
+    @staticmethod
+    def reserve_fefo(
+        db: Session, 
+        tenant_id: str, 
+        branch_id: str, 
+        medicine_id: str, 
+        quantity_required: int, 
+        reference_type: str, 
+        reference_id: str,
+        warehouse_id: str = None,
+        rack_id: str = None,
+        bin_id: str = None,
+        preferred_batch_id: str = None
+    ):
+        """
+        Reserves stock using FEFO allocation without deducting current_quantity.
+        Increments reserved_quantity on the batches and creates InventoryReservation records.
+        """
+        from models.inventory import InventoryReservation
+        
+        batches = batch_repo.get_active_batches_for_medicine(
+            db, tenant_id, branch_id, medicine_id, 
+            warehouse_id=warehouse_id, rack_id=rack_id, bin_id=bin_id
+        )
+        
+        if preferred_batch_id:
+            batches.sort(key=lambda b: (0 if b.id == preferred_batch_id else 1, b.expiry_date))
+            
+        remaining_qty = quantity_required
+        reservation_logs = []
+        
+        for batch in batches:
+            if remaining_qty <= 0:
+                break
+                
+            available = batch.current_quantity - (batch.reserved_quantity or 0)
+            qty_to_reserve = min(available, remaining_qty)
+            
+            if qty_to_reserve <= 0:
+                continue
+            
+            # Increment reserved quantity
+            batch.reserved_quantity = (batch.reserved_quantity or 0) + qty_to_reserve
+            remaining_qty -= qty_to_reserve
+            db.add(batch)
+            
+            # Create reservation record
+            reservation = InventoryReservation(
+                tenant_id=tenant_id,
+                medicine_id=medicine_id,
+                batch_id=batch.id,
+                branch_id=branch_id,
+                warehouse_id=batch.warehouse_id or warehouse_id,
+                reference_type=reference_type,
+                reference_id=reference_id,
+                quantity=qty_to_reserve,
+                status="Pending"
+            )
+            db.add(reservation)
+            reservation_logs.append({
+                "reservation": reservation,
+                "batch_id": batch.id,
+                "quantity_reserved": qty_to_reserve
+            })
+            
+        if remaining_qty > 0:
+            raise ValueError(f"Insufficient stock to reserve for medicine_id: {medicine_id}. Short by {remaining_qty}")
+            
+        return reservation_logs
 
     @staticmethod
     def get_expiring_batches(db: Session, tenant_id: str, branch_id: str, days: int):
