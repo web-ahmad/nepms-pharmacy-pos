@@ -9,11 +9,12 @@ interface Props {
   data: LedgerResponse; 
   isLoading: boolean;
   searchRef?: string;
+  bookName?: string;
 }
 
 const fmt = (v: number) => new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 }).format(v);
 
-export default function GeneralLedgerTable({ data, isLoading, searchRef = '' }: Props) {
+export default function GeneralLedgerTable({ data, isLoading, searchRef = '', bookName = 'General Ledger' }: Props) {
   
   const filteredRows = useMemo(() => {
     if (!data?.rows) return [];
@@ -97,10 +98,10 @@ export default function GeneralLedgerTable({ data, isLoading, searchRef = '' }: 
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-400 dark:text-zinc-500">{filteredRows.length} entries</span>
         <DataExportMenu 
-          title="General Ledger Report" 
+          title={`${bookName} Report`}
           data={filteredRows} 
           columns={exportColumns} 
-          fileName="general_ledger"
+          fileName={bookName.replace(/\s+/g, '_').toLowerCase()}
         />
       </div>
 

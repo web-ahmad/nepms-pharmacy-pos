@@ -92,6 +92,7 @@ class BranchBase(BaseModel):
     invoice_prefix: Optional[str] = None
     receipt_footer: Optional[str] = None
     sort_order:     Optional[int] = 0
+    legacy_branch_id: Optional[str] = None  # links to POS/JWT branch_id for stats queries
 
     # Operational & Security (nested)
     working_hours:      Optional[Dict[str, Any]] = None
@@ -175,6 +176,7 @@ class BranchUpdate(BaseModel):
     emergency_contact: Optional[Dict[str, Any]] = None
     tax_settings:      Optional[Dict[str, Any]] = None
     security_settings: Optional[Dict[str, Any]] = None
+    legacy_branch_id:  Optional[str] = None
 
 
 class BranchStaffInfo(BaseModel):
@@ -278,6 +280,11 @@ class BranchStatsResponse(BaseModel):
     # Health
     health_score:      Optional[float] = 100.0
     license_days_remaining: Optional[int] = None   # drug_license_expiry delta
+
+    # New Features for Dashboard
+    top_low_stock:     Optional[List[dict]] = None
+    recent_activity:   Optional[List[dict]] = None
+    active_cashier:    Optional[str] = None
 
 
 # ── Comparison schema ─────────────────────────────────────────────────────────

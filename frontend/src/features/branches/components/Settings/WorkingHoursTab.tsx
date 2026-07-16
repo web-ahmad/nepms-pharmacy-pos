@@ -47,7 +47,7 @@ export default function WorkingHoursTab({ branchId, data, refetch }: Props) {
       }
       toast.success('Working hours updated successfully');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);

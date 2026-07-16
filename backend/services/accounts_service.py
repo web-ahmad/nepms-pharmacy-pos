@@ -27,6 +27,33 @@ class AccountsService:
             raise HTTPException(status_code=400, detail="Account code already exists.")
         return self.repo.create_account(tenant_id, obj_in)
 
+    def update_account(self, tenant_id: str, account_id: str, obj_in):
+        from models.accounts import Account
+        db_obj = self.repo.db.query(Account).filter(Account.id == account_id, Account.tenant_id == tenant_id).first()
+        if not db_obj:
+            raise HTTPException(status_code=404, detail="Account not found")
+        if db_obj.is_system:
+            raise HTTPException(status_code=400, detail="Cannot edit a system default account")
+        if obj_in.code and obj_in.code != db_obj.code:
+            existing = self.repo.get_account_by_code(tenant_id, obj_in.code)
+            if existing:
+                raise HTTPException(status_code=400, detail="Account code already exists")
+        return self.repo.update_account(tenant_id, account_id, obj_in.dict(exclude_unset=True))
+
+    def delete_account(self, tenant_id: str, account_id: str):
+        from models.accounts import Account, JournalEntryLine
+        db_obj = self.repo.db.query(Account).filter(Account.id == account_id, Account.tenant_id == tenant_id).first()
+        if not db_obj:
+            raise HTTPException(status_code=404, detail="Account not found")
+        if db_obj.is_system:
+            raise HTTPException(status_code=400, detail="Cannot delete a system default account")
+        
+        has_tx = self.repo.db.query(JournalEntryLine).filter(JournalEntryLine.account_id == account_id).first()
+        if has_tx:
+            raise HTTPException(status_code=400, detail="Cannot delete account with existing transactions")
+        
+        return self.repo.delete_account(tenant_id, account_id)
+
     def seed_default_chart(self, tenant_id: str):
         default_accounts = [
             {"code": "1000", "name": "Cash", "category": AccountCategory.ASSET},

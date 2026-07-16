@@ -170,7 +170,7 @@ export default function PurchaseQuotationDetailPage() {
             <div>
               <p className="text-[10px] uppercase font-bold text-slate-400">Supplier Rating</p>
               <p className="text-sm font-semibold text-amber-600 mt-0.5">
-                {quote.supplier_score ? `${quote.supplier_score.total_score.toFixed(1)} / 100` : 'N/A'}
+                {quote.supplier_score != null ? `${quote.supplier_score.toFixed(1)} / 100` : 'N/A'}
               </p>
             </div>
           </div>
@@ -196,9 +196,9 @@ export default function PurchaseQuotationDetailPage() {
             </thead>
             <tbody className="text-sm">
               {quote.items.map((item) => {
-                const sub = item.quoted_quantity * item.quoted_unit_price;
-                const disc = sub * (item.discount_percent / 100);
-                const tax = (sub - disc) * (item.tax_percent / 100);
+                const sub = item.quantity * item.unit_price;
+                const disc = sub * ((item.discount_percentage || 0) / 100);
+                const tax = (sub - disc) * ((item.tax_percentage || 0) / 100);
                 const total = sub - disc + tax;
                 
                 return (
@@ -208,18 +208,18 @@ export default function PurchaseQuotationDetailPage() {
                       {item.brand && <span className="text-[10px] font-normal text-slate-500 ml-2 block">Brand: {item.brand}</span>}
                     </td>
                     <td className="px-4 py-3 text-center font-medium text-slate-600">
-                      {item.quoted_quantity} {item.unit}
+                      {item.quantity}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-600">
-                      {quote.currency} {item.quoted_unit_price.toFixed(2)}
+                      {quote.currency} {item.unit_price.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-emerald-600">
-                      {item.discount_percent}%
+                      {item.discount_percentage || 0}%
                     </td>
                     <td className="px-4 py-3 text-right font-medium text-slate-600">
-                      {item.tax_percent}%
+                      {item.tax_percentage || 0}%
                     </td>
-                    <td className="px-4 py-3 text-right font-bold text-slate-900">
+                    <td className="px-4 py-3 text-right font-bold text-indigo-600">
                       {quote.currency} {total.toFixed(2)}
                     </td>
                   </tr>

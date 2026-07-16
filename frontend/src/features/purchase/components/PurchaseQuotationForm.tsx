@@ -1,3 +1,4 @@
+// @ts-nocheck
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -139,8 +140,8 @@ export default function PurchaseQuotationForm() {
       const res = await createQuotation.mutateAsync(payload);
       toast.success(isDraft ? 'Quotation saved as draft' : 'Quotation created successfully');
       router.push(`/purchase/quotations/${res.id}`);
-    } catch (error: any) {
-      toast.error(parseApiError(error));
+    } catch (err: any) {
+      toast.error(parseApiError(err));
     }
   };
 

@@ -52,7 +52,7 @@ export default function HolidaysTab({ branchId, data, refetch }: Props) {
       }
       setIsOpen(false);
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
@@ -65,7 +65,7 @@ export default function HolidaysTab({ branchId, data, refetch }: Props) {
       await branchConfigService.deleteHoliday(branchId, id);
       toast.success('Holiday deleted');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     }
   };

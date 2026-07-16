@@ -33,6 +33,32 @@ export const useCreateAccount = () => {
   });
 };
 
+export const useUpdateAccount = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Account> }) => {
+      const res = await api.put(`/api/v1/accounts/chart/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'chart'] });
+    }
+  });
+};
+
+export const useDeleteAccount = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/api/v1/accounts/chart/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'chart'] });
+    }
+  });
+};
+
 export const useSeedAccounts = () => {
   const queryClient = useQueryClient();
   return useMutation({

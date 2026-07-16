@@ -32,8 +32,7 @@ export function IssueAdvanceModal({ isOpen, onClose }: Props) {
         reset();
         onClose();
       },
-      onError: (err: any) => {
-        toast.error(parseApiError(err));
+      onError: (err: any) => { toast.error(parseApiError(err));
       }
     });
   };

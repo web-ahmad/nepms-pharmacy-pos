@@ -172,6 +172,24 @@ export function useDeleteBranch() {
   });
 }
 
+// ── Link POS Data ─────────────────────────────────────────────────────────────
+
+export function useLinkBranchPos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, legacy_branch_id }: { id: string; legacy_branch_id: string }) => {
+      const res = await api.patch(`${BASE}/${id}/set-pos-link`, { legacy_branch_id });
+      return res.data;
+    },
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: branchKeys.detail(id) });
+      qc.invalidateQueries({ queryKey: branchKeys.stats(id) });
+      qc.invalidateQueries({ queryKey: branchKeys.lists() });
+      qc.invalidateQueries({ queryKey: branchKeys.dashboard() });
+    },
+  });
+}
+
 // ── Staff mutations ───────────────────────────────────────────────────────────
 
 export function useAssignStaff(branchId: string) {

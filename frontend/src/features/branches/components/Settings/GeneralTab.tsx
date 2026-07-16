@@ -73,7 +73,7 @@ export default function GeneralTab({ branchId, data, refetch }: Props) {
       await branchConfigService.updateConfiguration(branchId, values);
       toast.success('Configuration saved successfully');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);

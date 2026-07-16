@@ -147,6 +147,7 @@ export interface Branch {
   pharmacy_id?: string;
   staff_count?: number;
   manager_info?: BranchStaffInfo;
+  legacy_branch_id?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -215,6 +216,9 @@ export interface BranchStats {
   active_staff: number;
   health_score: number;
   license_days_remaining?: number;
+  top_low_stock?: { name: string; stock: number }[];
+  recent_activity?: { action: string; time: string }[];
+  active_cashier?: string;
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────

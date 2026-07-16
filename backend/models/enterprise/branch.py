@@ -115,6 +115,12 @@ class PharmacyBranch(BaseModel):
     invoice_prefix  = Column(String(20),  nullable=True)
     receipt_footer  = Column(Text,        nullable=True)
 
+    # ── Legacy POS branch ID link ────────────────────────────────────────────
+    # Maps this Enterprise branch to the legacy scope.branch_id used in the JWT
+    # and POS. Set this to the branch_id that appears in the sales / batches
+    # tables so that stats queries find the correct records.
+    legacy_branch_id = Column(String(36), nullable=True, index=True)
+
     # ── Operational settings (JSON) ───────────────────────────────────────────
     # working_hours: {monday: {open: "09:00", close: "21:00", is_closed: false}, ...}
     working_hours       = Column(JSON, nullable=True)

@@ -72,7 +72,7 @@ export default function AddLeaveModal({ isOpen, onClose }: AddLeaveModalProps) {
       toast.success('Leave request submitted successfully');
       reset();
       onClose();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSubmitting(false);

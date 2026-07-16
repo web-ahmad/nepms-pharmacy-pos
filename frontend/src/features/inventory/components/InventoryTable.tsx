@@ -75,8 +75,8 @@ export default function InventoryTable() {
         style: { background: '#10b981', color: '#fff', fontWeight: 500 }
       });
       setDeletingMedicine(null);
-    } catch (error: any) {
-      toast.error(parseApiError(error));
+    } catch (err: any) {
+      toast.error(parseApiError(err));
       setDeletingMedicine(null);
     }
   };
@@ -104,8 +104,8 @@ export default function InventoryTable() {
       });
       setSelectedIds(new Set());
       setShowBulkDeleteConfirm(false);
-    } catch (error: any) {
-      toast.error(parseApiError(error));
+    } catch (err: any) {
+      toast.error(parseApiError(err));
       setShowBulkDeleteConfirm(false);
     } finally {
       setProgress(null);

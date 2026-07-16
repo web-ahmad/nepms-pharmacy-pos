@@ -189,9 +189,9 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
         });
       }
       router.push('/inventory/medicines');
-    } catch (error: any) {
-      toast.error(parseApiError(error));
-      console.log('Submit Error:', error);
+    } catch (err: any) {
+      toast.error(parseApiError(err));
+      console.log('Submit Error:', err);
     }
   };
 

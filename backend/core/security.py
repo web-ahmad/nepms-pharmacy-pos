@@ -20,6 +20,7 @@ def create_access_token(
     permissions: List[str] = [],
     pharmacy_id: str = "",          # ← SaaS: caller's pharmacy UUID
     is_super_admin: bool = False,   # ← SaaS: platform super-admin bypass
+    assigned_branches: List[str] = [],
     branch_scope: str = "assigned_branch",
     data_scope: str = "branch",
     expires_delta: timedelta = None,
@@ -39,6 +40,7 @@ def create_access_token(
         "permissions":    permissions,
         "pharmacy_id":    pharmacy_id,      # ← NEW
         "is_super_admin": is_super_admin,   # ← NEW
+        "assigned_branches": assigned_branches,
         "branch_scope":   branch_scope,
         "data_scope":     data_scope,
     }

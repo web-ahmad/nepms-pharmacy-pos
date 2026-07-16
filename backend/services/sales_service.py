@@ -367,13 +367,13 @@ class SalesService:
             je = None
             if payment_method == "Credit" or amount_paid < sale.total_amount:
                 if amount_paid >= sale.total_amount:
-                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, payment_method)
+                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, payment_method, branch_id=branch_id, source_module="POS", source_id=sale.id)
                 else:
-                    je = auto_post.post_credit_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+                    je = auto_post.post_credit_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, branch_id=branch_id, source_module="POS", source_id=sale.id)
                     if amount_paid > 0:
-                        auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{sale.invoice_number}", amount_paid)
+                        auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{sale.invoice_number}", amount_paid, branch_id=branch_id, source_module="POS", source_id=sale.id)
             else:
-                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, payment_method)
+                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, payment_method, branch_id=branch_id, source_module="POS", source_id=sale.id)
             
             if je:
                 sale.journal_entry_id = je.id
@@ -386,7 +386,7 @@ class SalesService:
                     total_cost += placeholder.quantity * med.cost_per_base_unit
             
             if total_cost > 0:
-                auto_post.post_cogs(tenant_id, user_id, sale.invoice_number, total_cost)
+                auto_post.post_cogs(tenant_id, user_id, sale.invoice_number, total_cost, branch_id=branch_id, source_module="POS", source_id=sale.id)
 
             db.commit()
             db.refresh(sale)

@@ -1764,3 +1764,16 @@ preferred_batch_id: None
 warehouse_id: None
 Found active batches count: 1
   Batch 1: CG01 (qty: 80, reserved: 0, status: Active, expiry: 2027-03-12)
+
+--- FEFO ALLOCATION START ---
+tenant_id: None
+branch_id: 'f2758a49-3621-4967-b3ef-9139e2630c51'
+medicine_id: '2f775572-60d4-4c96-951c-fed8d117670e'
+quantity_required: 10
+user_id: 'c0a75fe8-dd91-4aa0-be90-07b32c1a05fa'
+reference_id: 'de4e83c9-e0ae-4b15-98e2-64477dae0dbb'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: B001 (qty: 190, reserved: 0, status: Active, expiry: 2027-12-31)

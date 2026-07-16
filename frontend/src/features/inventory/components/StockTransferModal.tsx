@@ -52,8 +52,8 @@ export default function StockTransferModal({ isOpen, onClose, medicineId }: Stoc
       toast.success('Stock transfer initiated successfully');
       onClose();
     },
-    onError: (error: any) => {
-      toast.error(parseApiError(error));
+    onError: (err: any) => {
+      toast.error(parseApiError(err));
     }
   });
 

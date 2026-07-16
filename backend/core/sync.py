@@ -27,13 +27,13 @@ def _sync_worker():
                 je = None
                 if sale.payment_method == "Credit" or sale.amount_paid < sale.total_amount:
                     if sale.amount_paid >= sale.total_amount:
-                        je = auto_post.post_cash_sale(sale.tenant_id, system_user, sale.invoice_number, sale.total_amount, sale.payment_method)
+                        je = auto_post.post_cash_sale(sale.tenant_id, system_user, sale.invoice_number, sale.total_amount, sale.payment_method, branch_id=sale.branch_id, source_module="POS", source_id=sale.id)
                     else:
-                        je = auto_post.post_credit_sale(sale.tenant_id, system_user, sale.invoice_number, sale.total_amount)
+                        je = auto_post.post_credit_sale(sale.tenant_id, system_user, sale.invoice_number, sale.total_amount, branch_id=sale.branch_id, source_module="POS", source_id=sale.id)
                         if sale.amount_paid > 0:
-                            auto_post.post_customer_payment(sale.tenant_id, system_user, f"PAY-{sale.invoice_number}", sale.amount_paid)
+                            auto_post.post_customer_payment(sale.tenant_id, system_user, f"PAY-{sale.invoice_number}", sale.amount_paid, branch_id=sale.branch_id, source_module="POS", source_id=sale.id)
                 else:
-                    je = auto_post.post_cash_sale(sale.tenant_id, system_user, sale.invoice_number, sale.total_amount, sale.payment_method)
+                    je = auto_post.post_cash_sale(sale.tenant_id, system_user, sale.invoice_number, sale.total_amount, sale.payment_method, branch_id=sale.branch_id, source_module="POS", source_id=sale.id)
                 
                 if je:
                     sale.journal_entry_id = je.id

@@ -136,8 +136,8 @@ export default function LowStockPage() {
       await generatePOs(medicineIds);
       toast.success('Draft Purchase Orders generated successfully!');
       setRowSelection({});
-    } catch (error: any) {
-      toast.error(parseApiError(error));
+    } catch (err: any) {
+      toast.error(parseApiError(err));
     }
   };
 

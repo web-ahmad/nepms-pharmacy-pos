@@ -28,6 +28,24 @@ class AccountsRepository:
         self.db.refresh(db_obj)
         return db_obj
 
+    def update_account(self, tenant_id: str, account_id: str, obj_in: dict):
+        db_obj = self.db.query(Account).filter(Account.id == account_id, Account.tenant_id == tenant_id).first()
+        if not db_obj:
+            return None
+        for key, value in obj_in.items():
+            if value is not None:
+                setattr(db_obj, key, value)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def delete_account(self, tenant_id: str, account_id: str):
+        db_obj = self.db.query(Account).filter(Account.id == account_id, Account.tenant_id == tenant_id).first()
+        if db_obj:
+            self.db.delete(db_obj)
+            self.db.commit()
+        return db_obj
+
     def get_account_by_code(self, tenant_id: str, code: str):
         return self.db.query(Account).filter(Account.tenant_id == tenant_id, Account.code == code).first()
 

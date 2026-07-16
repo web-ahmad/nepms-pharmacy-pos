@@ -2,12 +2,16 @@
 
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useChartAccounts } from '../services/accounts.api';
+import { useChartAccounts, useDeleteAccount } from '../services/accounts.api';
 import { Account, AccountCategory } from '../types/accounts';
 import { 
   ChevronRight, ChevronDown, FolderOpen, 
-  FileText, Landmark, Wallet, TrendingUp, Activity, Search
+  FileText, Landmark, Wallet, TrendingUp, Activity, Search,
+  Plus, Edit, Trash2, ExternalLink
 } from 'lucide-react';
+import { AccountModal } from './AccountModal';
+import { toast } from 'sonner';
+import Link from 'next/link';
 
 const formatCurrency = (val: number) => 
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
@@ -36,7 +40,17 @@ interface TreeNode extends Account {
   children: TreeNode[];
 }
 
-function AccountTreeNode({ node, level = 0 }: { node: TreeNode; level?: number }) {
+function AccountTreeNode({ 
+  node, 
+  level = 0, 
+  onEdit, 
+  onDelete 
+}: { 
+  node: TreeNode; 
+  level?: number;
+  onEdit: (acc: Account) => void;
+  onDelete: (id: string) => void;
+}) {
   const [isOpen, setIsOpen] = useState(level < 1);
   const hasChildren = node.children && node.children.length > 0;
 
@@ -65,6 +79,30 @@ function AccountTreeNode({ node, level = 0 }: { node: TreeNode; level?: number }
         </div>
         
         <div className="flex items-center space-x-6">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-2">
+            <button
+              onClick={() => onEdit(node)}
+              className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              title="Edit Account"
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => onDelete(node.id)}
+              className="p-1.5 text-gray-400 hover:text-rose-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+              title="Delete Account"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+            <Link href={`/accounts/ledger?account_id=${node.id}`}>
+              <button
+                className="p-1.5 text-gray-400 hover:text-indigo-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                title="View Ledger"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </button>
+            </Link>
+          </div>
           <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${getCategoryColor(node.category)}`}>
             {node.category}
           </span>
@@ -84,7 +122,13 @@ function AccountTreeNode({ node, level = 0 }: { node: TreeNode; level?: number }
             className="overflow-hidden"
           >
             {node.children.map(child => (
-              <AccountTreeNode key={child.id} node={child} level={level + 1} />
+              <AccountTreeNode 
+                key={child.id} 
+                node={child} 
+                level={level + 1} 
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
             ))}
           </motion.div>
         )}
@@ -95,7 +139,11 @@ function AccountTreeNode({ node, level = 0 }: { node: TreeNode; level?: number }
 
 export function ChartOfAccounts() {
   const { data: accounts, isLoading } = useChartAccounts();
+  const deleteMutation = useDeleteAccount();
   const [searchTerm, setSearchTerm] = useState("");
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [accountToEdit, setAccountToEdit] = useState<Account | null>(null);
 
   const tree = useMemo(() => {
     if (!accounts) return [];
@@ -134,6 +182,27 @@ export function ChartOfAccounts() {
     return roots;
   }, [accounts, searchTerm]);
 
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this account?')) {
+      try {
+        await deleteMutation.mutateAsync(id);
+        toast.success('Account deleted successfully');
+      } catch (error: any) {
+        toast.error(error?.response?.data?.detail || 'Failed to delete account');
+      }
+    }
+  };
+
+  const handleEdit = (acc: Account) => {
+    setAccountToEdit(acc);
+    setIsModalOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setAccountToEdit(null);
+    setIsModalOpen(true);
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -149,6 +218,13 @@ export function ChartOfAccounts() {
           <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Chart of Accounts</h2>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Hierarchical view of your ledger accounts.</p>
         </div>
+        <button
+          onClick={handleAddNew}
+          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/20"
+        >
+          <Plus className="h-4 w-4" />
+          New Account
+        </button>
       </div>
       
       <div className="rounded-2xl border border-gray-200/50 bg-white/70 shadow-xl backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/50 overflow-hidden flex flex-col">
@@ -164,6 +240,7 @@ export function ChartOfAccounts() {
             />
           </div>
           <div className="flex items-center space-x-12 pr-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            <span>Actions</span>
             <span>Category</span>
             <span>Balance</span>
           </div>
@@ -176,11 +253,22 @@ export function ChartOfAccounts() {
             </div>
           ) : (
             tree.map(node => (
-              <AccountTreeNode key={node.id} node={node} />
+              <AccountTreeNode 
+                key={node.id} 
+                node={node} 
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
             ))
           )}
         </div>
       </div>
+
+      <AccountModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        accountToEdit={accountToEdit}
+      />
     </div>
   );
 }

@@ -24,61 +24,75 @@ class AuthService:
         if not user.is_active:
             raise HTTPException(status_code=400, detail="Inactive user")
 
-        # ── Resolve branch_id ─────────────────────────────────────────────
-        branch_id = ""
-        if user.branches:
-            branch_id = user.branches[0].branch_id
-        else:
-            from models.users import Branch
-            branch = db.query(Branch).filter(Branch.tenant_id == user.tenant_id).first()
-            if branch:
-                branch_id = branch.id
-            else:
-                branch = db.query(Branch).first()
-                if branch:
-                    branch_id = branch.id
+        # ── Resolve enterprise user & SA status ───────────────────────────
+        from models.enterprise.user import EnterpriseUser
+        from services.enterprise.user_service import user_service
+        from models.users import Branch, Pharmacy, SuperAdmin
 
-        role_name = user.role.name if user.role else "User"
-
-        # ── Resolve pharmacy_id ───────────────────────────────────────────
-        # Look up the Pharmacy whose tenant_id matches the user's tenant
-        from models.users import Pharmacy, SuperAdmin
-        pharmacy = db.query(Pharmacy).filter(
-            Pharmacy.tenant_id == user.tenant_id,
-            Pharmacy.is_active == True,
-        ).first()
-        pharmacy_id = pharmacy.id if pharmacy else ""
-
-        # ── Check super_admin status ──────────────────────────────────────
+        eu = db.query(EnterpriseUser).filter(EnterpriseUser.user_id == user.id).first()
         is_sa = (
-            user.is_super_admin  # legacy flag on User model
+            user.is_super_admin
             or db.query(SuperAdmin).filter(
                 SuperAdmin.auth_user_id == user.id,
                 SuperAdmin.is_active == True,
             ).first() is not None
         )
 
-        # ── Compute Effective Permissions ─────────────────────────────────
-        from models.enterprise.user import EnterpriseUser
-        from services.enterprise.user_service import user_service
+        role_name = user.role.name if user.role else "User"
+        if eu and eu.enterprise_role:
+            role_name = eu.enterprise_role.name
 
+        # ── Resolve branch_id & assigned_branches ─────────────────────────
+        assigned_branches = []
+        branch_id = ""
+        
+        if is_sa:
+            branches = db.query(Branch).filter(Branch.tenant_id == user.tenant_id).all()
+            for b in branches:
+                assigned_branches.append({"id": b.id, "name": b.name})
+            if branches:
+                branch_id = branches[0].id
+        elif eu and eu.branch_assignments:
+            default_assignment = None
+            for assignment in eu.branch_assignments:
+                if assignment.is_active and assignment.branch:
+                    assigned_branches.append({
+                        "id": assignment.branch.id,
+                        "name": assignment.branch.name
+                    })
+                    if assignment.is_default_branch:
+                        default_assignment = assignment
+            if default_assignment:
+                branch_id = default_assignment.branch.id
+            elif assigned_branches:
+                branch_id = assigned_branches[0]["id"]
+        elif user.branches:
+            branch_id = user.branches[0].branch_id
+            for ub in user.branches:
+                assigned_branches.append({"id": ub.branch_id, "name": getattr(ub.branch, "name", "Assigned Branch")})
+        else:
+            branch = db.query(Branch).filter(Branch.tenant_id == user.tenant_id).first()
+            if branch:
+                branch_id = branch.id
+                assigned_branches.append({"id": branch.id, "name": branch.name})
+
+        # ── Resolve pharmacy_id ───────────────────────────────────────────
+        pharmacy = db.query(Pharmacy).filter(
+            Pharmacy.tenant_id == user.tenant_id,
+            Pharmacy.is_active == True,
+        ).first()
+        pharmacy_id = pharmacy.id if pharmacy else ""
+
+        # ── Compute Effective Permissions ─────────────────────────────────
         permissions = list(user.permissions) if user.permissions else []
-        eu = db.query(EnterpriseUser).filter(EnterpriseUser.user_id == user.id).first()
         
         if eu:
-            # If the user has an enterprise profile, calculate their effective enterprise permissions
-            # Note: We pass the branch_id to also grab any branch-specific overrides if applicable
             ent_perms = user_service.compute_effective_permissions(db, enterprise_user=eu, branch_id=branch_id)
-            # Merge and deduplicate
             permissions = list(set(permissions + ent_perms))
             
-            # Use enterprise role name if available and not just a default
-            if eu.enterprise_role:
-                role_name = eu.enterprise_role.name
-                if role_name == "Pharmacy Owner" and "*" not in permissions:
-                    permissions.append("*")
+            if role_name == "Pharmacy Owner" and "*" not in permissions:
+                permissions.append("*")
                     
-        # If user is a super admin, ensure they have wildcard
         if is_sa and "*" not in permissions:
             permissions.append("*")
 
@@ -89,8 +103,9 @@ class AuthService:
             branch_id=branch_id,
             role=role_name,
             permissions=permissions,
-            pharmacy_id=pharmacy_id,    # ← NEW
-            is_super_admin=is_sa,       # ← NEW
+            pharmacy_id=pharmacy_id,
+            is_super_admin=is_sa,
+            assigned_branches=[b["id"] for b in assigned_branches],
             branch_scope=user.branch_scope,
             data_scope=user.data_scope,
         )
@@ -103,6 +118,7 @@ class AuthService:
             "role":      role_name,
             "permissions": permissions,
             "is_super_admin": is_sa,
+            "assigned_branches": assigned_branches,
         }
 
         return Token(

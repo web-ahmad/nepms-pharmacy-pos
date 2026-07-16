@@ -156,6 +156,46 @@ def get_branch_stats(
     return branch_service.get_branch_stats(db, scope, branch_id)
 
 
+# ── POS Branch IDs (for legacy linking) ───────────────────────────────────────
+
+@router.get("/pos-branch-ids", summary="List all unique branch_ids from POS sales data")
+def list_pos_branch_ids(
+    db:    Session       = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    _:     dict          = Depends(_require_branch_access),
+):
+    """Returns the distinct branch_ids found in the sales table — these are the
+    'legacy' POS branch IDs that can be linked to Enterprise branches via
+    legacy_branch_id so that stats show real sales data."""
+    try:
+        from models.sales import Sale
+        from sqlalchemy import func
+        rows = (
+            db.query(Sale.branch_id, func.count(Sale.id).label("sale_count"))
+            .filter(Sale.is_deleted == False)
+            .group_by(Sale.branch_id)
+            .order_by(func.count(Sale.id).desc())
+            .all()
+        )
+        return [{"branch_id": r[0], "sale_count": r[1]} for r in rows]
+    except Exception as e:
+        return []
+
+
+@router.patch("/{branch_id}/set-pos-link", response_model=BranchResponse, summary="Link Enterprise branch to POS branch_id")
+def set_pos_link(
+    branch_id: str,
+    legacy_branch_id: str,
+    db:    Session       = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    _:     dict          = Depends(_require_branch_access),
+):
+    """Sets legacy_branch_id on an Enterprise branch so the stats queries
+    use the correct POS/JWT branch_id to find sales & inventory records."""
+    from schemas.enterprise.branch import BranchUpdate
+    return branch_service.update_branch(db, scope, branch_id, BranchUpdate(legacy_branch_id=legacy_branch_id))
+
+
 # ── Staff ─────────────────────────────────────────────────────────────────────
 
 @router.get(

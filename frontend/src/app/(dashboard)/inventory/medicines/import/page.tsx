@@ -174,12 +174,14 @@ function mapRowToPayload(row: any, index: number) {
 }
 
 // ── Animations ──────────────────────────────────────────────────────────────
-const containerVariants = {
+import { Variants } from 'framer-motion';
+
+const containerVariants: any = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.05 } }
 };
 
-const itemVariants = {
+const itemVariants: any = {
   hidden: { opacity: 0, y: 10 },
   show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
 };
@@ -281,8 +283,8 @@ export default function BulkImportMedicines() {
         toast.success(`Successfully imported ${totalSuccess} medicines!`);
       }
       router.push('/inventory/medicines');
-    } catch (error) {
-      toast.error(parseApiError(error));
+    } catch (err) {
+      toast.error(parseApiError(err));
     } finally {
       setProgress(null);
     }

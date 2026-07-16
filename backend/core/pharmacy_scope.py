@@ -19,7 +19,7 @@ Design goals
 from __future__ import annotations
 
 from typing import Optional, Generator
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
@@ -148,6 +148,7 @@ class PharmacyScope:
 # ── FastAPI dependency ────────────────────────────────────────────────────────
 
 def get_pharmacy_scope(
+    request: Request,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(_get_db),
 ) -> PharmacyScope:
@@ -170,14 +171,28 @@ def get_pharmacy_scope(
         pharmacy_id: str  = payload.get("pharmacy_id", "")
         branch_id:   str  = payload.get("branch_id", "")
         is_sa_claim: bool = bool(payload.get("is_super_admin", False))
+        assigned_branches: list = payload.get("assigned_branches", [])
     except JWTError:
         raise creds_exc
 
     if not user_id:
         raise creds_exc
 
+    is_actually_sa = is_sa_claim or _db_is_super_admin(db, user_id)
+
+    # Allow frontend to override the active branch context via header
+    header_branch_id = request.headers.get("x-branch-id")
+    if header_branch_id:
+        if is_actually_sa or header_branch_id in assigned_branches:
+            branch_id = header_branch_id
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied: you do not have permission to view this branch."
+            )
+
     # Super-admin path: JWT claim + DB double-check
-    if is_sa_claim or _db_is_super_admin(db, user_id):
+    if is_actually_sa:
         return PharmacyScope(pharmacy_id=None, is_super_admin=True, tenant_id=tenant_id, branch_id=branch_id or None)
 
     # Suspended pharmacy check
@@ -201,6 +216,7 @@ def get_pharmacy_scope(
 # ── Optional dependency variant (no 401 on missing token) ────────────────────
 
 def get_pharmacy_scope_optional(
+    request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     db: Session = Depends(_get_db),
 ) -> Optional[PharmacyScope]:
@@ -212,6 +228,6 @@ def get_pharmacy_scope_optional(
     if not token:
         return None
     try:
-        return get_pharmacy_scope.__wrapped__(token, db)
+        return get_pharmacy_scope.__wrapped__(request, token, db)
     except HTTPException:
         return None

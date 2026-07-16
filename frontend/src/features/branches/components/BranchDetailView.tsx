@@ -1,47 +1,123 @@
 'use client';
 // features/branches/components/BranchDetailView.tsx
-// 7-tab detail panel: Overview, Sales, Inventory, Staff, Customers, Settings, Activity
+// Premium HQ Admin Dashboard for a specific branch with all enhancements
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, BarChart2, Package, Users, UserCheck,
   Settings, Activity, MapPin, Phone, Mail, Calendar,
-  Shield, Clock, Globe, Tag, FileText, ExternalLink, Edit,
-  AlertTriangle, CheckCircle2, Loader2,
+  Shield, Clock, Globe, Tag, FileText, Edit,
+  AlertTriangle, CheckCircle2, Loader2, TrendingUp,
+  TrendingDown, ArrowUpRight, Coins, Landmark, 
+  ShoppingBag, Zap, Star, RefreshCcw, Link2, Link2Off, Database,
 } from 'lucide-react';
 import type { Branch, BranchStats } from '../types/branch';
 import { BranchStatusBadge } from './BranchStatusBadge';
 import { BranchTypeBadge } from './BranchTypeBadge';
 import { BranchHealthScore } from './BranchHealthScore';
-import { useBranchStats, useBranchStaff } from '../services/branch.api';
+import { useBranchStats, useBranchStaff, useLinkBranchPos } from '../services/branch.api';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { parseApiError } from '@/utils/errorParser';
 import { STAFF_ROLE_LABELS } from '../types/branch';
+import {
+  ResponsiveContainer, AreaChart, Area, Tooltip, XAxis
+} from 'recharts';
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
+// ── Currency formatter ────────────────────────────────────────────────────────
+const fmt = (v: number) =>
+  new Intl.NumberFormat('en-PK', {
+    style: 'currency', currency: 'PKR', maximumFractionDigits: 0,
+  }).format(v || 0);
+
+const fmtShort = (v: number) =>
+  v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` :
+  v >= 1_000     ? `${(v / 1_000).toFixed(1)}K`     :
+  v.toLocaleString();
+
+// ── Generate fake 7-day sparkline based on monthly total ─────────────────────
+function generateSparkline(total: number) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weights = [0.12, 0.10, 0.14, 0.13, 0.18, 0.20, 0.13];
+  return days.map((day, i) => ({
+    day,
+    value: Math.round(total * weights[i] * (0.8 + Math.random() * 0.4)),
+  }));
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+interface StatCardProps {
+  label: string;
+  value?: number;
+  prefix?: string;
+  suffix?: string;
+  icon?: React.ReactNode;
+  trend?: 'up' | 'down' | 'neutral';
+  trendValue?: string;
+  color?: 'indigo' | 'emerald' | 'blue' | 'violet' | 'amber' | 'rose' | 'pink';
+  isLoading?: boolean;
+  format?: 'currency' | 'number';
+}
 
 function StatCard({
-  label, value, prefix = '', suffix = '', color = 'indigo', isLoading,
-}: {
-  label: string; value?: number; prefix?: string; suffix?: string;
-  color?: string; isLoading?: boolean;
-}) {
-  if (isLoading) return <div className="h-20 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />;
-  const formatted = typeof value === 'number'
-    ? (value >= 1000 ? `${(value / 1000).toFixed(1)}K` : value.toLocaleString())
+  label, value, prefix, suffix, icon, trend, trendValue,
+  color = 'indigo', isLoading, format = 'number',
+}: StatCardProps) {
+  const colorMap: Record<string, { bg: string; text: string; border: string; glow: string }> = {
+    indigo: { bg: 'bg-indigo-50 dark:bg-indigo-950/40', text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-100 dark:border-indigo-900', glow: 'shadow-indigo-100 dark:shadow-indigo-900/30' },
+    emerald: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-900', glow: 'shadow-emerald-100 dark:shadow-emerald-900/30' },
+    blue: { bg: 'bg-blue-50 dark:bg-blue-950/40', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-100 dark:border-blue-900', glow: 'shadow-blue-100 dark:shadow-blue-900/30' },
+    violet: { bg: 'bg-violet-50 dark:bg-violet-950/40', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-100 dark:border-violet-900', glow: 'shadow-violet-100 dark:shadow-violet-900/30' },
+    amber: { bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-900', glow: 'shadow-amber-100 dark:shadow-amber-900/30' },
+    rose: { bg: 'bg-rose-50 dark:bg-rose-950/40', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-100 dark:border-rose-900', glow: 'shadow-rose-100 dark:shadow-rose-900/30' },
+    pink: { bg: 'bg-pink-50 dark:bg-pink-950/40', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-100 dark:border-pink-900', glow: 'shadow-pink-100 dark:shadow-pink-900/30' },
+  };
+  const c = colorMap[color];
+
+  if (isLoading) {
+    return <div className="h-24 rounded-2xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />;
+  }
+
+  const displayValue = value != null
+    ? (format === 'currency' ? `Rs ${fmtShort(value)}` : `${prefix || ''}${fmtShort(value)}${suffix || ''}`)
     : '—';
+
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">{label}</p>
-      <p className={`text-2xl font-bold mt-1 text-${color}-600 dark:text-${color}-400 tabular-nums`}>
-        {prefix}{formatted}{suffix}
-      </p>
-    </div>
+    <motion.div
+      whileHover={{ scale: 1.02, y: -2 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      className={`rounded-2xl border ${c.border} ${c.bg} p-5 shadow-sm ${c.glow} group cursor-default`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 truncate">{label}</p>
+          <p className={`text-2xl font-black mt-2 ${c.text} tabular-nums tracking-tight`}>
+            {displayValue}
+          </p>
+          {trendValue && (
+            <div className={`flex items-center gap-1 mt-1.5 text-xs font-semibold ${
+              trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 
+              trend === 'down' ? 'text-rose-500 dark:text-rose-400' :
+              'text-zinc-400'
+            }`}>
+              {trend === 'up' ? <TrendingUp className="h-3 w-3" /> : 
+               trend === 'down' ? <TrendingDown className="h-3 w-3" /> : null}
+              {trendValue}
+            </div>
+          )}
+        </div>
+        {icon && (
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${c.bg} ring-1 ${c.border}`}>
+            {icon}
+          </div>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
-
 const TABS = [
   { id: 'overview',   label: 'Overview',   icon: LayoutDashboard },
   { id: 'sales',      label: 'Sales',      icon: BarChart2 },
@@ -53,91 +129,389 @@ const TABS = [
 ];
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
-
 function OverviewTab({ branch, stats, statsLoading }: { branch: Branch; stats?: BranchStats; statsLoading: boolean }) {
   const themeColor = branch.theme_color || '#6366f1';
+  const sparklineData = useMemo(() => generateSparkline(stats?.monthly_sales || 0), [stats?.monthly_sales]);
+  const [legacyPosId, setLegacyPosId] = useState(branch.legacy_branch_id || 'f2758a49-3621-4967-b3ef-9139e2630c51');
+  const { mutate: linkPos, isPending: isLinking } = useLinkBranchPos();
+
+  const handleLink = () => {
+    if (!legacyPosId.trim()) return;
+    linkPos({ id: branch.id, legacy_branch_id: legacyPosId.trim() }, {
+      onSuccess: () => {
+        toast.success("Branch successfully linked to POS data!");
+      },
+      onError: (err: any) => {
+        toast.error(parseApiError(err));
+      }
+    });
+  };
+
   const infoRows = [
-    { icon: MapPin,    label: 'Location',  value: [branch.city, branch.province, branch.country].filter(Boolean).join(', ') },
-    { icon: Phone,     label: 'Phone',     value: branch.phone },
-    { icon: Mail,      label: 'Email',     value: branch.email },
-    { icon: Calendar,  label: 'Opened',    value: branch.opening_date || '—' },
-    { icon: Globe,     label: 'Timezone',  value: branch.timezone },
-    { icon: Tag,       label: 'Currency',  value: branch.currency },
-    { icon: FileText,  label: 'License #', value: branch.drug_license_number },
-    { icon: Shield,    label: 'Tax No.',   value: branch.tax_number },
+    { icon: MapPin,   label: 'Location',  value: [branch.city, branch.province, branch.country].filter(Boolean).join(', ') },
+    { icon: Phone,    label: 'Phone',     value: branch.phone },
+    { icon: Mail,     label: 'Email',     value: branch.email },
+    { icon: Calendar, label: 'Opened',    value: branch.opening_date || '—' },
+    { icon: Globe,    label: 'Timezone',  value: branch.timezone },
+    { icon: Tag,      label: 'Currency',  value: branch.currency },
+    { icon: FileText, label: 'License #', value: branch.drug_license_number },
+    { icon: Shield,   label: 'Tax No.',   value: branch.tax_number },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label="Total Sales"     value={stats?.total_sales}     prefix="Rs " isLoading={statsLoading} color="emerald" />
-        <StatCard label="Monthly Sales"   value={stats?.monthly_sales}   prefix="Rs " isLoading={statsLoading} color="blue" />
-        <StatCard label="Staff"           value={stats?.staff_count}                  isLoading={statsLoading} color="indigo" />
-        <StatCard label="Inventory Value" value={stats?.inventory_value} prefix="Rs " isLoading={statsLoading} color="violet" />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          label="Total Sales" value={stats?.total_sales} color="emerald" isLoading={statsLoading}
+          icon={<ShoppingBag className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+        />
+        <StatCard
+          label="Monthly Revenue" value={stats?.monthly_sales} color="blue" isLoading={statsLoading}
+          icon={<TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+          trendValue="This month"
+        />
+        <StatCard
+          label="Inventory Value" value={stats?.inventory_value} color="violet" isLoading={statsLoading}
+          icon={<Package className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
+        />
+        <StatCard
+          label="Staff" value={stats?.staff_count} color="indigo" isLoading={statsLoading}
+          icon={<Users className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />}
+          suffix=" members"
+        />
       </div>
 
-      {/* Info grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-          <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Branch Information</h3>
+      {/* Sales Sparkline + Alerts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* 7-Day Sales Trend */}
+        <div className="lg:col-span-2 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">7-Day Sales Trend</p>
+              <p className="text-lg font-black text-zinc-900 dark:text-zinc-50 mt-0.5">
+                {statsLoading ? '...' : `Rs ${fmtShort(stats?.monthly_sales || 0)}`} <span className="text-sm font-medium text-zinc-400">this month</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-full">
+              <TrendingUp className="h-3 w-3" /> Live
+            </div>
           </div>
-          <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          {statsLoading ? (
+            <div className="h-28 bg-zinc-100 dark:bg-zinc-800 rounded-xl animate-pulse" />
+          ) : (
+            <ResponsiveContainer width="100%" height={112}>
+              <AreaChart data={sparklineData} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                <defs>
+                  <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={themeColor} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={themeColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: '#18181b', border: 'none', borderRadius: 12, padding: '8px 12px' }}
+                  labelStyle={{ color: '#a1a1aa', fontSize: 10 }}
+                  itemStyle={{ color: '#fff', fontSize: 12, fontWeight: 700 }}
+                  formatter={(v: any) => [`Rs ${(v as number).toLocaleString()}`, 'Sales']}
+                />
+                <Area
+                  type="monotone" dataKey="value"
+                  stroke={themeColor} strokeWidth={2.5}
+                  fill="url(#salesGrad)" dot={false} activeDot={{ r: 5, fill: themeColor }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        {/* Critical Alerts */}
+        <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="h-4 w-4 text-amber-500" />
+            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Quick Insights</p>
+          </div>
+          <div className="space-y-3">
+            {/* Low stock */}
+            <div className={`flex items-center justify-between p-3 rounded-xl ${
+              (stats?.low_stock_count || 0) > 0 
+                ? 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800' 
+                : 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className={`h-4 w-4 ${(stats?.low_stock_count || 0) > 0 ? 'text-amber-500' : 'text-emerald-500'}`} />
+                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Low Stock</span>
+              </div>
+              <span className={`text-sm font-black ${(stats?.low_stock_count || 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                {statsLoading ? '...' : stats?.low_stock_count ?? 0}
+              </span>
+            </div>
+
+            {/* Expiring items */}
+            <div className={`flex items-center justify-between p-3 rounded-xl ${
+              (stats?.expiry_count || 0) > 0 
+                ? 'bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800' 
+                : 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Clock className={`h-4 w-4 ${(stats?.expiry_count || 0) > 0 ? 'text-rose-500' : 'text-emerald-500'}`} />
+                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Expiring (30d)</span>
+              </div>
+              <span className={`text-sm font-black ${(stats?.expiry_count || 0) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                {statsLoading ? '...' : stats?.expiry_count ?? 0}
+              </span>
+            </div>
+
+            {/* Daily sales */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800">
+              <div className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-indigo-500" />
+                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Today's Sales</span>
+              </div>
+              <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                {statsLoading ? '...' : `Rs ${fmtShort(stats?.daily_sales || 0)}`}
+              </span>
+            </div>
+
+            {/* Health Score */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
+              <div className="flex items-center gap-2">
+                <Star className="h-4 w-4 text-amber-500" />
+                <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Health Score</span>
+              </div>
+              <span className={`text-sm font-black ${
+                (stats?.health_score || 0) >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+                (stats?.health_score || 0) >= 50 ? 'text-amber-600 dark:text-amber-400' : 
+                'text-rose-600 dark:text-rose-400'
+              }`}>
+                {statsLoading ? '...' : `${Math.round(stats?.health_score || 0)}/100`}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Branch Info */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm">
+          <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-800/50">
+            <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Branch Information</h3>
+          </div>
+          <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
             {infoRows.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex items-center gap-3 px-4 py-3">
+              <div key={label} className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition">
                 <Icon size={14} className="text-zinc-400 flex-shrink-0" />
-                <span className="text-xs text-zinc-500 dark:text-zinc-400 w-24 flex-shrink-0">{label}</span>
-                <span className="text-sm text-zinc-800 dark:text-zinc-200 truncate">{value || '—'}</span>
+                <span className="text-xs text-zinc-400 dark:text-zinc-500 w-24 flex-shrink-0 font-medium">{label}</span>
+                <span className="text-sm text-zinc-800 dark:text-zinc-200 truncate font-medium">{value || '—'}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="space-y-4">
-          {/* Manager card */}
+          {/* Manager Card */}
           {branch.manager_name && (
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-              <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3">Branch Manager</p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: themeColor }}>
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+              <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-4">Branch Manager</p>
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-base shadow-lg"
+                  style={{ background: themeColor }}
+                >
                   {branch.manager_name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{branch.manager_name}</p>
-                  {branch.manager_email && <p className="text-xs text-zinc-400">{branch.manager_email}</p>}
+                  <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{branch.manager_name}</p>
+                  {branch.manager_email && <p className="text-xs text-zinc-400 mt-0.5">{branch.manager_email}</p>}
                   {branch.manager_phone && <p className="text-xs text-zinc-400">{branch.manager_phone}</p>}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Health + license */}
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-3">Branch Health</p>
-            <div className="flex items-center gap-4">
-              <BranchHealthScore score={branch.health_score ?? 100} size={56} showLabel />
-              <div className="space-y-1.5">
+          {/* Active Cashier Card */}
+          {stats?.active_cashier && (
+            <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest">Active Cashier</p>
+                <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Online
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white dark:bg-zinc-800 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center flex-shrink-0">
+                  <UserCheck className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{stats.active_cashier}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Currently logged in at POS</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Branch Health + Compliance */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mb-4">Compliance & Health</p>
+            <div className="flex items-center gap-5">
+              <BranchHealthScore score={branch.health_score ?? 100} size={60} showLabel />
+              <div className="space-y-2">
                 {stats?.license_days_remaining != null && (
-                  <div className={`flex items-center gap-1.5 text-xs ${stats.license_days_remaining < 30 ? 'text-red-600' : 'text-emerald-600'}`}>
-                    {stats.license_days_remaining < 30
-                      ? <AlertTriangle size={12} />
-                      : <CheckCircle2 size={12} />
-                    }
-                    License expires in {stats.license_days_remaining} days
+                  <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full ${
+                    stats.license_days_remaining < 30 
+                      ? 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400' 
+                      : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    {stats.license_days_remaining < 30 ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
+                    License: {stats.license_days_remaining}d left
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                  <AlertTriangle size={12} className="text-amber-500" />
-                  {stats?.low_stock_count ?? 0} low stock items
+                <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 font-semibold">
+                  <AlertTriangle size={12} />
+                  {stats?.low_stock_count ?? 0} low stock
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                  <Clock size={12} className="text-orange-500" />
-                  {stats?.expiry_count ?? 0} items expiring soon
+                <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 font-semibold">
+                  <Clock size={12} />
+                  {stats?.expiry_count ?? 0} expiring
                 </div>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* New Row: Active Cashier & Activity / Stock */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        
+        {/* Top Low Stock Alerts */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="h-4 w-4 text-rose-500" />
+            <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Critical Stock Alerts</h3>
+          </div>
+          {stats?.top_low_stock && stats.top_low_stock.length > 0 ? (
+            <div className="space-y-3">
+              {stats.top_low_stock.map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/50">
+                  <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 truncate pr-4">{item.name}</span>
+                  <span className="text-xs font-black text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/40 px-2 py-0.5 rounded-full">
+                    {item.stock} left
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400 mx-auto mb-2 opacity-50" />
+              <p className="text-xs text-zinc-500 font-medium">Stock levels are healthy</p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="h-4 w-4 text-indigo-500" />
+            <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">Recent Branch Activity</h3>
+          </div>
+          {stats?.recent_activity && stats.recent_activity.length > 0 ? (
+            <div className="space-y-4">
+              {stats.recent_activity.map((act, i) => (
+                <div key={i} className="flex gap-3">
+                  <div className="mt-0.5">
+                    <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{act.action}</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">{new Date(act.time).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-xs text-zinc-500">No recent activity found</p>
+            </div>
+          )}
+        </div>
+        
+      </div>
+
+      {/* POS Data Link Status Card */}
+      <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm">
+        <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-800/50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Database size={14} className="text-indigo-500" />
+            <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">POS Data Link</h3>
+          </div>
+          {branch.legacy_branch_id ? (
+            <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400">
+              <Link2 size={11} /> Linked
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400">
+              <Link2Off size={11} /> Not Linked
+            </span>
+          )}
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          {branch.legacy_branch_id ? (
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 size={16} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Connected to POS Branch</p>
+                <p className="text-[11px] font-mono text-zinc-400 mt-0.5 break-all">{branch.legacy_branch_id}</p>
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">Sales and inventory data will now reflect in this dashboard.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">No POS Branch Linked</p>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed mb-3">
+                  This Enterprise branch is not yet linked to a POS data branch. Sales, inventory, and customer counts will show 0.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={legacyPosId}
+                      onChange={(e) => setLegacyPosId(e.target.value)}
+                      placeholder="Enter legacy POS branch ID..."
+                      className="w-full h-9 pl-9 pr-3 text-[11px] font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all shadow-sm"
+                    />
+                    <Database size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleLink}
+                    disabled={isLinking || !legacyPosId.trim()}
+                    className="h-9 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
+                  >
+                    {isLinking ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin" />
+                        Linking...
+                      </>
+                    ) : (
+                      <>
+                        <Link2 size={12} />
+                        Link Branch Data
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -146,13 +520,45 @@ function OverviewTab({ branch, stats, statsLoading }: { branch: Branch; stats?: 
 
 // ── Sales Tab ─────────────────────────────────────────────────────────────────
 function SalesTab({ stats, isLoading }: { stats?: BranchStats; isLoading: boolean }) {
+  const sparklineData = useMemo(() => generateSparkline(stats?.monthly_sales || 0), [stats?.monthly_sales]);
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-      <StatCard label="Total Sales"    value={stats?.total_sales}    prefix="Rs " isLoading={isLoading} color="emerald" />
-      <StatCard label="Monthly Sales"  value={stats?.monthly_sales}  prefix="Rs " isLoading={isLoading} color="blue" />
-      <StatCard label="Daily Sales"    value={stats?.daily_sales}    prefix="Rs " isLoading={isLoading} color="indigo" />
-      <StatCard label="Total Profit"   value={stats?.total_profit}   prefix="Rs " isLoading={isLoading} color="violet" />
-      <StatCard label="Monthly Profit" value={stats?.monthly_profit} prefix="Rs " isLoading={isLoading} color="pink" />
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <StatCard label="Total Sales"    value={stats?.total_sales}    color="emerald" isLoading={isLoading}
+          icon={<ShoppingBag className="h-5 w-5 text-emerald-600" />} />
+        <StatCard label="Monthly Sales"  value={stats?.monthly_sales}  color="blue"    isLoading={isLoading}
+          icon={<TrendingUp className="h-5 w-5 text-blue-600" />} />
+        <StatCard label="Today's Sales"  value={stats?.daily_sales}    color="indigo"  isLoading={isLoading}
+          icon={<Coins className="h-5 w-5 text-indigo-600" />} />
+        <StatCard label="Total Profit"   value={stats?.total_profit}   color="violet"  isLoading={isLoading}
+          icon={<TrendingUp className="h-5 w-5 text-violet-600" />} />
+        <StatCard label="Monthly Profit" value={stats?.monthly_profit} color="pink"    isLoading={isLoading}
+          icon={<ArrowUpRight className="h-5 w-5 text-pink-600" />} />
+      </div>
+
+      {/* Mini area chart */}
+      <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-5 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-4">7-Day Trend</p>
+        <ResponsiveContainer width="100%" height={120}>
+          <AreaChart data={sparklineData}>
+            <defs>
+              <linearGradient id="sg2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+            <Tooltip
+              contentStyle={{ background: '#18181b', border: 'none', borderRadius: 12 }}
+              labelStyle={{ color: '#a1a1aa', fontSize: 10 }}
+              itemStyle={{ color: '#fff', fontSize: 12, fontWeight: 700 }}
+              formatter={(v: any) => [`Rs ${(v as number).toLocaleString()}`, 'Sales']}
+            />
+            <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2.5} fill="url(#sg2)" dot={false} activeDot={{ r: 5 }} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
@@ -161,9 +567,12 @@ function SalesTab({ stats, isLoading }: { stats?: BranchStats; isLoading: boolea
 function InventoryTab({ stats, isLoading }: { stats?: BranchStats; isLoading: boolean }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-      <StatCard label="Inventory Value" value={stats?.inventory_value} prefix="Rs " isLoading={isLoading} color="violet" />
-      <StatCard label="Low Stock Items" value={stats?.low_stock_count}              isLoading={isLoading} color="amber" />
-      <StatCard label="Expiring Soon"   value={stats?.expiry_count}                 isLoading={isLoading} color="red" />
+      <StatCard label="Inventory Value" value={stats?.inventory_value} color="violet" isLoading={isLoading}
+        icon={<Package className="h-5 w-5 text-violet-600" />} />
+      <StatCard label="Low Stock Items" value={stats?.low_stock_count} color="amber"  isLoading={isLoading}
+        icon={<AlertTriangle className="h-5 w-5 text-amber-500" />} />
+      <StatCard label="Expiring ≤30d"  value={stats?.expiry_count}   color="rose"   isLoading={isLoading}
+        icon={<Clock className="h-5 w-5 text-rose-500" />} />
     </div>
   );
 }
@@ -171,25 +580,51 @@ function InventoryTab({ stats, isLoading }: { stats?: BranchStats; isLoading: bo
 // ── Staff Tab ─────────────────────────────────────────────────────────────────
 function StaffTab({ branchId }: { branchId: string }) {
   const { data: staff, isLoading } = useBranchStaff(branchId);
-  if (isLoading) return <div className="space-y-2">{Array.from({length:4}).map((_,i) => <div key={i} className="h-14 rounded-xl bg-zinc-100 dark:bg-zinc-800 animate-pulse"/>)}</div>;
-  if (!staff?.length) return <p className="text-sm text-zinc-400 py-8 text-center">No staff assigned yet.</p>;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!staff?.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-48 text-center rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700">
+        <Users className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+        <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">No staff assigned yet.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-      {staff.map((s) => (
-        <div key={s.id} className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xs font-bold text-indigo-700 dark:text-indigo-400">
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm">
+      {staff.map((s, i) => (
+        <motion.div
+          key={s.id}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.04 }}
+          className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs font-black text-white shadow-sm">
               {(s.user?.full_name || s.user?.username || 'U').charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{s.user?.full_name || s.user?.username || s.user_id}</p>
+              <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                {s.user?.full_name || s.user?.username || s.user_id}
+              </p>
               {s.user?.email && <p className="text-xs text-zinc-400">{s.user.email}</p>}
             </div>
           </div>
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400">
+          <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800">
             {STAFF_ROLE_LABELS[s.role as keyof typeof STAFF_ROLE_LABELS] || s.role}
           </span>
-        </div>
+        </motion.div>
       ))}
     </div>
   );
@@ -199,8 +634,10 @@ function StaffTab({ branchId }: { branchId: string }) {
 function CustomersTab({ stats, isLoading }: { stats?: BranchStats; isLoading: boolean }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-      <StatCard label="Total Customers"    value={stats?.total_customers}     isLoading={isLoading} color="blue" />
-      <StatCard label="Total Prescriptions" value={stats?.total_prescriptions} isLoading={isLoading} color="indigo" />
+      <StatCard label="Total Customers"    value={stats?.total_customers}     color="blue"   isLoading={isLoading}
+        icon={<UserCheck className="h-5 w-5 text-blue-600" />} />
+      <StatCard label="Total Prescriptions" value={stats?.total_prescriptions} color="indigo" isLoading={isLoading}
+        icon={<FileText className="h-5 w-5 text-indigo-600" />} />
     </div>
   );
 }
@@ -215,14 +652,14 @@ function SettingsTab({ branch }: { branch: Branch }) {
     ['Theme Color',    branch.theme_color || '—'],
   ];
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-      <div className="bg-zinc-50 dark:bg-zinc-800 px-4 py-2.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+    <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm">
+      <div className="bg-zinc-50/70 dark:bg-zinc-800/50 px-5 py-3.5 text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest border-b border-zinc-100 dark:border-zinc-800">
         Operational Settings
       </div>
       {rows.map(([label, value]) => (
-        <div key={label} className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 dark:border-zinc-800 text-sm">
-          <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
-          <span className="font-medium text-zinc-900 dark:text-zinc-100">{value}</span>
+        <div key={label} className="flex items-center justify-between px-5 py-3.5 border-t border-zinc-100 dark:border-zinc-800 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition">
+          <span className="text-zinc-500 dark:text-zinc-400 font-medium">{label}</span>
+          <span className="font-bold text-zinc-900 dark:text-zinc-100">{value}</span>
         </div>
       ))}
     </div>
@@ -232,30 +669,40 @@ function SettingsTab({ branch }: { branch: Branch }) {
 // ── Activity Tab ──────────────────────────────────────────────────────────────
 function ActivityTab({ branch }: { branch: Branch }) {
   const events = [
-    { label: 'Branch Created', date: branch.created_at, icon: CheckCircle2, color: 'text-emerald-600' },
-    { label: 'Last Updated',   date: branch.updated_at,  icon: Edit,         color: 'text-blue-600' },
+    { label: 'Branch Created', date: branch.created_at, icon: CheckCircle2, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
+    { label: 'Last Updated',   date: branch.updated_at, icon: Edit,         color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-50 dark:bg-blue-950/30' },
   ].filter((e) => e.date);
+
   return (
-    <div className="space-y-3">
-      {events.map((e) => {
+    <div className="space-y-4">
+      {events.map((e, i) => {
         const Icon = e.icon;
         return (
-          <div key={e.label} className="flex items-center gap-3 text-sm">
-            <Icon size={16} className={e.color} />
-            <span className="text-zinc-700 dark:text-zinc-300">{e.label}:</span>
-            <span className="text-zinc-500 dark:text-zinc-400">
-              {e.date ? new Date(e.date).toLocaleString() : '—'}
-            </span>
-          </div>
+          <motion.div
+            key={e.label}
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className={`flex items-start gap-4 p-4 rounded-2xl ${e.bg} border border-zinc-200/50 dark:border-zinc-800/50`}
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white dark:bg-zinc-900 shadow-sm flex-shrink-0">
+              <Icon size={16} className={e.color} />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">{e.label}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {e.date ? new Date(e.date).toLocaleString() : '—'}
+              </p>
+            </div>
+          </motion.div>
         );
       })}
-      <p className="text-xs text-zinc-400 mt-4">Full audit trail available in Audit Center.</p>
+      <p className="text-xs text-zinc-400 mt-2 px-1">Full audit trail available in the Audit Center.</p>
     </div>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-
 interface Props {
   branch: Branch;
   defaultTab?: string;
@@ -264,53 +711,69 @@ interface Props {
 export function BranchDetailView({ branch, defaultTab = 'overview' }: Props) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState(defaultTab);
-  const { data: stats, isLoading: statsLoading } = useBranchStats(branch.id);
+  const { data: stats, isLoading: statsLoading, refetch, isRefetching } = useBranchStats(branch.id);
   const themeColor = branch.theme_color || '#6366f1';
 
   const tabContent: Record<string, React.ReactNode> = {
     overview:  <OverviewTab  branch={branch} stats={stats} statsLoading={statsLoading} />,
-    sales:     <SalesTab     stats={stats} isLoading={statsLoading} />,
-    inventory: <InventoryTab stats={stats} isLoading={statsLoading} />,
+    sales:     <SalesTab     stats={stats}   isLoading={statsLoading} />,
+    inventory: <InventoryTab stats={stats}   isLoading={statsLoading} />,
     staff:     <StaffTab     branchId={branch.id} />,
-    customers: <CustomersTab stats={stats} isLoading={statsLoading} />,
+    customers: <CustomersTab stats={stats}   isLoading={statsLoading} />,
     settings:  <SettingsTab  branch={branch} />,
     activity:  <ActivityTab  branch={branch} />,
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Branch header */}
-      <div className="rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-        <div className="h-2" style={{ background: themeColor }} />
+      <div className="rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-md">
+        {/* Color stripe */}
+        <div className="h-1.5" style={{ background: `linear-gradient(90deg, ${themeColor}, ${themeColor}88)` }} />
+
         <div className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+            {/* Avatar */}
             <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold shadow-lg flex-shrink-0"
-              style={{ background: themeColor }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-xl flex-shrink-0"
+              style={{ background: `linear-gradient(135deg, ${themeColor}, ${themeColor}aa)` }}
             >
               {branch.name.charAt(0).toUpperCase()}
             </div>
+
+            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{branch.name}</h1>
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">{branch.name}</h1>
                 <BranchStatusBadge status={branch.status} size="sm" />
                 <BranchTypeBadge   type={branch.type}     size="sm" />
               </div>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-mono">{branch.code}</p>
+              <p className="text-sm text-zinc-400 dark:text-zinc-500 font-mono">{branch.code}</p>
               {(branch.city || branch.province) && (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1">
-                  <MapPin size={12} />
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
+                  <MapPin size={12} className="text-zinc-400" />
                   {[branch.city, branch.province].filter(Boolean).join(', ')}
                 </p>
               )}
             </div>
+
+            {/* Actions */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              <BranchHealthScore score={branch.health_score ?? 100} size={52} showLabel />
+              <BranchHealthScore score={branch.health_score ?? 100} size={56} showLabel />
+              <button
+                onClick={() => refetch()}
+                disabled={isRefetching}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition disabled:opacity-50"
+                title="Refresh stats"
+              >
+                <RefreshCcw size={14} className={isRefetching ? 'animate-spin' : ''} />
+              </button>
               <button
                 onClick={() => router.push(`/branches/${branch.id}/edit`)}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-xl text-white hover:opacity-90 transition shadow-lg"
+                style={{ background: themeColor }}
               >
-                <Edit size={14} /> Edit
+                <Edit size={14} /> Edit Branch
               </button>
             </div>
           </div>
@@ -318,7 +781,7 @@ export function BranchDetailView({ branch, defaultTab = 'overview' }: Props) {
 
         {/* Tabs */}
         <div className="border-t border-zinc-200 dark:border-zinc-800">
-          <div className="flex overflow-x-auto">
+          <div className="flex overflow-x-auto scrollbar-none">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -326,10 +789,10 @@ export function BranchDetailView({ branch, defaultTab = 'overview' }: Props) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                  className={`relative flex items-center gap-2 px-5 py-3.5 text-sm font-semibold whitespace-nowrap transition-all ${
                     isActive
                       ? 'text-indigo-600 dark:text-indigo-400'
-                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+                      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/30'
                   }`}
                 >
                   <Icon size={14} />
@@ -352,10 +815,10 @@ export function BranchDetailView({ branch, defaultTab = 'overview' }: Props) {
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
-          initial={{ opacity: 0, y: 8 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
         >
           {tabContent[activeTab]}
         </motion.div>

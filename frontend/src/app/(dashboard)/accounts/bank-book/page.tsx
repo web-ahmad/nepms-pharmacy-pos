@@ -1,14 +1,21 @@
 "use client";
 
-import { useChartAccounts } from '@/features/accounts/services/accounts.api';
+import { useChartAccounts, useDeleteAccount } from '@/features/accounts/services/accounts.api';
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, ExternalLink, Search, Landmark } from 'lucide-react';
+import { Building2, ExternalLink, Search, Landmark, Plus, Edit, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import { BankModal } from '@/features/accounts/components/BankModal';
+import { Account } from '@/features/accounts/types/accounts';
+import { toast } from 'sonner';
 
 export default function BankBookPage() {
   const { data: accounts, isLoading } = useChartAccounts();
+  const deleteMutation = useDeleteAccount();
   const [search, setSearch] = useState('');
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [bankToEdit, setBankToEdit] = useState<Account | null>(null);
 
   const bankAccounts = useMemo(() => {
     if (!accounts) return [];
@@ -18,6 +25,27 @@ export default function BankBookPage() {
       return isBank && matchesSearch;
     });
   }, [accounts, search]);
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this bank account? This action cannot be undone if there are no transactions.')) {
+      try {
+        await deleteMutation.mutateAsync(id);
+        toast.success('Bank account deleted successfully');
+      } catch (error: any) {
+        toast.error(error?.response?.data?.detail || 'Failed to delete bank account');
+      }
+    }
+  };
+
+  const handleEdit = (bank: Account) => {
+    setBankToEdit(bank);
+    setIsModalOpen(true);
+  };
+
+  const handleAddNew = () => {
+    setBankToEdit(null);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -31,15 +59,24 @@ export default function BankBookPage() {
             <p className="text-sm text-zinc-500 dark:text-zinc-400">Manage and view ledgers for all your registered bank accounts</p>
           </div>
         </div>
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-          <input
-            type="text"
-            placeholder="Search accounts..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-9 pr-4 text-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-100"
-          />
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative w-full max-w-xs sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search accounts..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-9 pr-4 text-sm outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-100"
+            />
+          </div>
+          <button
+            onClick={handleAddNew}
+            className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+          >
+            <Plus className="h-4 w-4" />
+            New Bank
+          </button>
         </div>
       </div>
 
@@ -90,12 +127,28 @@ export default function BankBookPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Link href={`/accounts/ledger?account_id=${account.id}`}>
-                          <button className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-blue-400">
-                            <ExternalLink className="h-3.5 w-3.5" />
-                            View Ledger
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEdit(account)}
+                            className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white p-2 text-zinc-500 transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-blue-400"
+                            title="Edit Bank"
+                          >
+                            <Edit className="h-4 w-4" />
                           </button>
-                        </Link>
+                          <button
+                            onClick={() => handleDelete(account.id)}
+                            className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white p-2 text-zinc-500 transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-200 focus:outline-none focus:ring-4 focus:ring-red-500/10 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-800"
+                            title="Delete Bank"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                          <Link href={`/accounts/ledger?account_id=${account.id}`}>
+                            <button className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-700 transition-all hover:bg-zinc-50 hover:text-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-500/10 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-blue-400">
+                              <ExternalLink className="h-4 w-4" />
+                              View Ledger
+                            </button>
+                          </Link>
+                        </div>
                       </td>
                     </motion.tr>
                   ))
@@ -105,6 +158,12 @@ export default function BankBookPage() {
           </div>
         </div>
       )}
+
+      <BankModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        bankToEdit={bankToEdit} 
+      />
     </div>
   );
 }

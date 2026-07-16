@@ -150,9 +150,9 @@ export default function WizardLayout() {
       await createMedicineMutation.mutateAsync(payload as any);
       toast.success("Medicine created successfully.");
       router.push('/inventory/medicines');
-    } catch (error: any) {
-      toast.error(parseApiError(error));
-      console.log('Submit Error:', error);
+    } catch (err: any) {
+      toast.error(parseApiError(err));
+      console.log('Submit Error:', err);
     }
   };
 

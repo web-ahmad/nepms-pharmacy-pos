@@ -59,7 +59,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       }
       setIsPrinterOpen(false);
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
@@ -72,7 +72,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       await branchConfigService.deletePrinter(branchId, id);
       toast.success('Printer deleted');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     }
   };
@@ -82,7 +82,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       await branchConfigService.setPrinterDefault(branchId, id);
       toast.success('Default printer updated');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     }
   };
@@ -102,7 +102,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       toast.success('Device updated');
       setIsDeviceOpen(false);
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
@@ -115,7 +115,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       await branchConfigService.deleteDevice(branchId, id);
       toast.success('Device deleted');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     }
   };

@@ -111,7 +111,7 @@ export default function EditAttendanceModal({
       
       toast.success('Attendance updated successfully');
       onClose();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSubmitting(false);

@@ -67,7 +67,7 @@ export default function AttendanceDetailView({
     try {
       await updateAttendance({ id, data: { status: newStatus } });
       toast.success('Attendance updated successfully');
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     }
   };

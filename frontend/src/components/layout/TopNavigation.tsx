@@ -303,6 +303,8 @@ function AlertIconButton({
   );
 }
 
+import { BranchSwitcher } from './BranchSwitcher';
+
 // ── TopNavigation ─────────────────────────────────────────────────────────
 export function TopNavigation() {
   const { user, logout } = useAuthStore();
@@ -352,11 +354,7 @@ export function TopNavigation() {
 
       <div className="flex items-center gap-1">
         {/* Branch */}
-        <div className="hidden md:flex items-center mr-3">
-          <span className="text-sm font-medium bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 px-3 py-1 rounded-md">
-            Main Branch
-          </span>
-        </div>
+        <BranchSwitcher />
 
         {/* ── Alert icon buttons + trays ── */}
         <div ref={trayRef} className="flex items-center gap-1 relative">

@@ -11,6 +11,11 @@ class AccountBase(BaseModel):
 class AccountCreate(AccountBase):
     pass
 
+class AccountUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    category: Optional[AccountCategory] = None
+
 class AccountResponse(AccountBase):
     id: str
     is_active: bool

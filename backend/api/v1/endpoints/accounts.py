@@ -9,6 +9,7 @@ from api.v1.endpoints.auth import get_current_user
 from dependencies.module_guard import require_module
 from schemas.accounts import (
     AccountCreate, 
+    AccountUpdate,
     AccountResponse, 
     JournalEntryCreate, 
     JournalEntryResponse,
@@ -81,6 +82,28 @@ def create_account(
 ):
     service = AccountsService(db)
     return service.create_account(scope.tenant_id, account_in)
+
+@router.put("/chart/{account_id}", response_model=AccountResponse)
+def update_account(
+    account_id: str,
+    account_in: AccountUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_accounts_create),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    service = AccountsService(db)
+    return service.update_account(scope.tenant_id, account_id, account_in)
+
+@router.delete("/chart/{account_id}")
+def delete_account(
+    account_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_accounts_create),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    service = AccountsService(db)
+    service.delete_account(scope.tenant_id, account_id)
+    return {"message": "Account deleted successfully"}
 
 @router.post("/journals")
 def create_journal_entry(

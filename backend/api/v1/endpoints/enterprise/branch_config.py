@@ -53,6 +53,8 @@ router = APIRouter()
 def _pharmacy_id(scope: PharmacyScope) -> str:
     if scope.pharmacy_id:
         return scope.pharmacy_id
+    if scope.tenant_id:
+        return scope.tenant_id
     raise HTTPException(status_code=400, detail="pharmacy_id required.")
 
 

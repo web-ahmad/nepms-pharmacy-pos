@@ -220,9 +220,12 @@ class BranchService:
 
         staff_count = branch_repo.count_staff(db, branch_id)
 
-        # ── Attempt to compute real metrics from existing models ──────────────
-        # We query the Sale and Batch tables if they exist and have a branch_id column.
-        # These are best-effort; we fall back to 0 if no data or column mismatch.
+        # ── Resolve the data branch_id ────────────────────────────────────────
+        # The Enterprise branch record may have a `legacy_branch_id` that maps
+        # to the branch_id used in the POS / JWT token and stored in sales/batches.
+        # If set, use it for data queries; otherwise fall back to enterprise branch_id.
+        data_bid = getattr(branch, "legacy_branch_id", None) or branch_id
+
         total_sales = 0.0
         monthly_sales = 0.0
         daily_sales = 0.0
@@ -237,52 +240,132 @@ class BranchService:
             from models.sales import Sale
             from sqlalchemy import extract
             now = datetime.utcnow()
+            today = date.today()
+
             if hasattr(Sale, "branch_id"):
-                base_q = db.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter(
-                    Sale.branch_id == branch_id, Sale.is_deleted == False
+                # ── SEPARATE queries (not chained) to avoid SQLAlchemy mutation bug ──
+                total_sales = float(
+                    db.query(func.coalesce(func.sum(Sale.total_amount), 0))
+                    .filter(Sale.branch_id == data_bid, Sale.is_deleted == False)
+                    .scalar() or 0
                 )
-                total_sales = float(base_q.scalar() or 0)
                 monthly_sales = float(
-                    base_q.filter(
+                    db.query(func.coalesce(func.sum(Sale.total_amount), 0))
+                    .filter(
+                        Sale.branch_id == data_bid,
+                        Sale.is_deleted == False,
                         extract("year",  Sale.created_at) == now.year,
                         extract("month", Sale.created_at) == now.month,
-                    ).scalar() or 0
+                    )
+                    .scalar() or 0
                 )
                 daily_sales = float(
-                    base_q.filter(func.date(Sale.created_at) == date.today()).scalar() or 0
+                    db.query(func.coalesce(func.sum(Sale.total_amount), 0))
+                    .filter(
+                        Sale.branch_id == data_bid,
+                        Sale.is_deleted == False,
+                        func.date(Sale.created_at) == today,
+                    )
+                    .scalar() or 0
                 )
+                # Customer count
+                if hasattr(Sale, "customer_id"):
+                    total_customers = int(
+                        db.query(func.count(func.distinct(Sale.customer_id)))
+                        .filter(Sale.branch_id == data_bid, Sale.is_deleted == False, Sale.customer_id.isnot(None))
+                        .scalar() or 0
+                    )
         except Exception:
             pass
 
         try:
             from models.inventory import Batch
+            from datetime import timedelta
             today = date.today()
+
             if hasattr(Batch, "branch_id"):
-                # inventory value
                 inventory_value = float(
                     db.query(func.coalesce(
                         func.sum(Batch.purchase_price * Batch.current_quantity), 0
-                    )).filter(Batch.branch_id == branch_id, Batch.is_deleted == False).scalar() or 0
+                    ))
+                    .filter(Batch.branch_id == data_bid, Batch.is_deleted == False)
+                    .scalar() or 0
                 )
-                # low stock (< reorder_level — we flag anything with qty 0 for now)
                 low_stock_count = int(
-                    db.query(func.count(Batch.id)).filter(
-                        Batch.branch_id == branch_id,
+                    db.query(func.count(Batch.id))
+                    .filter(
+                        Batch.branch_id == data_bid,
                         Batch.current_quantity == 0,
                         Batch.is_deleted == False,
-                    ).scalar() or 0
+                    )
+                    .scalar() or 0
                 )
-                # expiring in 30 days
-                from datetime import timedelta
                 expiry_cutoff = today + timedelta(days=30)
                 expiry_count = int(
-                    db.query(func.count(Batch.id)).filter(
-                        Batch.branch_id == branch_id,
+                    db.query(func.count(Batch.id))
+                    .filter(
+                        Batch.branch_id == data_bid,
                         Batch.expiry_date <= expiry_cutoff,
                         Batch.expiry_date > today,
                         Batch.is_deleted == False,
-                    ).scalar() or 0
+                    )
+                    .scalar() or 0
                 )
+        except Exception:
+            pass
+
+        top_low_stock = []
+        try:
+            from models.inventory import Batch, Medicine
+            from sqlalchemy.orm import joinedload
+            if hasattr(Batch, "branch_id"):
+                low_stock_records = (
+                    db.query(Batch)
+                    .join(Medicine, Batch.medicine_id == Medicine.id)
+                    .filter(Batch.branch_id == data_bid, Batch.current_quantity <= 5, Batch.is_deleted == False)
+                    .order_by(Batch.current_quantity.asc())
+                    .limit(3)
+                    .all()
+                )
+                top_low_stock = [
+                    {"name": b.medicine.name if b.medicine else "Unknown", "stock": b.current_quantity}
+                    for b in low_stock_records
+                ]
+        except Exception:
+            pass
+
+        recent_activity = []
+        try:
+            from models.sales import Sale
+            if hasattr(Sale, "branch_id"):
+                recent_sales = (
+                    db.query(Sale)
+                    .filter(Sale.branch_id == data_bid, Sale.is_deleted == False)
+                    .order_by(Sale.created_at.desc())
+                    .limit(3)
+                    .all()
+                )
+                for s in recent_sales:
+                    recent_activity.append({
+                        "action": f"Sale {s.invoice_number} completed",
+                        "time": s.created_at.isoformat() if s.created_at else None
+                    })
+        except Exception:
+            pass
+
+        active_cashier = None
+        try:
+            # Check staff assignments for a cashier role
+            from models.enterprise.branch import BranchStaff
+            from models.user import User
+            cashier_assignment = (
+                db.query(BranchStaff)
+                .join(User, BranchStaff.user_id == User.id)
+                .filter(BranchStaff.branch_id == branch_id, BranchStaff.role == "cashier", BranchStaff.is_active == True)
+                .first()
+            )
+            if cashier_assignment and cashier_assignment.user:
+                active_cashier = f"{cashier_assignment.user.first_name} {cashier_assignment.user.last_name}".strip()
         except Exception:
             pass
 
@@ -303,8 +386,11 @@ class BranchService:
             active_staff=staff_count,
             health_score=branch.health_score or 100.0,
             license_days_remaining=_license_days_remaining(branch.drug_license_expiry),
+            top_low_stock=top_low_stock,
+            recent_activity=recent_activity,
+            active_cashier=active_cashier,
         )
-        # Recompute health score
+        # Recompute health score dynamically
         stats.health_score = _compute_health_score(stats)
         return stats
 

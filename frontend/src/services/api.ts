@@ -43,6 +43,12 @@ api.interceptors.request.use(
 
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+      
+      // Inject the current active branch ID into headers
+      const branchId = useAuthStore.getState().branchId;
+      if (branchId) {
+        config.headers['X-Branch-Id'] = branchId;
+      }
     }
     return config;
   },

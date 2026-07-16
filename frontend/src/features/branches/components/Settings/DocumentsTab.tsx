@@ -48,7 +48,7 @@ export default function DocumentsTab({ branchId, data, refetch }: Props) {
       toast.success('Document series saved');
       setIsOpen(false);
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
@@ -61,7 +61,7 @@ export default function DocumentsTab({ branchId, data, refetch }: Props) {
       await branchConfigService.resetDocumentSeries(branchId, id);
       toast.success('Sequence reset successfully');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     }
   };

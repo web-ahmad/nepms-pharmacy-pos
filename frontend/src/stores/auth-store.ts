@@ -8,6 +8,8 @@ interface User {
   email?: string;
   role: string;
   permissions: string[];
+  is_super_admin?: boolean;
+  assigned_branches?: { id: string; name: string }[];
 }
 
 interface AuthState {
@@ -31,14 +33,16 @@ export const useAuthStore = create<AuthState>()(
       branchId: null,
       isAuthenticated: false,
 
-      setAuth: (token, user, tenantId, branchId) => 
+      setAuth: (token, user, tenantId, branchId) => {
+        const resolvedBranchId = branchId || (user?.assigned_branches?.length ? user.assigned_branches[0].id : null);
         set({ 
           accessToken: token, 
           user, 
           tenantId, 
-          branchId, 
+          branchId: resolvedBranchId, 
           isAuthenticated: true 
-        }),
+        });
+      },
         
       setBranch: (branchId) => 
         set({ branchId }),

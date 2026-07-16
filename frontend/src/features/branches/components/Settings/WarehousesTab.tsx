@@ -53,7 +53,7 @@ export default function WarehousesTab({ branchId, data, refetch }: Props) {
       }
       setIsOpen(false);
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
@@ -66,7 +66,7 @@ export default function WarehousesTab({ branchId, data, refetch }: Props) {
       await branchConfigService.deleteWarehouse(branchId, id);
       toast.success('Warehouse deleted');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     }
   };
@@ -76,7 +76,7 @@ export default function WarehousesTab({ branchId, data, refetch }: Props) {
       await branchConfigService.setWarehouseDefault(branchId, id);
       toast.success('Default warehouse updated');
       refetch();
-    } catch (error: any) {
+    } catch (err: any) {
       toast.error(parseApiError(err));
     }
   };
