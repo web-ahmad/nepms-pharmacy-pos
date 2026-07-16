@@ -272,13 +272,35 @@ class PurchaseQuotation(BaseModel):
     request_id = Column(String(36), ForeignKey("purchase_requests.id"), nullable=True)
     supplier_id = Column(String(36), ForeignKey("suppliers.id"))
     branch_id = Column(String(36), ForeignKey("branches.id"))
+    warehouse_id = Column(String(36), nullable=True)  # Enterprise: warehouse awareness
     
+    quotation_date = Column(Date, nullable=True)     # Date quotation was issued
     valid_until = Column(Date, nullable=True)
-    status = Column(String(50), default="Draft") # Draft, Submitted, Accepted, Rejected
+    currency = Column(String(10), default="PKR")     # Currency code
+    status = Column(String(50), default="Draft")     # Draft, Requested, Received, Compared, Selected, Rejected, Expired
     total_amount = Column(Float, default=0.0)
+    subtotal = Column(Float, default=0.0)
+    discount_amount = Column(Float, default=0.0)
+    tax_amount = Column(Float, default=0.0)
+    
+    # Terms & Conditions
+    payment_terms = Column(Text, nullable=True)      # e.g. "Net 30"
+    delivery_terms = Column(Text, nullable=True)     # e.g. "FOB Karachi"
+    warranty = Column(Text, nullable=True)
     remarks = Column(Text, nullable=True)
     
+    # Attachment (reuses PurchaseAttachment model via reference_type='Quotation')
+    attachment_url = Column(String(1024), nullable=True)
+    
+    # Scoring cache (computed, not manual)
+    supplier_score = Column(Float, nullable=True)
+    
     items = relationship("PurchaseQuotationItem", back_populates="quotation")
+    supplier = relationship("Supplier")
+
+    @property
+    def supplier_name(self) -> Optional[str]:
+        return self.supplier.name if self.supplier else None
 
 class PurchaseQuotationItem(BaseModel):
     __tablename__ = "purchase_quotation_items"
@@ -292,7 +314,20 @@ class PurchaseQuotationItem(BaseModel):
     tax_percentage = Column(Float, default=0.0)
     lead_time_days = Column(Integer, default=1)
     
+    # Enterprise pricing fields
+    moq = Column(Integer, default=1)                 # Minimum Order Quantity
+    brand = Column(String(255), nullable=True)
+    manufacturer = Column(String(255), nullable=True)
+    batch_number = Column(String(100), nullable=True)
+    expiry_date = Column(Date, nullable=True)
+    line_notes = Column(Text, nullable=True)
+    
     quotation = relationship("PurchaseQuotation", back_populates="items")
+    medicine = relationship("Medicine", foreign_keys=[medicine_id], lazy="joined")
+
+    @property
+    def medicine_name(self) -> Optional[str]:
+        return self.medicine.name if self.medicine else None
 
 class SupplierPriceHistory(BaseModel):
     __tablename__ = "supplier_price_history"
@@ -330,3 +365,24 @@ class PurchaseAttachment(BaseModel):
     uploaded_by = Column(String(36), ForeignKey("users.id"))
     uploaded_at = Column(DateTime, default=datetime.utcnow)
 
+class PurchaseApprovalMatrix(BaseModel):
+    __tablename__ = "purchase_approval_matrix"
+    
+    tenant_id = Column(String(36), index=True)
+    branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
+    
+    level = Column(Integer, nullable=False)
+    role_name = Column(String(100), nullable=False) # e.g. "Branch Manager", "Owner"
+    amount_threshold = Column(Float, default=0.0)
+    
+class PurchaseTimeline(BaseModel):
+    __tablename__ = "purchase_timeline"
+    
+    tenant_id = Column(String(36), index=True)
+    reference_id = Column(String(36), index=True) # ID of PR, PO, etc.
+    reference_type = Column(String(50)) # e.g. "PurchaseRequest", "PurchaseOrder"
+    
+    action = Column(String(100), nullable=False) # e.g. "Created", "Approved", "Converted to PO"
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    remarks = Column(Text, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)

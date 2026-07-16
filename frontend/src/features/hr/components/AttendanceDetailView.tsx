@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Employee, Attendance } from '../types/hr';
 import { useMonthlyAttendance, useUpdateAttendance } from '../services/hr.api';
 import EditAttendanceModal from './EditAttendanceModal';
+import { parseApiError } from '@/utils/errorParser';
 
 interface AttendanceDetailViewProps {
   isOpen: boolean;
@@ -67,7 +68,7 @@ export default function AttendanceDetailView({
       await updateAttendance({ id, data: { status: newStatus } });
       toast.success('Attendance updated successfully');
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to update attendance');
+      toast.error(parseApiError(err));
     }
   };
 

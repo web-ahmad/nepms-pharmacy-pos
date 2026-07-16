@@ -110,38 +110,64 @@ export default function PayrollRunModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-              <table className="w-full text-left text-sm text-zinc-600 dark:text-zinc-400">
-                <thead className="bg-zinc-100 text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
-                  <tr>
-                    <th className="px-6 py-4">Employee</th>
-                    <th className="px-6 py-4">Worked Units</th>
-                    <th className="px-6 py-4 text-right">Gross Pay</th>
-                    <th className="px-6 py-4 text-right text-red-500">Deductions</th>
-                    <th className="px-6 py-4 text-right text-emerald-600">Net Pay</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                  {previewData?.map((line, idx) => (
-                    <tr key={idx} className="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
-                      <td className="whitespace-nowrap px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
-                        {line.employee_name}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 font-mono text-zinc-700 dark:text-zinc-300">
-                        {line.worked_units || '—'}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-zinc-900 dark:text-zinc-100">
-                        {formatCurrency(line.base_salary + line.allowances)}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-red-500 font-medium">
-                        {formatCurrency(line.deductions)}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        {formatCurrency(line.net_pay)}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-zinc-600 dark:text-zinc-400">
+                  <thead className="bg-zinc-100 text-xs uppercase tracking-wider font-semibold text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-800">
+                    <tr>
+                      <th className="px-6 py-4 whitespace-nowrap">Employee</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap">Basic Salary</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap">Overtime</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap">Bonuses</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap">Incentives</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap">Allowances</th>
+                      <th className="px-6 py-4 text-right text-red-500 whitespace-nowrap">Tax</th>
+                      <th className="px-6 py-4 text-right text-red-500 whitespace-nowrap">Provident Fund</th>
+                      <th className="px-6 py-4 text-right text-red-500 whitespace-nowrap">Other Deductions</th>
+                      <th className="px-6 py-4 text-right text-emerald-600 whitespace-nowrap">Net Salary</th>
+                      <th className="px-6 py-4 text-right whitespace-nowrap">Bank Ref</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                    {previewData?.map((line, idx) => (
+                      <tr key={idx} className="transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                        <td className="whitespace-nowrap px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
+                          {line.employee_name}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-zinc-900 dark:text-zinc-100">
+                          {formatCurrency(line.base_salary)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-zinc-700 dark:text-zinc-300">
+                          {line.overtime ? formatCurrency(line.overtime) : '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-zinc-700 dark:text-zinc-300">
+                          {line.bonuses ? formatCurrency(line.bonuses) : '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-zinc-700 dark:text-zinc-300">
+                          {line.incentives ? formatCurrency(line.incentives) : '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-zinc-700 dark:text-zinc-300">
+                          {formatCurrency(line.allowances)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-red-500 font-medium">
+                          {line.tax ? formatCurrency(line.tax) : '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-red-500 font-medium">
+                          {line.provident_fund ? formatCurrency(line.provident_fund) : '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-red-500 font-medium">
+                          {formatCurrency(line.deductions)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatCurrency(line.net_pay)}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-right font-mono text-zinc-700 dark:text-zinc-300">
+                          {line.bank_reference || 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

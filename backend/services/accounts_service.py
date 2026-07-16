@@ -234,10 +234,10 @@ class AccountsService:
                     total_expenses += bal
                 elif acc.category == AccountCategory.ASSET:
                     total_assets += bal
-                    if acc.code == "1000":
-                        cash_balance = bal
-                    elif acc.code == "1010":
-                        bank_balance = bal
+                    if acc.code.startswith("100") or "cash" in acc.name.lower():
+                        cash_balance += bal
+                    elif acc.code.startswith("101") or "bank" in acc.name.lower():
+                        bank_balance += bal
                     elif acc.code == "1030":
                         ar_balance += bal
                 elif acc.category == AccountCategory.LIABILITY:
@@ -253,10 +253,10 @@ class AccountsService:
                     total_expenses += bal
                 elif acc.category == AccountCategory.ASSET:
                     total_assets += bal
-                    if acc.code == "1000":
-                        cash_balance = bal
-                    elif acc.code == "1010":
-                        bank_balance = bal
+                    if acc.code.startswith("100") or "cash" in acc.name.lower():
+                        cash_balance += bal
+                    elif acc.code.startswith("101") or "bank" in acc.name.lower():
+                        bank_balance += bal
                     elif acc.code == "1030":
                         ar_balance += bal
                 elif acc.category == AccountCategory.LIABILITY:

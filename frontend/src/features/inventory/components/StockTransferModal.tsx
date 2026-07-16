@@ -28,7 +28,7 @@ export default function StockTransferModal({ isOpen, onClose, medicineId }: Stoc
   const { data: branches } = useQuery({
     queryKey: ['branches-list'],
     queryFn: async () => {
-      const res = await api.get('/enterprise/branches');
+      const res = await api.get('/api/v1/enterprise/branches');
       return res.data;
     }
   });
@@ -226,3 +226,4 @@ export default function StockTransferModal({ isOpen, onClose, medicineId }: Stoc
     </div>
   );
 }
+

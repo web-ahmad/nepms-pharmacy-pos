@@ -6,7 +6,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
 import { format, subDays } from 'date-fns';
-import { TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, AlertTriangle, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AnalyticsDashboardPage() {
   const { data: kpi, isLoading: kpiLoading } = useAnalyticsKPIs();
@@ -76,10 +77,33 @@ export default function AnalyticsDashboardPage() {
         </div>
       )}
 
+      {/* System Alerts */}
+      <div className="flex flex-col space-y-3">
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+          <AlertCircle className="w-5 h-5 text-rose-500" /> Active System Alerts
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-lg flex items-start shadow-sm dark:bg-rose-950/30 dark:border-rose-900 dark:text-rose-300">
+            <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5 text-rose-500" />
+            <div>
+              <p className="text-sm font-semibold">Critical Stock Level Reached</p>
+              <p className="text-xs mt-1">24 items in Warehouse A have dropped below their minimum threshold. <Link href="/reports/inventory?type=low-stock" className="underline font-medium">View Report</Link></p>
+            </div>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg flex items-start shadow-sm dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300">
+            <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0 mt-0.5 text-amber-500" />
+            <div>
+              <p className="text-sm font-semibold">High Expiry Risk</p>
+              <p className="text-xs mt-1">Rs 1.2M worth of inventory expiring within 90 days. <Link href="/reports/inventory?type=expiry" className="underline font-medium">Review Inventory</Link></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Advanced KPI Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Net Profit & Margin % */}
-        <div className="p-6 rounded-xl border border-zinc-200 bg-white dark:bg-zinc-950 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
+        <Link href="/reports/sales" className="p-6 rounded-xl border border-zinc-200 bg-white dark:bg-zinc-950 dark:border-zinc-800 shadow-sm flex flex-col justify-between hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
           <p className="text-sm font-medium text-zinc-500">Net Profit (Today)</p>
           <div className="mt-2 flex items-baseline gap-2">
             <p className="text-2xl font-bold">{formatCurrency(kpi?.today_profit || 0)}</p>
@@ -93,31 +117,31 @@ export default function AnalyticsDashboardPage() {
               </span>
             )}
           </div>
-        </div>
+        </Link>
 
         {/* Expiry Risk Value (90 Days) */}
-        <div className="p-6 rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-900 shadow-sm flex flex-col justify-between">
+        <Link href="/reports/inventory?type=expiry" className="p-6 rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-900 shadow-sm flex flex-col justify-between hover:border-rose-300 dark:hover:border-rose-700 transition-colors">
           <p className="text-sm font-medium text-rose-600 dark:text-rose-400">Expiry Risk (90 Days)</p>
           <p className="text-2xl font-bold mt-2 text-rose-700 dark:text-rose-300">
             {formatCurrency(kpi?.expiry_risk_90_days_value || 0)}
           </p>
-        </div>
+        </Link>
 
         {/* Dead Stock Capital */}
-        <div className="p-6 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900 shadow-sm flex flex-col justify-between">
+        <Link href="/reports/inventory?type=low-stock" className="p-6 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900 shadow-sm flex flex-col justify-between hover:border-amber-300 dark:hover:border-amber-700 transition-colors">
           <p className="text-sm font-medium text-amber-700 dark:text-amber-500">Dead Stock Capital</p>
           <p className="text-2xl font-bold mt-2 text-amber-800 dark:text-amber-400">
             {formatCurrency(kpi?.dead_stock_capital || 0)}
           </p>
-        </div>
+        </Link>
 
         {/* Today's Cash Drawer */}
-        <div className="p-6 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900 shadow-sm flex flex-col justify-between">
+        <Link href="/sales/cash-drawer" className="p-6 rounded-xl border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900 shadow-sm flex flex-col justify-between hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
           <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Today's Cash Drawer</p>
           <p className="text-2xl font-bold mt-2 text-emerald-800 dark:text-emerald-300">
             {formatCurrency(kpi?.todays_cash_drawer || 0)}
           </p>
-        </div>
+        </Link>
       </div>
 
       {/* Next-Gen Visualizations */}

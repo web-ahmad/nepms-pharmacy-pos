@@ -133,9 +133,9 @@ class EmployeeResponse(BaseModel):
     is_active: bool = True
     created_at: datetime
     # Attendance rule fields
-    weekend_days: List[str] = []
-    overtime_allowed: bool = False
-    standard_break_time: int = 60
+    weekend_days: Optional[List[str]] = []
+    overtime_allowed: Optional[bool] = False
+    standard_break_time: Optional[int] = 60
 
     class Config:
         from_attributes = True
@@ -376,6 +376,161 @@ class PayrollSettingResponse(PayrollSettingBase):
     id: str
     tenant_id: str
     employee_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+# =========================================================================
+# Enterprise Phase 10: Missing Schemas
+# =========================================================================
+
+# Employee Document
+class EmployeeDocumentBase(BaseModel):
+    employee_id: str
+    document_type: str
+    file_path: str
+    expiry_date: Optional[date] = None
+    verification_status: str = "Pending"
+
+class EmployeeDocumentCreate(EmployeeDocumentBase):
+    pass
+
+class EmployeeDocumentUpdate(BaseModel):
+    document_type: Optional[str] = None
+    file_path: Optional[str] = None
+    expiry_date: Optional[date] = None
+    verification_status: Optional[str] = None
+
+class EmployeeDocumentResponse(EmployeeDocumentBase):
+    id: str
+    tenant_id: str
+    uploaded_by: str
+    created_at: datetime
+    employee_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Performance Review
+class PerformanceReviewBase(BaseModel):
+    reviewer_id: str
+    employee_id: str
+    review_period: str
+    goals: Optional[dict] = None
+    achievements: Optional[dict] = None
+    rating: Optional[float] = None
+    comments: Optional[str] = None
+    next_review_date: Optional[date] = None
+
+class PerformanceReviewCreate(PerformanceReviewBase):
+    pass
+
+class PerformanceReviewUpdate(BaseModel):
+    review_period: Optional[str] = None
+    goals: Optional[dict] = None
+    achievements: Optional[dict] = None
+    rating: Optional[float] = None
+    comments: Optional[str] = None
+    next_review_date: Optional[date] = None
+
+class PerformanceReviewResponse(PerformanceReviewBase):
+    id: str
+    tenant_id: str
+    created_at: datetime
+    employee_name: Optional[str] = None
+    reviewer_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Employee Task
+class EmployeeTaskBase(BaseModel):
+    employee_id: str
+    title: str
+    description: Optional[str] = None
+    status: str = "Pending"
+    priority: str = "Medium"
+    due_date: Optional[datetime] = None
+
+class EmployeeTaskCreate(EmployeeTaskBase):
+    pass
+
+class EmployeeTaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    due_date: Optional[datetime] = None
+
+class EmployeeTaskResponse(EmployeeTaskBase):
+    id: str
+    tenant_id: str
+    assigned_by: str
+    created_at: datetime
+    employee_name: Optional[str] = None
+    assigner_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Training Program
+class TrainingProgramBase(BaseModel):
+    title: str
+    branch_id: Optional[str] = None
+    department_id: Optional[str] = None
+    trainer: Optional[str] = None
+    capacity: int = 0
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    materials: Optional[dict] = None
+    completion_status: str = "Upcoming"
+
+class TrainingProgramCreate(TrainingProgramBase):
+    pass
+
+class TrainingProgramUpdate(BaseModel):
+    title: Optional[str] = None
+    branch_id: Optional[str] = None
+    department_id: Optional[str] = None
+    trainer: Optional[str] = None
+    capacity: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    materials: Optional[dict] = None
+    completion_status: Optional[str] = None
+
+class TrainingProgramResponse(TrainingProgramBase):
+    id: str
+    tenant_id: str
+    created_at: datetime
+    branch_name: Optional[str] = None
+    department_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Training Attendance
+class TrainingAttendanceBase(BaseModel):
+    program_id: str
+    employee_id: str
+    status: str = "Present"
+
+class TrainingAttendanceCreate(TrainingAttendanceBase):
+    pass
+
+class TrainingAttendanceUpdate(BaseModel):
+    status: Optional[str] = None
+
+class TrainingAttendanceResponse(TrainingAttendanceBase):
+    id: str
+    tenant_id: str
+    created_at: datetime
+    employee_name: Optional[str] = None
+    program_title: Optional[str] = None
 
     class Config:
         from_attributes = True

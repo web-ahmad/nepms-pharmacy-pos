@@ -6,7 +6,10 @@ from schemas.crm import (
     CustomerResponse, CustomerCreate, CustomerUpdate, 
     CustomerLedgerResponse, CustomerPaymentCreate, 
     CustomerPaymentResponse, CustomerLoyaltyRedeemRequest,
-    LoyaltyHistoryResponse, CustomerStatusUpdate
+    LoyaltyHistoryResponse, CustomerStatusUpdate,
+    CustomerWalletResponse, WalletTransactionCreate, WalletTransactionResponse,
+    TimelineItem, CustomerSegmentResponse, CustomerReferralResponse,
+    MarketingCampaignCreate, MarketingCampaignResponse
 )
 from schemas.sales import SaleResponse
 from services.crm_service import CRMService
@@ -130,3 +133,71 @@ def redeem_points(
 ):
     service = CRMService(db)
     return service.redeem_loyalty_points(customer_id, request)
+
+# ── Phase 9 CRM API Extensions ───────────────────────────────────────────────
+
+@router.get("/customers/{customer_id}/wallet", response_model=CustomerWalletResponse)
+def get_customer_wallet(
+    customer_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = CRMService(db)
+    return service.get_wallet(customer_id)
+
+@router.post("/customers/{customer_id}/wallet/transaction", response_model=WalletTransactionResponse)
+def process_wallet_transaction(
+    customer_id: str,
+    transaction: WalletTransactionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = CRMService(db)
+    branch_id = current_user.branches[0].branch_id if current_user.branches else None
+    return service.process_wallet_transaction(customer_id, transaction, branch_id, current_user.id)
+
+@router.get("/customers/{customer_id}/timeline", response_model=List[TimelineItem])
+def get_customer_timeline(
+    customer_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = CRMService(db)
+    return service.get_timeline(customer_id)
+
+@router.get("/customers/{customer_id}/segments", response_model=List[CustomerSegmentResponse])
+def get_customer_segments(
+    customer_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = CRMService(db)
+    return service.get_segments(customer_id)
+
+@router.get("/customers/{customer_id}/referrals", response_model=List[CustomerReferralResponse])
+def get_customer_referrals(
+    customer_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = CRMService(db)
+    return service.get_referrals(customer_id)
+
+@router.get("/marketing/campaigns", response_model=List[MarketingCampaignResponse])
+def get_campaigns(
+    skip: int = 0, limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = CRMService(db)
+    return service.get_campaigns(skip, limit)
+
+@router.post("/marketing/campaigns", response_model=MarketingCampaignResponse)
+def create_campaign(
+    campaign: MarketingCampaignCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = CRMService(db)
+    branch_id = current_user.branches[0].branch_id if current_user.branches else None
+    return service.create_campaign(campaign, branch_id, current_user.id)

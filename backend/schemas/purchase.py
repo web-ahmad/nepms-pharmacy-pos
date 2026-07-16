@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+﻿from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from datetime import date
 
@@ -287,9 +287,15 @@ class PurchaseRequestItemBase(BaseModel):
     quantity_approved: int = 0
     remarks: Optional[str] = None
 
+class PurchaseRequestItemResponse(PurchaseRequestItemBase):
+    """Enriched item response that includes the resolved medicine name."""
+    id: Optional[str] = None
+    medicine_name: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
 class PurchaseRequestBase(BaseModel):
-    branch_id: str
-    requested_by: str
+    branch_id: Optional[str] = None
+    requested_by: Optional[str] = None
     request_date: Optional[date] = None
     required_date: Optional[date] = None
     status: str = "Draft"
@@ -302,7 +308,8 @@ class PurchaseRequestCreate(PurchaseRequestBase):
 class PurchaseRequestResponse(PurchaseRequestBase):
     id: str
     request_number: str
-    items: List[PurchaseRequestItemBase] = []
+    requested_by_name: Optional[str] = None  # Resolved username from users table
+    items: List[PurchaseRequestItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 class PurchaseQuotationItemBase(BaseModel):
@@ -312,21 +319,140 @@ class PurchaseQuotationItemBase(BaseModel):
     discount_percentage: float = 0.0
     tax_percentage: float = 0.0
     lead_time_days: int = 1
+    moq: int = 1
+    brand: Optional[str] = None
+    manufacturer: Optional[str] = None
+    batch_number: Optional[str] = None
+    expiry_date: Optional[date] = None
+    line_notes: Optional[str] = None
+
+class PurchaseQuotationItemResponse(PurchaseQuotationItemBase):
+    id: str
+    medicine_name: Optional[str] = None
+    line_total: float = 0.0
+    model_config = ConfigDict(from_attributes=True)
 
 class PurchaseQuotationBase(BaseModel):
     request_id: Optional[str] = None
     supplier_id: str
-    branch_id: str
+    branch_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
+    quotation_date: Optional[date] = None
     valid_until: Optional[date] = None
+    currency: str = "PKR"
     status: str = "Draft"
     total_amount: float = 0.0
+    subtotal: float = 0.0
+    discount_amount: float = 0.0
+    tax_amount: float = 0.0
+    payment_terms: Optional[str] = None
+    delivery_terms: Optional[str] = None
+    warranty: Optional[str] = None
     remarks: Optional[str] = None
+    attachment_url: Optional[str] = None
 
 class PurchaseQuotationCreate(PurchaseQuotationBase):
     items: List[PurchaseQuotationItemBase]
 
+class PurchaseQuotationUpdate(BaseModel):
+    valid_until: Optional[date] = None
+    currency: Optional[str] = None
+    status: Optional[str] = None
+    payment_terms: Optional[str] = None
+    delivery_terms: Optional[str] = None
+    warranty: Optional[str] = None
+    remarks: Optional[str] = None
+    attachment_url: Optional[str] = None
+    items: Optional[List[PurchaseQuotationItemBase]] = None
+
+class QuotationStatusUpdate(BaseModel):
+    status: str
+    remarks: Optional[str] = None
+
 class PurchaseQuotationResponse(PurchaseQuotationBase):
     id: str
     quotation_number: str
-    items: List[PurchaseQuotationItemBase] = []
+    supplier_name: Optional[str] = None
+    request_number: Optional[str] = None
+    supplier_score: Optional[float] = None
+    items: List[PurchaseQuotationItemResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
+class SupplierScorecard(BaseModel):
+    supplier_id: str
+    supplier_name: str
+    total_orders: int = 0
+    on_time_delivery_pct: float = 0.0
+    quality_score: float = 0.0
+    return_rate: float = 0.0
+    avg_lead_time_days: float = 0.0
+    last_purchase_price: Optional[float] = None
+    overall_score: float = 0.0
+
+class QuotationComparisonItem(BaseModel):
+    medicine_id: str
+    medicine_name: str
+    unit_price: float
+    discount_percentage: float
+    tax_percentage: float
+    lead_time_days: int
+    line_total: float
+    is_lowest_price: bool = False
+    is_fastest: bool = False
+
+class QuotationComparisonEntry(BaseModel):
+    quotation_id: str
+    quotation_number: str
+    supplier_id: str
+    supplier_name: str
+    total_amount: float
+    subtotal: float
+    discount_amount: float
+    tax_amount: float
+    valid_until: Optional[date]
+    currency: str
+    payment_terms: Optional[str]
+    delivery_terms: Optional[str]
+    status: str
+    items: List[QuotationComparisonItem] = []
+    scorecard: Optional[SupplierScorecard] = None
+    is_lowest_cost: bool = False
+    is_fastest_delivery: bool = False
+    is_best_overall: bool = False
+    is_highest_rated: bool = False
+
+class QuotationComparisonResponse(BaseModel):
+    request_id: str
+    request_number: Optional[str]
+    medicine_ids: List[str] = []
+    quotations: List[QuotationComparisonEntry] = []
+
+class PurchaseApprovalMatrixBase(BaseModel):
+    level: int
+    role_name: str
+    amount_threshold: float = 0.0
+
+class PurchaseApprovalMatrixCreate(PurchaseApprovalMatrixBase):
+    pass
+
+class PurchaseApprovalMatrixResponse(PurchaseApprovalMatrixBase):
+    id: str
+    tenant_id: str
+    branch_id: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class PurchaseTimelineBase(BaseModel):
+    reference_id: str
+    reference_type: str
+    action: str
+    user_id: Optional[str] = None
+    remarks: Optional[str] = None
+
+class PurchaseTimelineResponse(PurchaseTimelineBase):
+    id: str
+    timestamp: date
+    model_config = ConfigDict(from_attributes=True)
+
+class PurchaseApprovalRequest(BaseModel):
+    status: str
+    remarks: Optional[str] = None

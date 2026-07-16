@@ -7,7 +7,12 @@ from schemas.hr import (
     DepartmentCreate, EmployeeCreate, EmployeeUpdate, AttendanceCreate, AttendanceUpdate,
     LeaveRequestCreate, ShiftCreate, PayrollRunCreate, AdvanceSalaryCreate,
     ClockInRequest, ClockOutRequest,
-    BulkAttendanceRow, BulkAttendanceResponse, AttendanceWeeklySummaryResponse
+    BulkAttendanceRow, BulkAttendanceResponse, AttendanceWeeklySummaryResponse,
+    EmployeeDocumentCreate, EmployeeDocumentUpdate,
+    PerformanceReviewCreate, PerformanceReviewUpdate,
+    EmployeeTaskCreate, EmployeeTaskUpdate,
+    TrainingProgramCreate, TrainingProgramUpdate,
+    TrainingAttendanceCreate, TrainingAttendanceUpdate
 )
 from services.auto_posting_service import AutoPostingService
 from schemas.accounts import JournalEntryCreate, JournalEntryLineCreate
@@ -17,6 +22,16 @@ class HRService:
         self.repo = HRRepository(db)
         self.auto_posting = AutoPostingService(db)
         self.db = db
+
+    def get_analytics(self, tenant_id: str):
+        # Stub implementation
+        return {
+            "total_employees": 0,
+            "active_employees": 0,
+            "attendance_percent": 0.0,
+            "pending_leaves": 0,
+            "monthly_payroll_cost": 0.0
+        }
 
     def get_departments(self, tenant_id: str):
         return self.repo.get_departments(tenant_id)
@@ -294,3 +309,96 @@ class HRService:
         self.db.commit()
         self.db.refresh(adv)
         return adv
+
+    # =====================================================================
+    # Enterprise Phase 10: Missing Service Methods
+    # =====================================================================
+
+    # Employee Documents
+    def get_employee_documents(self, tenant_id: str, employee_id: str = None):
+        return self.repo.get_employee_documents(tenant_id, employee_id)
+
+    def create_employee_document(self, tenant_id: str, user_id: str, obj_in: EmployeeDocumentCreate):
+        return self.repo.create_employee_document(tenant_id, user_id, obj_in)
+
+    def update_employee_document(self, tenant_id: str, doc_id: str, obj_in: EmployeeDocumentUpdate):
+        doc = self.repo.update_employee_document(tenant_id, doc_id, obj_in)
+        if not doc:
+            raise HTTPException(404, "Employee document not found")
+        return doc
+
+    def delete_employee_document(self, tenant_id: str, doc_id: str):
+        success = self.repo.delete_employee_document(tenant_id, doc_id)
+        if not success:
+            raise HTTPException(404, "Employee document not found")
+        return {"message": "Employee document deleted successfully"}
+
+    # Performance Reviews
+    def get_performance_reviews(self, tenant_id: str, employee_id: str = None):
+        return self.repo.get_performance_reviews(tenant_id, employee_id)
+
+    def create_performance_review(self, tenant_id: str, obj_in: PerformanceReviewCreate):
+        return self.repo.create_performance_review(tenant_id, obj_in)
+
+    def update_performance_review(self, tenant_id: str, review_id: str, obj_in: PerformanceReviewUpdate):
+        review = self.repo.update_performance_review(tenant_id, review_id, obj_in)
+        if not review:
+            raise HTTPException(404, "Performance review not found")
+        return review
+
+    # Employee Tasks
+    def get_employee_tasks(self, tenant_id: str, employee_id: str = None):
+        return self.repo.get_employee_tasks(tenant_id, employee_id)
+
+    def create_employee_task(self, tenant_id: str, user_id: str, obj_in: EmployeeTaskCreate):
+        return self.repo.create_employee_task(tenant_id, user_id, obj_in)
+
+    def update_employee_task(self, tenant_id: str, task_id: str, obj_in: EmployeeTaskUpdate):
+        task = self.repo.update_employee_task(tenant_id, task_id, obj_in)
+        if not task:
+            raise HTTPException(404, "Employee task not found")
+        return task
+
+    def delete_employee_task(self, tenant_id: str, task_id: str):
+        success = self.repo.delete_employee_task(tenant_id, task_id)
+        if not success:
+            raise HTTPException(404, "Employee task not found")
+        return {"message": "Employee task deleted successfully"}
+
+    # Training Programs
+    def get_training_programs(self, tenant_id: str):
+        return self.repo.get_training_programs(tenant_id)
+
+    def create_training_program(self, tenant_id: str, obj_in: TrainingProgramCreate):
+        return self.repo.create_training_program(tenant_id, obj_in)
+
+    def update_training_program(self, tenant_id: str, program_id: str, obj_in: TrainingProgramUpdate):
+        prog = self.repo.update_training_program(tenant_id, program_id, obj_in)
+        if not prog:
+            raise HTTPException(404, "Training program not found")
+        return prog
+
+    def delete_training_program(self, tenant_id: str, program_id: str):
+        success = self.repo.delete_training_program(tenant_id, program_id)
+        if not success:
+            raise HTTPException(404, "Training program not found")
+        return {"message": "Training program deleted successfully"}
+
+    # Training Attendance
+    def get_training_attendances(self, tenant_id: str, program_id: str):
+        return self.repo.get_training_attendances(tenant_id, program_id)
+
+    def create_training_attendance(self, tenant_id: str, obj_in: TrainingAttendanceCreate):
+        return self.repo.create_training_attendance(tenant_id, obj_in)
+
+    def update_training_attendance(self, tenant_id: str, att_id: str, obj_in: TrainingAttendanceUpdate):
+        att = self.repo.update_training_attendance(tenant_id, att_id, obj_in)
+        if not att:
+            raise HTTPException(404, "Training attendance not found")
+        return att
+
+    def delete_training_attendance(self, tenant_id: str, att_id: str):
+        success = self.repo.delete_training_attendance(tenant_id, att_id)
+        if not success:
+            raise HTTPException(404, "Training attendance not found")
+        return {"message": "Training attendance deleted successfully"}

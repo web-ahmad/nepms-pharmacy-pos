@@ -57,13 +57,26 @@ const CustomerTableRow = ({ customer, onEdit }: { customer: Customer; onEdit: (c
       </td>
       <td className="p-4 text-right">
         <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-          {customer.loyalty_points} pts
+          {customer.loyalty_tier || 'Bronze'} - {customer.loyalty_points} pts
         </span>
       </td>
       <td className="p-4 text-right font-mono font-bold">
-        <span className={customer.current_balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
-          Rs {customer.current_balance.toFixed(2)}
-        </span>
+        <div className={customer.current_balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
+          CR: Rs {customer.current_balance.toFixed(2)}
+        </div>
+        {/* Mock wallet balance if not returned in API yet, ideally should be fetched or included in list response */}
+        <div className="text-blue-600 dark:text-blue-400 text-xs font-normal">
+          WB: Rs {0.00.toFixed(2)}
+        </div>
+      </td>
+      <td className="p-4 text-right text-xs text-zinc-500">
+        <div>LTV: Rs {(customer.lifetime_value || 0).toFixed(2)}</div>
+        <div className={customer.risk_score && customer.risk_score > 70 ? 'text-red-500' : ''}>
+          Risk: {customer.risk_score || 0}
+        </div>
+      </td>
+      <td className="p-4 text-xs text-zinc-500">
+        <div>{customer.last_visit ? format(new Date(customer.last_visit), 'dd MMM yyyy') : '-'}</div>
       </td>
       <td className="p-4 text-center">
         <button
@@ -131,8 +144,10 @@ export default function CustomerTable() {
               <th className="p-4 font-medium">Customer</th>
               <th className="p-4 font-medium">Contact</th>
               <th className="p-4 font-medium">CNIC</th>
-              <th className="p-4 font-medium text-right">Loyalty Points</th>
-              <th className="p-4 font-medium text-right">Credit Balance</th>
+              <th className="p-4 font-medium text-right">Loyalty Tier</th>
+              <th className="p-4 font-medium text-right">Balances (CR/WB)</th>
+              <th className="p-4 font-medium text-right">Insights</th>
+              <th className="p-4 font-medium">Last Visit</th>
               <th className="p-4 font-medium text-center">Status</th>
               <th className="p-4 font-medium text-right">Actions</th>
             </tr>
@@ -140,7 +155,7 @@ export default function CustomerTable() {
           <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
             {!customers || customers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-zinc-500">No customers found.</td>
+                <td colSpan={9} className="p-8 text-center text-zinc-500">No customers found.</td>
               </tr>
             ) : (
               customers.map((customer) => (

@@ -3,8 +3,15 @@ from fastapi import HTTPException
 from datetime import datetime
 from uuid import uuid4
 from repositories.crm import CustomerRepository
-from schemas.crm import CustomerCreate, CustomerUpdate, CustomerLoyaltyRedeemRequest, CustomerPaymentCreate
-from models.sales import CustomerLedger, CustomerPayment
+from schemas.crm import (
+    CustomerCreate, CustomerUpdate, CustomerLoyaltyRedeemRequest, CustomerPaymentCreate,
+    WalletTransactionCreate, MarketingCampaignCreate
+)
+from models.sales import CustomerLedger, CustomerPayment, Sale
+from models.crm import (
+    CustomerWallet, WalletTransaction, LoyaltyTransaction, LoyaltyRule,
+    MarketingCampaign, CustomerReferral, CustomerSegment
+)
 
 class CRMService:
     def __init__(self, db: Session):
@@ -132,7 +139,6 @@ class CRMService:
         customer.loyalty_points -= request.points_to_redeem
         
         # Create Loyalty Transaction
-        from models.crm import LoyaltyTransaction
         tx = LoyaltyTransaction(
             id=str(uuid4()),
             customer_id=customer_id,
@@ -145,3 +151,116 @@ class CRMService:
         
         self.db.commit()
         return {"success": True, "remaining_points": customer.loyalty_points}
+
+    # ── Phase 9 CRM Extensions ────────────────────────────────────────────────
+
+    # 1. Wallet Engine
+    def get_wallet(self, customer_id: str):
+        self.get_customer(customer_id)
+        wallet = self.db.query(CustomerWallet).filter(CustomerWallet.customer_id == customer_id).first()
+        if not wallet:
+            wallet = CustomerWallet(id=str(uuid4()), customer_id=customer_id)
+            self.db.add(wallet)
+            self.db.commit()
+            self.db.refresh(wallet)
+        return wallet
+
+    def process_wallet_transaction(
+        self, customer_id: str, tx_in: WalletTransactionCreate, branch_id: str, performed_by: str = None
+    ):
+        wallet = self.get_wallet(customer_id)
+        
+        opening_balance = wallet.balance
+        
+        if tx_in.transaction_type == "Debit":
+            if wallet.balance < tx_in.amount:
+                raise HTTPException(status_code=400, detail="Insufficient wallet balance")
+            wallet.balance -= tx_in.amount
+        else: # Credit or Refund
+            wallet.balance += tx_in.amount
+            
+        wallet.last_transaction_at = datetime.utcnow()
+
+        tx = WalletTransaction(
+            id=str(uuid4()),
+            wallet_id=wallet.id,
+            branch_id=branch_id,
+            amount=tx_in.amount,
+            transaction_type=tx_in.transaction_type,
+            source_module=tx_in.source_module,
+            source_id=tx_in.source_id,
+            performed_by=performed_by,
+            opening_balance=opening_balance,
+            closing_balance=wallet.balance,
+            notes=tx_in.notes
+        )
+        self.db.add(tx)
+        self.db.commit()
+        self.db.refresh(tx)
+        return tx
+
+    # 2. Timeline API
+    def get_timeline(self, customer_id: str):
+        self.get_customer(customer_id)
+        timeline = []
+        
+        # Sales
+        sales = self.db.query(Sale).filter(Sale.customer_id == customer_id).all()
+        for s in sales:
+            timeline.append({
+                "date": s.sale_date, "type": "Sale", "title": f"Purchase {s.receipt_number}",
+                "amount": s.total_amount, "reference_id": s.id
+            })
+            
+        # Wallet Tx
+        wallet = self.db.query(CustomerWallet).filter(CustomerWallet.customer_id == customer_id).first()
+        if wallet:
+            wtxs = self.db.query(WalletTransaction).filter(WalletTransaction.wallet_id == wallet.id).all()
+            for w in wtxs:
+                timeline.append({
+                    "date": w.transaction_date, "type": "Wallet", "title": f"Wallet {w.transaction_type}",
+                    "amount": w.amount, "reference_id": w.id
+                })
+
+        # Loyalty
+        ltxs = self.db.query(LoyaltyTransaction).filter(LoyaltyTransaction.customer_id == customer_id).all()
+        for l in ltxs:
+            timeline.append({
+                "date": l.transaction_date, "type": "Loyalty", "title": f"Loyalty {l.transaction_type}",
+                "points": l.points, "reference_id": l.id, "description": l.reason
+            })
+            
+        # Sort desc
+        timeline.sort(key=lambda x: x["date"], reverse=True)
+        return timeline
+
+    # 3. Marketing Engine
+    def get_campaigns(self, skip: int = 0, limit: int = 100):
+        return self.db.query(MarketingCampaign).order_by(MarketingCampaign.created_at.desc()).offset(skip).limit(limit).all()
+        
+    def create_campaign(self, campaign_in: MarketingCampaignCreate, branch_id: str = None, created_by: str = None):
+        c = MarketingCampaign(
+            id=str(uuid4()),
+            name=campaign_in.name,
+            channel=campaign_in.channel,
+            target_audience_type=campaign_in.target_audience_type,
+            target_segment=campaign_in.target_segment,
+            target_loyalty_tier=campaign_in.target_loyalty_tier,
+            template_body=campaign_in.template_body,
+            schedule_date=campaign_in.schedule_date,
+            status=campaign_in.status,
+            branch_id=branch_id,
+            created_by=created_by
+        )
+        self.db.add(c)
+        self.db.commit()
+        self.db.refresh(c)
+        return c
+
+    # 4. Referrals
+    def get_referrals(self, customer_id: str):
+        return self.db.query(CustomerReferral).filter(CustomerReferral.referrer_id == customer_id).all()
+
+    # 5. Segments
+    def get_segments(self, customer_id: str):
+        return self.db.query(CustomerSegment).filter(CustomerSegment.customer_id == customer_id).all()

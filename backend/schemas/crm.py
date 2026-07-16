@@ -85,3 +85,79 @@ class CustomerLedgerResponse(BaseModel):
     balance_after: float
     notes: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
+
+# ── Phase 9 CRM Extensions ────────────────────────────────────────────────────────
+
+class WalletTransactionCreate(BaseModel):
+    amount: float
+    transaction_type: str # Credit, Debit, Refund
+    notes: Optional[str] = None
+    source_module: Optional[str] = None
+    source_id: Optional[str] = None
+
+class WalletTransactionResponse(BaseModel):
+    id: str
+    transaction_date: datetime
+    amount: float
+    transaction_type: str
+    opening_balance: float
+    closing_balance: float
+    notes: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
+
+class CustomerWalletResponse(BaseModel):
+    id: str
+    balance: float
+    available_balance: float
+    pending_balance: float
+    currency: str
+    last_transaction_at: Optional[datetime] = None
+    transactions: List[WalletTransactionResponse] = []
+    model_config = ConfigDict(from_attributes=True)
+
+class TimelineItem(BaseModel):
+    date: datetime
+    type: str # Sale, Prescription, Loyalty, Wallet, Referral, Campaign
+    title: str
+    description: Optional[str] = None
+    reference_id: Optional[str] = None
+    amount: Optional[float] = None
+    points: Optional[int] = None
+
+class CustomerSegmentResponse(BaseModel):
+    segment_name: str
+    calculated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class MarketingCampaignCreate(BaseModel):
+    name: str
+    channel: str # WhatsApp, SMS
+    target_audience_type: str # Segment, Loyalty Tier, All
+    target_segment: Optional[str] = None
+    target_loyalty_tier: Optional[str] = None
+    template_body: str
+    schedule_date: Optional[datetime] = None
+    status: Optional[str] = "Draft"
+
+class MarketingCampaignResponse(MarketingCampaignCreate):
+    id: str
+    campaign_code: Optional[str] = None
+    status: str
+    estimated_reach: int
+    sent_count: int
+    delivered_count: int
+    failed_count: int
+    opened_count: int
+    clicked_count: int
+    conversion_count: int
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+class CustomerReferralResponse(BaseModel):
+    id: str
+    referral_code: str
+    referred_id: Optional[str] = None
+    status: str
+    reward_issued: bool
+    reward_date: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)

@@ -82,11 +82,10 @@ def get_low_stock_alerts(
 @router.get("/purchase-summary", response_model=PurchaseSummarySchema)
 def get_purchase_summary(
     db: Session = Depends(get_db),
-    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
     branch_id, _ = get_dashboard_filters(current_user)
-    return dashboard_service.get_purchase_summary(db, scope.tenant_id, branch_id)
+    return dashboard_service.get_purchase_summary(db, current_user.tenant_id, branch_id)
 
 @router.get("/charts", response_model=DashboardChartsSchema)
 def get_charts(

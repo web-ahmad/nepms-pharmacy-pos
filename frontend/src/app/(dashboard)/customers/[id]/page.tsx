@@ -10,10 +10,10 @@ import LoyaltyWidget from '@/features/crm/components/LoyaltyWidget';
 import CustomerPrescriptionTab from '@/features/prescriptions/components/CustomerPrescriptionTab';
 import CustomerPurchaseHistory from '@/features/crm/components/CustomerPurchaseHistory';
 import Link from 'next/link';
-import { ChevronLeft, User, CreditCard, ShoppingBag, Award, Activity, DollarSign } from 'lucide-react';
+import { ChevronLeft, User, CreditCard, ShoppingBag, Award, Activity, DollarSign, Wallet, Tag, Users, Clock, Megaphone, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 
-type TabType = 'overview' | 'history' | 'ledger' | 'loyalty' | 'prescriptions';
+type TabType = 'overview' | 'history' | 'ledger' | 'loyalty' | 'prescriptions' | 'wallet' | 'coupons' | 'referrals' | 'timeline' | 'marketing' | 'notes';
 
 export default function CustomerProfilePage() {
   const params = useParams();
@@ -63,10 +63,16 @@ export default function CustomerProfilePage() {
       <div className="flex space-x-1 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto no-scrollbar">
         {[
           { id: 'overview', label: 'Overview', icon: User },
-          { id: 'history', label: 'Purchase History', icon: ShoppingBag },
-          { id: 'ledger', label: 'Credit Ledger', icon: CreditCard },
-          { id: 'loyalty', label: 'Loyalty Activity', icon: Award },
+          { id: 'history', label: 'Purchases', icon: ShoppingBag },
           { id: 'prescriptions', label: 'Prescriptions', icon: Activity },
+          { id: 'ledger', label: 'Credit Ledger', icon: CreditCard },
+          { id: 'wallet', label: 'Wallet', icon: Wallet },
+          { id: 'loyalty', label: 'Loyalty', icon: Award },
+          { id: 'coupons', label: 'Coupons', icon: Tag },
+          { id: 'referrals', label: 'Referrals', icon: Users },
+          { id: 'timeline', label: 'Timeline', icon: Clock },
+          { id: 'marketing', label: 'Marketing', icon: Megaphone },
+          { id: 'notes', label: 'Notes', icon: FileText },
         ].map(tab => (
           <button
             key={tab.id}
@@ -109,6 +115,49 @@ export default function CustomerProfilePage() {
         {activeTab === 'prescriptions' && (
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
             <CustomerPrescriptionTab customerId={customer.id} />
+          </div>
+        )}
+
+        {/* Placeholders for new Enterprise tabs */}
+        {activeTab === 'wallet' && (
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">Customer Wallet</h3>
+            <p className="text-zinc-500">Wallet functionality (balances, transactions, add funds) will be mounted here.</p>
+          </div>
+        )}
+
+        {activeTab === 'coupons' && (
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">Coupons</h3>
+            <p className="text-zinc-500">Customer assigned coupons and stacking rules.</p>
+          </div>
+        )}
+
+        {activeTab === 'referrals' && (
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">Referral Network</h3>
+            <p className="text-zinc-500">Customers referred and rewards earned.</p>
+          </div>
+        )}
+
+        {activeTab === 'timeline' && (
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">Unified Timeline</h3>
+            <p className="text-zinc-500">Merged view of sales, payments, wallet, loyalty, referrals, and prescriptions.</p>
+          </div>
+        )}
+
+        {activeTab === 'marketing' && (
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">Marketing Campaigns</h3>
+            <p className="text-zinc-500">Campaigns this customer is part of (WhatsApp, SMS, etc.).</p>
+          </div>
+        )}
+
+        {activeTab === 'notes' && (
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">Customer Notes</h3>
+            <p className="text-zinc-500">Internal notes and interaction logs.</p>
           </div>
         )}
       </div>

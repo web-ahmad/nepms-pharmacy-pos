@@ -58,15 +58,41 @@ class AuthService:
             ).first() is not None
         )
 
+        # ── Compute Effective Permissions ─────────────────────────────────
+        from models.enterprise.user import EnterpriseUser
+        from services.enterprise.user_service import user_service
+
+        permissions = list(user.permissions) if user.permissions else []
+        eu = db.query(EnterpriseUser).filter(EnterpriseUser.user_id == user.id).first()
+        
+        if eu:
+            # If the user has an enterprise profile, calculate their effective enterprise permissions
+            # Note: We pass the branch_id to also grab any branch-specific overrides if applicable
+            ent_perms = user_service.compute_effective_permissions(db, enterprise_user=eu, branch_id=branch_id)
+            # Merge and deduplicate
+            permissions = list(set(permissions + ent_perms))
+            
+            # Use enterprise role name if available and not just a default
+            if eu.enterprise_role:
+                role_name = eu.enterprise_role.name
+                if role_name == "Pharmacy Owner" and "*" not in permissions:
+                    permissions.append("*")
+                    
+        # If user is a super admin, ensure they have wildcard
+        if is_sa and "*" not in permissions:
+            permissions.append("*")
+
         # ── Create JWT ────────────────────────────────────────────────────
         access_token = create_access_token(
             subject=user.id,
             tenant_id=user.tenant_id,
             branch_id=branch_id,
             role=role_name,
-            permissions=user.permissions,
+            permissions=permissions,
             pharmacy_id=pharmacy_id,    # ← NEW
             is_super_admin=is_sa,       # ← NEW
+            branch_scope=user.branch_scope,
+            data_scope=user.data_scope,
         )
 
         user_data = {
@@ -75,7 +101,7 @@ class AuthService:
             "email":     user.email,
             "full_name": user.full_name,
             "role":      role_name,
-            "permissions": user.permissions,
+            "permissions": permissions,
             "is_super_admin": is_sa,
         }
 

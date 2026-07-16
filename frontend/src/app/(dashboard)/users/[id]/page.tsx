@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 
 import { UserAvatar }      from '@/features/users/components/UserAvatar';
 import { UserStatusBadge } from '@/features/users/components/UserStatusBadge';
+import { AssignBranchDialog } from '@/features/users/components/AssignBranchDialog';
 import {
   useEnterpriseUser,
   useUserSessions, useTerminateSession, useTerminateAllSessions,
@@ -111,37 +112,56 @@ function AccessTab({ user }: { user: any }) {
 }
 
 function BranchesTab({ user }: { user: any }) {
-  if (!user.branch_assignments?.length) {
-    return (
-      <div className="py-16 flex flex-col items-center gap-3 text-center">
-        <Building2 size={32} className="text-zinc-300 dark:text-zinc-700" />
-        <p className="text-zinc-500">Not assigned to any branches</p>
-      </div>
-    );
-  }
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
+
   return (
-    <div className="space-y-3">
-      {user.branch_assignments.map((a: any) => (
-        <div key={a.id} className="flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
-              <Building2 size={16} className="text-indigo-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                {a.branch?.name ?? a.branch_id}
-              </p>
-              <p className="text-xs text-zinc-500 capitalize">
-                {a.role} {a.is_default_branch && '• Default'}
-                {a.is_temporary && ` • Expires ${a.access_expires_at ? format(new Date(a.access_expires_at), 'dd MMM') : '—'}`}
-              </p>
-            </div>
-          </div>
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${a.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800'}`}>
-            {a.is_active ? 'Active' : 'Inactive'}
-          </span>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Assigned Branches</h3>
+        <button
+          onClick={() => setIsAssignOpen(true)}
+          className="text-xs font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors flex items-center gap-1.5"
+        >
+          <Building2 size={14} /> Assign Branch
+        </button>
+      </div>
+
+      {!user.branch_assignments?.length ? (
+        <div className="py-16 flex flex-col items-center gap-3 text-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700">
+          <Building2 size={32} className="text-zinc-300 dark:text-zinc-700" />
+          <p className="text-zinc-500">Not assigned to any branches</p>
         </div>
-      ))}
+      ) : (
+        <div className="space-y-3">
+          {user.branch_assignments.map((a: any) => (
+            <div key={a.id} className="flex items-center justify-between rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+                  <Building2 size={16} className="text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    {a.branch?.name ?? a.branch_id}
+                  </p>
+                  <p className="text-xs text-zinc-500 capitalize">
+                    {a.role} {a.is_default_branch && '• Default'}
+                    {a.is_temporary && ` • Expires ${a.access_expires_at ? format(new Date(a.access_expires_at), 'dd MMM') : '—'}`}
+                  </p>
+                </div>
+              </div>
+              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${a.is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800'}`}>
+                {a.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <AssignBranchDialog 
+        userId={user.id} 
+        isOpen={isAssignOpen} 
+        onClose={() => setIsAssignOpen(false)} 
+      />
     </div>
   );
 }

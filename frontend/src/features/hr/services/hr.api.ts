@@ -13,6 +13,11 @@ import {
   PayrollLine,
   HRAnalytics,
   AdvanceSalary,
+  EmployeeDocument,
+  PerformanceReview,
+  EmployeeTask,
+  TrainingProgram,
+  TrainingAttendance
 } from '../types/hr';
 
 // Departments
@@ -560,6 +565,247 @@ export const useApproveAdvance = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['hr', 'advances'] });
+    }
+  });
+};
+
+// ============================================================================
+// Phase 10 New API Hooks
+// ============================================================================
+
+// Employee Documents
+export const useEmployeeDocuments = (employeeId?: string) => {
+  return useQuery({
+    queryKey: ['hr', 'employee-documents', employeeId],
+    queryFn: async () => {
+      const url = employeeId ? `/api/v1/hr/employee-documents?employee_id=${employeeId}` : '/api/v1/hr/employee-documents';
+      const res = await api.get(url);
+      return res.data as EmployeeDocument[];
+    }
+  });
+};
+
+export const useCreateEmployeeDocument = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<EmployeeDocument>) => {
+      const res = await api.post('/api/v1/hr/employee-documents', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employee-documents'] });
+    }
+  });
+};
+
+export const useUpdateEmployeeDocument = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<EmployeeDocument>) => {
+      const res = await api.put(`/api/v1/hr/employee-documents/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employee-documents'] });
+    }
+  });
+};
+
+export const useDeleteEmployeeDocument = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/v1/hr/employee-documents/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employee-documents'] });
+    }
+  });
+};
+
+// Performance Reviews
+export const usePerformanceReviews = (employeeId?: string) => {
+  return useQuery({
+    queryKey: ['hr', 'performance-reviews', employeeId],
+    queryFn: async () => {
+      const url = employeeId ? `/api/v1/hr/performance-reviews?employee_id=${employeeId}` : '/api/v1/hr/performance-reviews';
+      const res = await api.get(url);
+      return res.data as PerformanceReview[];
+    }
+  });
+};
+
+export const useCreatePerformanceReview = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<PerformanceReview>) => {
+      const res = await api.post('/api/v1/hr/performance-reviews', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'performance-reviews'] });
+    }
+  });
+};
+
+export const useUpdatePerformanceReview = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<PerformanceReview>) => {
+      const res = await api.put(`/api/v1/hr/performance-reviews/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'performance-reviews'] });
+    }
+  });
+};
+
+// Employee Tasks
+export const useEmployeeTasks = (employeeId?: string) => {
+  return useQuery({
+    queryKey: ['hr', 'employee-tasks', employeeId],
+    queryFn: async () => {
+      const url = employeeId ? `/api/v1/hr/employee-tasks?employee_id=${employeeId}` : '/api/v1/hr/employee-tasks';
+      const res = await api.get(url);
+      return res.data as EmployeeTask[];
+    }
+  });
+};
+
+export const useCreateEmployeeTask = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<EmployeeTask>) => {
+      const res = await api.post('/api/v1/hr/employee-tasks', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employee-tasks'] });
+    }
+  });
+};
+
+export const useUpdateEmployeeTask = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<EmployeeTask>) => {
+      const res = await api.put(`/api/v1/hr/employee-tasks/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employee-tasks'] });
+    }
+  });
+};
+
+export const useDeleteEmployeeTask = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/v1/hr/employee-tasks/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'employee-tasks'] });
+    }
+  });
+};
+
+// Training Programs
+export const useTrainingPrograms = () => {
+  return useQuery({
+    queryKey: ['hr', 'training-programs'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/hr/training-programs');
+      return res.data as TrainingProgram[];
+    }
+  });
+};
+
+export const useCreateTrainingProgram = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<TrainingProgram>) => {
+      const res = await api.post('/api/v1/hr/training-programs', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'training-programs'] });
+    }
+  });
+};
+
+export const useUpdateTrainingProgram = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<TrainingProgram>) => {
+      const res = await api.put(`/api/v1/hr/training-programs/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'training-programs'] });
+    }
+  });
+};
+
+export const useDeleteTrainingProgram = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/v1/hr/training-programs/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'training-programs'] });
+    }
+  });
+};
+
+// Training Attendance
+export const useTrainingAttendances = (programId: string) => {
+  return useQuery({
+    queryKey: ['hr', 'training-attendance', programId],
+    queryFn: async () => {
+      const res = await api.get(`/api/v1/hr/training-programs/${programId}/attendance`);
+      return res.data as TrainingAttendance[];
+    },
+    enabled: !!programId
+  });
+};
+
+export const useCreateTrainingAttendance = (programId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<TrainingAttendance>) => {
+      const res = await api.post(`/api/v1/hr/training-programs/${programId}/attendance`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'training-attendance', programId] });
+    }
+  });
+};
+
+export const useUpdateTrainingAttendance = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<TrainingAttendance>) => {
+      const res = await api.put(`/api/v1/hr/training-attendance/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'training-attendance'] });
+    }
+  });
+};
+
+export const useDeleteTrainingAttendance = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/v1/hr/training-attendance/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'training-attendance'] });
     }
   });
 };

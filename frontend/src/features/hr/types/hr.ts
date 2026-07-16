@@ -68,6 +68,13 @@ export interface Attendance {
   total_hours_worked?: number;
   break_time?: number;
   overtime?: number;
+  
+  // Phase 10 Extended
+  device?: string;
+  biometric_id?: string;
+  gps_location?: string;
+  late_minutes?: number;
+  early_exit?: boolean;
 }
 
 export interface ClockInRequest {
@@ -131,14 +138,23 @@ export interface LeaveRequest {
 }
 
 export interface PayrollLine {
-  id?: string;
+  id: string;
+  payroll_run_id: string;
   employee_id: string;
-  employee_name?: string;
   base_salary: number;
-  worked_units?: string;
   allowances: number;
   deductions: number;
   net_pay: number;
+  employee_name?: string;
+  department_name?: string;
+  
+  // Phase 10 Extended
+  overtime?: number;
+  bonuses?: number;
+  incentives?: number;
+  tax?: number;
+  provident_fund?: number;
+  bank_reference?: string;
 }
 
 export interface PayrollRun {
@@ -159,6 +175,16 @@ export interface HRAnalytics {
   attendance_percent: number;
   pending_leaves: number;
   monthly_payroll_cost: number;
+  
+  // Phase 10 Extended
+  present_today?: number;
+  absent_today?: number;
+  late_today?: number;
+  on_leave_today?: number;
+  pending_reviews?: number;
+  open_tasks?: number;
+  training_progress?: number;
+  expiring_documents?: number;
 }
 
 export interface AdvanceSalary {
@@ -172,4 +198,71 @@ export interface AdvanceSalary {
   approved_by?: string;
   employee_name?: string;
   created_at?: string;
+}
+
+// ============================================================================
+// Phase 10 New Interfaces
+// ============================================================================
+
+export interface EmployeeDocument {
+  id: string;
+  employee_id: string;
+  document_type: string;
+  file_path: string;
+  expiry_date?: string;
+  verification_status: string; // 'Pending' | 'Verified' | 'Rejected'
+  uploaded_by?: string;
+  created_at: string;
+  employee_name?: string;
+}
+
+export interface PerformanceReview {
+  id: string;
+  employee_id: string;
+  reviewer_id?: string;
+  review_period: string; // e.g., 'Q1 2026'
+  goals?: string;
+  achievements?: string;
+  rating?: number;
+  status: string; // 'Draft' | 'Submitted' | 'Acknowledged'
+  created_at: string;
+  employee_name?: string;
+  reviewer_name?: string;
+}
+
+export interface EmployeeTask {
+  id: string;
+  employee_id: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+  status: string; // 'Pending' | 'In Progress' | 'Completed' | 'Cancelled'
+  priority?: string; // 'Low' | 'Medium' | 'High'
+  assigned_by?: string;
+  created_at: string;
+  employee_name?: string;
+}
+
+export interface TrainingProgram {
+  id: string;
+  title: string;
+  description?: string;
+  trainer?: string;
+  start_date: string;
+  end_date: string;
+  capacity?: number;
+  status: string; // 'Scheduled' | 'Ongoing' | 'Completed' | 'Cancelled'
+  created_at: string;
+}
+
+export interface TrainingAttendance {
+  id: string;
+  program_id: string;
+  employee_id: string;
+  status: string; // 'Registered' | 'Attended' | 'Missed' | 'Completed'
+  completion_percentage?: number;
+  certificate_url?: string;
+  created_at: string;
+  employee_name?: string;
+  program_name?: string;
 }

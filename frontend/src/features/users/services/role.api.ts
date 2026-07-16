@@ -156,3 +156,22 @@ export function useSeedDefaults() {
     },
   });
 }
+
+// ── Seed Enterprise RBAC 3.0 ──────────────────────────────────────────────────
+
+export function useSeedEnterprise() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await api.post<{ status: string; permissions_created: number; permissions_total: number; roles_created: number; roles_total: number; message: string }>(
+        `${BASE_ROLES}/seed-enterprise`
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: roleKeys.lists() });
+      qc.invalidateQueries({ queryKey: roleKeys.permissions() });
+    },
+  });
+}
+

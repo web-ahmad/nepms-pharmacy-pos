@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCreateAdvance } from '../services/hr.api';
 import { useEmployees } from '../services/hr.api';
 import toast from 'react-hot-toast';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   isOpen: boolean;
@@ -32,7 +33,7 @@ export function IssueAdvanceModal({ isOpen, onClose }: Props) {
         onClose();
       },
       onError: (err: any) => {
-        toast.error(err.response?.data?.detail || "Failed to issue advance");
+        toast.error(parseApiError(err));
       }
     });
   };

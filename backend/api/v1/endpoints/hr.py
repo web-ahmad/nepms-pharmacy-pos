@@ -19,7 +19,12 @@ from schemas.hr import (
     PayrollRunCreate, PayrollRunResponse, PayrollLineResponse, PayrollApprovalRequest,
     HRAnalyticsResponse,
     DesignationCreate, DesignationResponse, DesignationUpdate,
-    AdvanceSalaryCreate, AdvanceSalaryResponse
+    AdvanceSalaryCreate, AdvanceSalaryResponse,
+    EmployeeDocumentCreate, EmployeeDocumentUpdate, EmployeeDocumentResponse,
+    PerformanceReviewCreate, PerformanceReviewUpdate, PerformanceReviewResponse,
+    EmployeeTaskCreate, EmployeeTaskUpdate, EmployeeTaskResponse,
+    TrainingProgramCreate, TrainingProgramUpdate, TrainingProgramResponse,
+    TrainingAttendanceCreate, TrainingAttendanceUpdate, TrainingAttendanceResponse
 )
 from services.hr_service import HRService
 
@@ -36,7 +41,7 @@ def require_payroll_run(current_user: User = Depends(require_role("payroll.run")
 @router.get("/departments", response_model=List[DepartmentResponse])
 def get_departments(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
     try:
-        return HRService(db).get_departments(scope.tenant_id)
+        return HRService(db).get_departments(current_user.tenant_id)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_departments failed: {str(e)}")
@@ -47,7 +52,7 @@ def create_department(obj_in: DepartmentCreate, db: Session = Depends(get_db), c
         # Sanitize empty strings to None for FK fields
         if getattr(obj_in, 'head_id', None) == "":
             obj_in.head_id = None
-        return HRService(db).create_department(scope.tenant_id, obj_in)
+        return HRService(db).create_department(current_user.tenant_id, obj_in)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -60,7 +65,7 @@ def update_department(id: str, obj_in: DepartmentUpdate, db: Session = Depends(g
     try:
         if getattr(obj_in, 'head_id', None) == "":
             obj_in.head_id = None
-        return HRService(db).update_department(scope.tenant_id, id, obj_in)
+        return HRService(db).update_department(current_user.tenant_id, id, obj_in)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -70,24 +75,24 @@ def update_department(id: str, obj_in: DepartmentUpdate, db: Session = Depends(g
 @router.get("/designations", response_model=List[DesignationResponse])
 def get_designations(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
     try:
-        return HRService(db).get_designations(scope.tenant_id)
+        return HRService(db).get_designations(current_user.tenant_id)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_designations failed: {str(e)}")
 
 @router.post("/designations", response_model=DesignationResponse)
 def create_designation(obj_in: DesignationCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
-    return HRService(db).create_designation(scope.tenant_id, obj_in)
+    return HRService(db).create_designation(current_user.tenant_id, obj_in)
 
 @router.put("/designations/{id}", response_model=DesignationResponse)
 def update_designation(id: str, obj_in: DesignationUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
-    return HRService(db).update_designation(scope.tenant_id, id, obj_in)
+    return HRService(db).update_designation(current_user.tenant_id, id, obj_in)
 
 # Employees
 @router.get("/employees", response_model=List[EmployeeResponse])
 def get_employees(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
     try:
-        return HRService(db).get_employees(scope.tenant_id)
+        return HRService(db).get_employees(current_user.tenant_id)
     except Exception as e:
         print("--- CRITICAL BACKEND ERROR ---")
         print(str(e))
@@ -96,7 +101,7 @@ def get_employees(db: Session = Depends(get_db), current_user: User = Depends(re
 
 @router.get("/employees/{id}", response_model=EmployeeResponse)
 def get_employee(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_employee(scope.tenant_id, id)
+    return HRService(db).get_employee(current_user.tenant_id, id)
 
 @router.post("/employees", response_model=EmployeeResponse)
 def create_employee(obj_in: EmployeeCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
@@ -109,7 +114,7 @@ def create_employee(obj_in: EmployeeCreate, db: Session = Depends(get_db), curre
         if getattr(obj_in, 'shift_id', None) == "":
             obj_in.shift_id = None
             
-        return HRService(db).create_employee(scope.tenant_id, current_user.id, obj_in)
+        return HRService(db).create_employee(current_user.tenant_id, current_user.id, obj_in)
     except Exception as e:
         db.rollback()
         import traceback
@@ -130,7 +135,7 @@ def update_employee(id: str, obj_in: EmployeeUpdate, db: Session = Depends(get_d
         if getattr(obj_in, 'shift_id', None) == "":
             obj_in.shift_id = None
             
-        return HRService(db).update_employee(scope.tenant_id, current_user.id, id, obj_in)
+        return HRService(db).update_employee(current_user.tenant_id, current_user.id, id, obj_in)
     except Exception as e:
         db.rollback()
         import traceback
@@ -142,7 +147,7 @@ def update_employee(id: str, obj_in: EmployeeUpdate, db: Session = Depends(get_d
 
 @router.delete("/employees/{id}")
 def delete_employee(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
-    return HRService(db).delete_employee(scope.tenant_id, current_user.id, id)
+    return HRService(db).delete_employee(current_user.tenant_id, current_user.id, id)
 
 # Attendance
 @router.get("/attendance", response_model=List[AttendanceResponse])
@@ -157,14 +162,14 @@ def get_attendance(
     from datetime import date as date_cls
     target = date if date else date_cls.today()
     try:
-        return HRService(db).get_attendance_logs(scope.tenant_id, target, employee_id, month, year)
+        return HRService(db).get_attendance_logs(current_user.tenant_id, target, employee_id, month, year)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_attendance failed: {str(e)}")
 
 @router.post("/attendance", response_model=AttendanceResponse)
 def create_attendance(obj_in: AttendanceCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
-    return HRService(db).create_attendance(scope.tenant_id, obj_in)
+    return HRService(db).create_attendance(current_user.tenant_id, obj_in)
 
 # Clock-in/Clock-out
 @router.post("/attendance/clock-in", response_model=AttendanceResponse)
@@ -174,7 +179,7 @@ def clock_in(
     current_user: User = Depends(require_hr_create)
 ):
     try:
-        return HRService(db).clock_in(scope.tenant_id, body.employee_id)
+        return HRService(db).clock_in(current_user.tenant_id, body.employee_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -188,7 +193,7 @@ def clock_out(
     current_user: User = Depends(require_hr_create)
 ):
     try:
-        return HRService(db).clock_out(scope.tenant_id, body.attendance_id)
+        return HRService(db).clock_out(current_user.tenant_id, body.attendance_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -203,7 +208,7 @@ def get_today_attendance(
 ):
     """Returns today's attendance record for the employee, or null if not found."""
     try:
-        record = HRService(db).get_today_attendance(scope.tenant_id, employee_id)
+        record = HRService(db).get_today_attendance(current_user.tenant_id, employee_id)
         return record  # can be None -> returns null in JSON
     except Exception as e:
         import traceback; traceback.print_exc()
@@ -218,7 +223,7 @@ def update_attendance(
 ):
     """HR Admin override: edit clock-in/out times and/or status. Total hours auto-recalculated."""
     try:
-        return HRService(db).update_attendance(scope.tenant_id, id, obj_in)
+        return HRService(db).update_attendance(current_user.tenant_id, id, obj_in)
     except HTTPException:
         raise
     except Exception as e:
@@ -233,7 +238,7 @@ def bulk_create_attendance(
 ):
     """Bulk-import attendance from a parsed CSV payload."""
     try:
-        return HRService(db).bulk_create_attendance(scope.tenant_id, rows)
+        return HRService(db).bulk_create_attendance(current_user.tenant_id, rows)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"bulk_create_attendance failed: {str(e)}")
@@ -248,7 +253,7 @@ def delete_monthly_batch(
 ):
     """Delete all attendance records for a specific employee in a specific month."""
     try:
-        res = HRService(db).delete_monthly_attendance_batch(scope.tenant_id, employeeId, month, year)
+        res = HRService(db).delete_monthly_attendance_batch(current_user.tenant_id, employeeId, month, year)
         return {"success": True, "message": "Monthly attendance reset successfully.", **res}
     except Exception as e:
         db.rollback()
@@ -262,7 +267,7 @@ def get_weekly_summary(
 ):
     """Returns Present/Late/Absent counts for the last 7 days for the chart."""
     try:
-        return HRService(db).get_weekly_summary(scope.tenant_id)
+        return HRService(db).get_weekly_summary(current_user.tenant_id)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_weekly_summary failed: {str(e)}")
@@ -270,41 +275,41 @@ def get_weekly_summary(
 # Leaves
 @router.get("/leaves", response_model=List[LeaveRequestResponse])
 def get_leaves(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_leaves(scope.tenant_id)
+    return HRService(db).get_leaves(current_user.tenant_id)
 
 @router.post("/leaves", response_model=LeaveRequestResponse)
 def create_leave(obj_in: LeaveRequestCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
-    return HRService(db).create_leave(scope.tenant_id, obj_in)
+    return HRService(db).create_leave(current_user.tenant_id, obj_in)
 
 @router.post("/leaves/{id}/approve", response_model=LeaveRequestResponse)
 def approve_leave(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_approve)):
-    return HRService(db).approve_leave(scope.tenant_id, current_user.id, id)
+    return HRService(db).approve_leave(current_user.tenant_id, current_user.id, id)
 
 @router.post("/leaves/{id}/reject", response_model=LeaveRequestResponse)
 def reject_leave(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_approve)):
-    return HRService(db).reject_leave(scope.tenant_id, current_user.id, id)
+    return HRService(db).reject_leave(current_user.tenant_id, current_user.id, id)
 
 # Shifts
 @router.get("/shifts", response_model=List[ShiftResponse])
 def get_shifts(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
     try:
-        return HRService(db).get_shifts(scope.tenant_id)
+        return HRService(db).get_shifts(current_user.tenant_id)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_shifts failed: {str(e)}")
 
 @router.post("/shifts", response_model=ShiftResponse)
 def create_shift(obj_in: ShiftCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
-    return HRService(db).create_shift(scope.tenant_id, obj_in)
+    return HRService(db).create_shift(current_user.tenant_id, obj_in)
 
 @router.put("/shifts/{id}", response_model=ShiftResponse)
 def update_shift(id: str, obj_in: ShiftUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
-    return HRService(db).update_shift(scope.tenant_id, id, obj_in)
+    return HRService(db).update_shift(current_user.tenant_id, id, obj_in)
 
 # Payroll
 @router.get("/payroll", response_model=List[PayrollRunResponse])
 def get_payroll_runs(db: Session = Depends(get_db), current_user: User = Depends(require_payroll_view)):
-    runs = HRService(db).get_payroll_runs(scope.tenant_id)
+    runs = HRService(db).get_payroll_runs(current_user.tenant_id)
     valid_runs = []
     for run in runs:
         try:
@@ -318,35 +323,35 @@ def get_payroll_runs(db: Session = Depends(get_db), current_user: User = Depends
 
 @router.get("/payroll/preview", response_model=List[PayrollLineResponse])
 def preview_payroll(month: int, year: int, department_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
-    return HRService(db).preview_payroll(scope.tenant_id, month, year, department_id)
+    return HRService(db).preview_payroll(current_user.tenant_id, month, year, department_id)
 
 @router.post("/payroll/run", response_model=PayrollRunResponse)
 def run_payroll(obj_in: PayrollRunCreate, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
-    return HRService(db).run_payroll(scope.tenant_id, current_user.id, obj_in)
+    return HRService(db).run_payroll(current_user.tenant_id, current_user.id, obj_in)
 
 @router.get("/payroll/summary")
 def get_payroll_summary(db: Session = Depends(get_db), current_user: User = Depends(require_payroll_view)):
-    return HRService(db).get_payroll_summary(scope.tenant_id)
+    return HRService(db).get_payroll_summary(current_user.tenant_id)
 
 @router.post("/payroll/{id}/finalize", response_model=PayrollRunResponse)
 def finalize_payroll(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
-    return HRService(db).finalize_payroll(scope.tenant_id, current_user.id, id)
+    return HRService(db).finalize_payroll(current_user.tenant_id, current_user.id, id)
 
 @router.get("/payroll/{id}", response_model=PayrollRunResponse)
 def get_payroll_run(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_view)):
-    return HRService(db).get_payroll_run(scope.tenant_id, id)
+    return HRService(db).get_payroll_run(current_user.tenant_id, id)
 
 @router.post("/payroll/{id}/submit", response_model=PayrollRunResponse)
 def submit_payroll(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
-    return HRService(db).submit_payroll(scope.tenant_id, current_user.id, id)
+    return HRService(db).submit_payroll(current_user.tenant_id, current_user.id, id)
 
 @router.post("/payroll/{id}/approve", response_model=PayrollRunResponse)
 def approve_payroll(id: str, request: PayrollApprovalRequest, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
-    return HRService(db).approve_payroll(scope.tenant_id, current_user.id, id, request.override, request.remarks)
+    return HRService(db).approve_payroll(current_user.tenant_id, current_user.id, id, request.override, request.remarks)
 
 @router.post("/payroll/{id}/reject", response_model=PayrollRunResponse)
 def reject_payroll(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
-    return HRService(db).reject_payroll(scope.tenant_id, current_user.id, id)
+    return HRService(db).reject_payroll(current_user.tenant_id, current_user.id, id)
 
 @router.get("/payroll/{id}/export-master")
 def export_master_payroll(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_view)):
@@ -358,7 +363,7 @@ def export_master_payroll(id: str, db: Session = Depends(get_db), current_user: 
     from reportlab.lib import colors
     from models.hr import PayrollRun, PayrollLine, Employee
     
-    run = db.query(PayrollRun).filter(PayrollRun.tenant_id == scope.tenant_id, PayrollRun.id == id).first()
+    run = db.query(PayrollRun).filter(PayrollRun.tenant_id == current_user.tenant_id, PayrollRun.id == id).first()
     if not run:
         raise HTTPException(status_code=404, detail="Payroll run not found")
         
@@ -448,17 +453,108 @@ def export_master_payroll(id: str, db: Session = Depends(get_db), current_user: 
 # Advance Salary
 @router.get("/advances", response_model=List[AdvanceSalaryResponse])
 def get_advances(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_advances(scope.tenant_id)
+    return HRService(db).get_advances(current_user.tenant_id)
 
 @router.post("/advances", response_model=AdvanceSalaryResponse)
 def create_advance(obj_in: AdvanceSalaryCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
-    return HRService(db).create_advance(scope.tenant_id, obj_in)
+    return HRService(db).create_advance(current_user.tenant_id, obj_in)
 
 @router.post("/advances/{id}/approve", response_model=AdvanceSalaryResponse)
 def approve_advance(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_approve)):
-    return HRService(db).approve_advance(scope.tenant_id, current_user.id, id)
+    return HRService(db).approve_advance(current_user.tenant_id, current_user.id, id)
 
 # Analytics
 @router.get("/analytics", response_model=HRAnalyticsResponse)
 def get_hr_analytics(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_analytics(scope.tenant_id)
+    return HRService(db).get_analytics(current_user.tenant_id)
+
+# =====================================================================
+# Enterprise Phase 10: Missing Endpoints
+# =====================================================================
+
+# Employee Documents
+@router.get("/employee-documents", response_model=List[EmployeeDocumentResponse])
+def get_employee_documents(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+    return HRService(db).get_employee_documents(current_user.tenant_id, employee_id)
+
+@router.post("/employee-documents", response_model=EmployeeDocumentResponse)
+def create_employee_document(obj_in: EmployeeDocumentCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+    return HRService(db).create_employee_document(current_user.tenant_id, current_user.id, obj_in)
+
+@router.put("/employee-documents/{id}", response_model=EmployeeDocumentResponse)
+def update_employee_document(id: str, obj_in: EmployeeDocumentUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).update_employee_document(current_user.tenant_id, id, obj_in)
+
+@router.delete("/employee-documents/{id}")
+def delete_employee_document(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).delete_employee_document(current_user.tenant_id, id)
+
+
+# Performance Reviews
+@router.get("/performance-reviews", response_model=List[PerformanceReviewResponse])
+def get_performance_reviews(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+    return HRService(db).get_performance_reviews(current_user.tenant_id, employee_id)
+
+@router.post("/performance-reviews", response_model=PerformanceReviewResponse)
+def create_performance_review(obj_in: PerformanceReviewCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+    return HRService(db).create_performance_review(current_user.tenant_id, obj_in)
+
+@router.put("/performance-reviews/{id}", response_model=PerformanceReviewResponse)
+def update_performance_review(id: str, obj_in: PerformanceReviewUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).update_performance_review(current_user.tenant_id, id, obj_in)
+
+
+# Employee Tasks
+@router.get("/employee-tasks", response_model=List[EmployeeTaskResponse])
+def get_employee_tasks(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+    return HRService(db).get_employee_tasks(current_user.tenant_id, employee_id)
+
+@router.post("/employee-tasks", response_model=EmployeeTaskResponse)
+def create_employee_task(obj_in: EmployeeTaskCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+    return HRService(db).create_employee_task(current_user.tenant_id, current_user.id, obj_in)
+
+@router.put("/employee-tasks/{id}", response_model=EmployeeTaskResponse)
+def update_employee_task(id: str, obj_in: EmployeeTaskUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).update_employee_task(current_user.tenant_id, id, obj_in)
+
+@router.delete("/employee-tasks/{id}")
+def delete_employee_task(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).delete_employee_task(current_user.tenant_id, id)
+
+
+# Training Programs
+@router.get("/training-programs", response_model=List[TrainingProgramResponse])
+def get_training_programs(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+    return HRService(db).get_training_programs(current_user.tenant_id)
+
+@router.post("/training-programs", response_model=TrainingProgramResponse)
+def create_training_program(obj_in: TrainingProgramCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+    return HRService(db).create_training_program(current_user.tenant_id, obj_in)
+
+@router.put("/training-programs/{id}", response_model=TrainingProgramResponse)
+def update_training_program(id: str, obj_in: TrainingProgramUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).update_training_program(current_user.tenant_id, id, obj_in)
+
+@router.delete("/training-programs/{id}")
+def delete_training_program(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).delete_training_program(current_user.tenant_id, id)
+
+
+# Training Attendance
+@router.get("/training-programs/{program_id}/attendance", response_model=List[TrainingAttendanceResponse])
+def get_training_attendances(program_id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+    return HRService(db).get_training_attendances(current_user.tenant_id, program_id)
+
+@router.post("/training-programs/{program_id}/attendance", response_model=TrainingAttendanceResponse)
+def create_training_attendance(program_id: str, obj_in: TrainingAttendanceCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+    if obj_in.program_id != program_id:
+        obj_in.program_id = program_id
+    return HRService(db).create_training_attendance(current_user.tenant_id, obj_in)
+
+@router.put("/training-attendance/{id}", response_model=TrainingAttendanceResponse)
+def update_training_attendance(id: str, obj_in: TrainingAttendanceUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).update_training_attendance(current_user.tenant_id, id, obj_in)
+
+@router.delete("/training-attendance/{id}")
+def delete_training_attendance(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+    return HRService(db).delete_training_attendance(current_user.tenant_id, id)

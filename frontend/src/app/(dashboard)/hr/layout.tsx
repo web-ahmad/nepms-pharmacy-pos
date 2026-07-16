@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Users, Building2, Contact2,
-  Clock, CalendarCheck, Palmtree, Wallet, Banknote, HandCoins, Settings2
+  Clock, CalendarCheck, Palmtree, Wallet, Banknote, HandCoins, Settings2,
+  Target, GraduationCap, CheckSquare, FolderOpen, Network
 } from 'lucide-react';
 
 const links = [
@@ -13,6 +14,7 @@ const links = [
   { name: 'Employees',    href: '/hr/employees',      icon: Users },
   { name: 'Departments',  href: '/hr/departments',    icon: Building2 },
   { name: 'Designations', href: '/hr/designations',   icon: Contact2 },
+  { name: 'Org Chart',    href: '/hr/org-chart',      icon: Network },
   { name: 'Shifts',       href: '/hr/shifts',         icon: Clock },
   { name: 'Attendance',   href: '/hr/attendance',     icon: CalendarCheck },
   { name: 'Leaves',       href: '/hr/leaves',         icon: Palmtree },
@@ -20,6 +22,10 @@ const links = [
   { name: 'Salary Setup', href: '/hr/payroll/setup',  icon: Wallet },
   { name: 'Payroll Rules', href: '/hr/payroll-settings', icon: Settings2 },
   { name: 'Payroll',      href: '/hr/payroll',        icon: Banknote },
+  { name: 'Performance',  href: '/hr/performance',    icon: Target },
+  { name: 'Training',     href: '/hr/training',       icon: GraduationCap },
+  { name: 'Tasks',        href: '/hr/tasks',          icon: CheckSquare },
+  { name: 'Documents',    href: '/hr/documents',      icon: FolderOpen },
 ];
 
 export default function HRLayout({ children }: { children: ReactNode }) {

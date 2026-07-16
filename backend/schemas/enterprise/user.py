@@ -70,6 +70,8 @@ class RoleBase(BaseModel):
     user_type:          Optional[str] = None
     max_users:          Optional[int] = None
     sort_order:         int = 0
+    branch_scope:       Optional[str] = "assigned_branch"  # global|tenant|all_branches|assigned_branch|assigned_counter|selected_branches
+    data_scope:         Optional[str] = "branch"           # global|tenant|branch|own_records
 
 class RoleCreate(RoleBase):
     permission_ids: Optional[List[str]] = None
@@ -83,6 +85,8 @@ class RoleUpdate(BaseModel):
     user_type:          Optional[str] = None
     max_users:          Optional[int] = None
     sort_order:         Optional[int] = None
+    branch_scope:       Optional[str] = None
+    data_scope:         Optional[str] = None
     permission_ids:     Optional[List[str]] = None
 
 class RoleRead(RoleBase):
@@ -104,6 +108,9 @@ class RoleListItem(BaseModel):
     icon:           Optional[str]
     is_system_default: bool
     user_type:      Optional[str]
+    branch_scope:   Optional[str] = None
+    data_scope:     Optional[str] = None
+    sort_order:     int = 0
     permission_count: int = 0
     user_count:     int = 0
     created_at:     datetime

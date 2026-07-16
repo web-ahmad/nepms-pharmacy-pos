@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { BranchSettingsOverview, BranchDocumentSeries } from '@/features/branches/types/branchConfig';
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
 import { Badge } from '@/components/ui/badge';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   branchId: string;
@@ -48,7 +49,7 @@ export default function DocumentsTab({ branchId, data, refetch }: Props) {
       setIsOpen(false);
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to save document series');
+      toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
     }
@@ -61,7 +62,7 @@ export default function DocumentsTab({ branchId, data, refetch }: Props) {
       toast.success('Sequence reset successfully');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to reset sequence');
+      toast.error(parseApiError(err));
     }
   };
 

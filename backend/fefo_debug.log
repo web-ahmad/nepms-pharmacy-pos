@@ -1699,3 +1699,68 @@ movement_type: 'Sale'
 preferred_batch_id: None
 Found active batches count: 1
   Batch 1: AM-012545 (qty: 10, reserved: 0, status: Active, expiry: 2027-01-14)
+
+--- FEFO ALLOCATION START ---
+tenant_id: None
+branch_id: '8c179e09-f3a9-4095-8554-dd431b108ccb'
+medicine_id: '1920dcbc-e10c-42ad-aaa7-1875cb990844'
+quantity_required: 15
+user_id: '72681eb7-7108-42cc-8daa-74777cd3063f'
+reference_id: 'b7b2313f-7e2a-4db9-a932-211bda247ede'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: CC01 (qty: 60, reserved: 0, status: Active, expiry: 2026-07-20)
+
+--- FEFO ALLOCATION START ---
+tenant_id: None
+branch_id: '8c179e09-f3a9-4095-8554-dd431b108ccb'
+medicine_id: '1920dcbc-e10c-42ad-aaa7-1875cb990844'
+quantity_required: 15
+user_id: '72681eb7-7108-42cc-8daa-74777cd3063f'
+reference_id: 'f547fb91-91fd-40e5-b24b-3e8b0bac95aa'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: CC01 (qty: 60, reserved: 0, status: Active, expiry: 2026-07-20)
+
+--- FEFO ALLOCATION START ---
+tenant_id: None
+branch_id: 'f2758a49-3621-4967-b3ef-9139e2630c51'
+medicine_id: '3712e16d-70d9-46e4-8d5c-4da43e7abd5f'
+quantity_required: 1
+user_id: 'c0a75fe8-dd91-4aa0-be90-07b32c1a05fa'
+reference_id: 'f5baa582-6d5a-4c4f-ad1f-98830d2a9e37'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 1
+
+--- FEFO ALLOCATION START ---
+tenant_id: None
+branch_id: 'f2758a49-3621-4967-b3ef-9139e2630c51'
+medicine_id: '2f775572-60d4-4c96-951c-fed8d117670e'
+quantity_required: 10
+user_id: 'c0a75fe8-dd91-4aa0-be90-07b32c1a05fa'
+reference_id: 'ce6b03c9-391b-45b5-81e6-9dfe23645666'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: B001 (qty: 200, reserved: 0, status: Active, expiry: 2027-12-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'd4fe2f67-0b46-41ca-83ec-5aeb93ebfa90'
+branch_id: 'a5752a8d-5130-4a0c-b222-2b6cece867cd'
+medicine_id: '1ab2ea2b-08b1-4f9b-b3d4-15d42d519a33'
+quantity_required: 10
+user_id: 'ba56fd46-3637-40c5-ac36-80005cb97260'
+reference_id: '558d27d7-d78c-4770-84ab-579fc263fd2f'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: CG01 (qty: 80, reserved: 0, status: Active, expiry: 2027-03-12)

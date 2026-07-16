@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BranchSettingsOverview, BranchBranding, BranchPosConfig } from '@/features/branches/types/branchConfig';
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   branchId: string;
@@ -30,7 +31,7 @@ export default function BrandingPosTab({ branchId, data, refetch }: Props) {
       toast.success('Branding saved');
       brandingForm.reset(values);
       refetch();
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Error saving branding'); } finally { setIsSaving(false); }
+    } catch (e: any) { toast.error(parseApiError(e)); } finally { setIsSaving(false); }
   };
 
   const onPosSubmit = async (values: Partial<BranchPosConfig>) => {
@@ -40,7 +41,7 @@ export default function BrandingPosTab({ branchId, data, refetch }: Props) {
       toast.success('POS config saved');
       posForm.reset(values);
       refetch();
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Error saving POS config'); } finally { setIsSaving(false); }
+    } catch (e: any) { toast.error(parseApiError(e)); } finally { setIsSaving(false); }
   };
 
   return (

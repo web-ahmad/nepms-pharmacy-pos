@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar, Clock, User, Info } from 'lucide-react';
 import { useEmployees, useCreateAttendance } from '../services/hr.api';
 import { toast } from 'sonner';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   onClose: () => void;
@@ -46,7 +47,7 @@ export default function MarkCustomDateModal({ onClose }: Props) {
       toast.success('Custom attendance recorded successfully');
       onClose();
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to record attendance');
+      toast.error(parseApiError(err));
     } finally {
       setIsSubmitting(false);
     }

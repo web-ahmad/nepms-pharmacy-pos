@@ -8,10 +8,19 @@ import { toast } from 'sonner';
 import { useLeaveRequests, useApproveLeave, useRejectLeave } from '../services/hr.api';
 import AddLeaveModal from './AddLeaveModal';
 
-export default function LeavesList() {
+export default function LeavesList({ 
+  employeeId, 
+  hideHeader = false 
+}: { 
+  employeeId?: string; 
+  hideHeader?: boolean; 
+} = {}) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   
-  const { data: leaves, isLoading } = useLeaveRequests();
+  let { data: leaves, isLoading } = useLeaveRequests();
+  if (employeeId && leaves) {
+    leaves = leaves.filter(l => l.employee_id === employeeId);
+  }
   const { mutate: approveLeave, isPending: isApproving } = useApproveLeave();
   const { mutate: rejectLeave, isPending: isRejecting } = useRejectLeave();
 
@@ -59,10 +68,15 @@ export default function LeavesList() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'Draft':
+        return <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-400"><CalendarClock size={14} /> Draft</span>;
       case 'Approved':
         return <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 size={14} /> Approved</span>;
       case 'Rejected':
         return <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400"><XCircle size={14} /> Rejected</span>;
+      case 'Cancelled':
+        return <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800 dark:bg-zinc-900/30 dark:text-zinc-400"><XCircle size={14} /> Cancelled</span>;
+      case 'Pending':
       default:
         return <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"><CalendarClock size={14} /> Pending</span>;
     }
@@ -70,23 +84,25 @@ export default function LeavesList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Leave Requests</h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Manage employee leave applications and balances
-          </p>
+      {!hideHeader && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Leave Requests</h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Manage employee leave applications and balances
+            </p>
+          </div>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+          >
+            <Plus size={16} />
+            New Leave Request
+          </button>
         </div>
-        <button
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
-        >
-          <Plus size={16} />
-          New Leave Request
-        </button>
-      </div>
+      )}
 
-      {/* Summary Cards */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/50">
           <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">

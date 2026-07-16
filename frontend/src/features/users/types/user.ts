@@ -102,6 +102,9 @@ export interface RoleListItem {
   icon?: string;
   is_system_default: boolean;
   user_type?: string;
+  branch_scope?: string;
+  data_scope?: string;
+  sort_order?: number;
   permission_count: number;
   user_count: number;
   created_at: string;
@@ -110,7 +113,6 @@ export interface RoleListItem {
 export interface Role extends RoleListItem {
   is_branch_specific: boolean;
   max_users?: number;
-  sort_order: number;
   pharmacy_id?: string;
   permissions: Permission[];
   updated_at?: string;
@@ -124,6 +126,8 @@ export interface RoleCreate {
   is_system_default?: boolean;
   is_branch_specific?: boolean;
   user_type?: string;
+  branch_scope?: string;
+  data_scope?: string;
   max_users?: number;
   sort_order?: number;
   permission_ids?: string[];

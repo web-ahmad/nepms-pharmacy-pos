@@ -6,6 +6,7 @@ import { useMedicines, useBatches } from '../services/inventory.api';
 import { useExpiryAlerts, useLowStockAlerts, useInventoryOverview } from '@/features/dashboard/services/dashboard.api';
 import { useAuthStore } from '@/stores/auth-store';
 import { Plus, Search, Edit, MoreVertical, PackageOpen, Eye, Trash, Loader2, Filter, AlertTriangle, CalendarDays, Wallet, Box, Download, Upload, CheckSquare, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 import StockAdjustmentModal from './StockAdjustmentModal';
 import { Medicine } from '../types/inventory';
 import { useDeleteMedicine, useBulkDeleteMedicines } from '../services/medicine.api';
@@ -322,13 +323,19 @@ export default function InventoryTable() {
                   </td>
                 </tr>
               ) : (
-                data?.items?.map((med: any) => {
+                data?.items?.map((med: any, index: number) => {
                   const outOfStock = med.total_quantity <= 0;
                   const lowStock = med.total_quantity <= med.reorder_level;
                   const salePrice = med.unit_retail_price || med.packaging_levels?.find((p: any) => p.is_smallest_unit)?.sale_price || med.packaging_levels?.[0]?.sale_price || 0;
 
                   return (
-                    <tr key={med.id} className={`transition-colors group ${selectedIds.has(med.id) ? 'bg-[#eff4ff]' : 'hover:bg-[#f1f5f9]'}`}>
+                    <motion.tr 
+                      key={med.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className={`transition-colors group ${selectedIds.has(med.id) ? 'bg-[#eff4ff]' : 'hover:bg-[#f1f5f9]'}`}
+                    >
                       <td className="px-4 py-3">
                         <input 
                           type="checkbox" 
@@ -430,7 +437,7 @@ export default function InventoryTable() {
                           )}
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })
               )}

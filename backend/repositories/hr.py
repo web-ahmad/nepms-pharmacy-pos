@@ -2,7 +2,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import date, datetime, timedelta
 
-from models.hr import Department, Designation, Employee, Attendance, LeaveRequest, Shift, PayrollRun, PayrollLine, AdvanceSalary
+from models.hr import (
+    Department, Designation, Employee, Attendance, LeaveRequest, Shift, 
+    PayrollRun, PayrollLine, AdvanceSalary, EmployeeDocument, 
+    PerformanceReview, EmployeeTask, TrainingProgram, TrainingAttendance
+)
 from schemas.hr import (
     DepartmentCreate, EmployeeCreate, EmployeeUpdate, AttendanceCreate, 
     LeaveRequestCreate, ShiftCreate, PayrollRunCreate, AdvanceSalaryCreate
@@ -961,3 +965,158 @@ class HRRepository:
         self.db.commit()
         self.db.refresh(db_obj)
         return db_obj
+
+    # =====================================================================
+    # Enterprise Phase 10: Missing Repository Methods
+    # =====================================================================
+
+    # Employee Documents
+    def get_employee_documents(self, tenant_id: str, employee_id: str = None):
+        q = self.db.query(EmployeeDocument).filter(EmployeeDocument.tenant_id == tenant_id)
+        if employee_id:
+            q = q.filter(EmployeeDocument.employee_id == employee_id)
+        return q.all()
+
+    def create_employee_document(self, tenant_id: str, user_id: str, obj_in):
+        db_obj = EmployeeDocument(tenant_id=tenant_id, uploaded_by=user_id, **obj_in.model_dump())
+        self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def update_employee_document(self, tenant_id: str, doc_id: str, obj_in):
+        db_obj = self.db.query(EmployeeDocument).filter(EmployeeDocument.tenant_id == tenant_id, EmployeeDocument.id == doc_id).first()
+        if not db_obj:
+            return None
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_obj, key, value)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def delete_employee_document(self, tenant_id: str, doc_id: str):
+        db_obj = self.db.query(EmployeeDocument).filter(EmployeeDocument.tenant_id == tenant_id, EmployeeDocument.id == doc_id).first()
+        if not db_obj:
+            return False
+        self.db.delete(db_obj)
+        self.db.commit()
+        return True
+
+    # Performance Reviews
+    def get_performance_reviews(self, tenant_id: str, employee_id: str = None):
+        q = self.db.query(PerformanceReview).filter(PerformanceReview.tenant_id == tenant_id)
+        if employee_id:
+            q = q.filter(PerformanceReview.employee_id == employee_id)
+        return q.all()
+
+    def create_performance_review(self, tenant_id: str, obj_in):
+        db_obj = PerformanceReview(tenant_id=tenant_id, **obj_in.model_dump())
+        self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def update_performance_review(self, tenant_id: str, review_id: str, obj_in):
+        db_obj = self.db.query(PerformanceReview).filter(PerformanceReview.tenant_id == tenant_id, PerformanceReview.id == review_id).first()
+        if not db_obj:
+            return None
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_obj, key, value)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    # Employee Tasks
+    def get_employee_tasks(self, tenant_id: str, employee_id: str = None):
+        q = self.db.query(EmployeeTask).filter(EmployeeTask.tenant_id == tenant_id)
+        if employee_id:
+            q = q.filter(EmployeeTask.employee_id == employee_id)
+        return q.all()
+
+    def create_employee_task(self, tenant_id: str, user_id: str, obj_in):
+        db_obj = EmployeeTask(tenant_id=tenant_id, assigned_by=user_id, **obj_in.model_dump())
+        self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def update_employee_task(self, tenant_id: str, task_id: str, obj_in):
+        db_obj = self.db.query(EmployeeTask).filter(EmployeeTask.tenant_id == tenant_id, EmployeeTask.id == task_id).first()
+        if not db_obj:
+            return None
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_obj, key, value)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def delete_employee_task(self, tenant_id: str, task_id: str):
+        db_obj = self.db.query(EmployeeTask).filter(EmployeeTask.tenant_id == tenant_id, EmployeeTask.id == task_id).first()
+        if not db_obj:
+            return False
+        self.db.delete(db_obj)
+        self.db.commit()
+        return True
+
+    # Training Programs
+    def get_training_programs(self, tenant_id: str):
+        return self.db.query(TrainingProgram).filter(TrainingProgram.tenant_id == tenant_id).all()
+
+    def create_training_program(self, tenant_id: str, obj_in):
+        db_obj = TrainingProgram(tenant_id=tenant_id, **obj_in.model_dump())
+        self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def update_training_program(self, tenant_id: str, program_id: str, obj_in):
+        db_obj = self.db.query(TrainingProgram).filter(TrainingProgram.tenant_id == tenant_id, TrainingProgram.id == program_id).first()
+        if not db_obj:
+            return None
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_obj, key, value)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def delete_training_program(self, tenant_id: str, program_id: str):
+        db_obj = self.db.query(TrainingProgram).filter(TrainingProgram.tenant_id == tenant_id, TrainingProgram.id == program_id).first()
+        if not db_obj:
+            return False
+        self.db.delete(db_obj)
+        self.db.commit()
+        return True
+
+    # Training Attendance
+    def get_training_attendances(self, tenant_id: str, program_id: str):
+        return self.db.query(TrainingAttendance).filter(TrainingAttendance.tenant_id == tenant_id, TrainingAttendance.program_id == program_id).all()
+
+    def create_training_attendance(self, tenant_id: str, obj_in):
+        db_obj = TrainingAttendance(tenant_id=tenant_id, **obj_in.model_dump())
+        self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def update_training_attendance(self, tenant_id: str, att_id: str, obj_in):
+        db_obj = self.db.query(TrainingAttendance).filter(TrainingAttendance.tenant_id == tenant_id, TrainingAttendance.id == att_id).first()
+        if not db_obj:
+            return None
+        update_data = obj_in.model_dump(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_obj, key, value)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def delete_training_attendance(self, tenant_id: str, att_id: str):
+        db_obj = self.db.query(TrainingAttendance).filter(TrainingAttendance.tenant_id == tenant_id, TrainingAttendance.id == att_id).first()
+        if not db_obj:
+            return False
+        self.db.delete(db_obj)
+        self.db.commit()
+        return True

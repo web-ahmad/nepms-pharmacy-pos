@@ -1,11 +1,12 @@
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
-from datetime import date
+from datetime import date, datetime
 
 class DateRangeParams(BaseModel):
-    start_date: date
-    end_date: date
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     branch_id: Optional[str] = None
+    warehouse_id: Optional[str] = None
     cashier_id: Optional[str] = None
     export_format: Optional[str] = None # csv, excel, pdf
 
@@ -14,7 +15,35 @@ class ReportResponse(BaseModel):
     headers: List[str]
     rows: List[Dict[str, Any]]
     summary: Optional[Dict[str, Any]] = None
-    total_records: int
+    total_records: int = 0
+    
+class ReportTemplateCreate(BaseModel):
+    name: str
+    report_type: str
+    columns: List[str]
+    filters: Dict[str, Any]
+    sorting: Dict[str, Any]
+    grouping: Optional[str] = None
+    chart_type: Optional[str] = None
+
+class ReportTemplateResponse(ReportTemplateCreate):
+    id: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class ReportExecutionHistoryResponse(BaseModel):
+    id: str
+    report_name: str
+    status: str
+    error_message: Optional[str] = None
+    duration_ms: int
+    export_format: Optional[str] = None
+    executed_at: datetime
+    
+    class Config:
+        from_attributes = True
 
 class AnalyticsKPIs(BaseModel):
     today_revenue: float

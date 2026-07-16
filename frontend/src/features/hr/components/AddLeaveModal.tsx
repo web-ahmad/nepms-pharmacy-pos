@@ -8,6 +8,7 @@ import { X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useEmployees, useCreateLeaveRequest } from '../services/hr.api';
+import { parseApiError } from '@/utils/errorParser';
 
 const schema = z.object({
   employee_id: z.string().min(1, 'Employee is required'),
@@ -72,7 +73,7 @@ export default function AddLeaveModal({ isOpen, onClose }: AddLeaveModalProps) {
       reset();
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to submit leave request');
+      toast.error(parseApiError(err));
     } finally {
       setIsSubmitting(false);
     }

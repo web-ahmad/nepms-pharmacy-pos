@@ -7,6 +7,7 @@ import { formatCurrency } from '@/utils/currency';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
+import { parseApiError } from '@/utils/errorParser';
 
 export function AdvancesTab() {
   const { data: advances, isLoading } = useAdvances();
@@ -17,7 +18,7 @@ export function AdvancesTab() {
     if (confirm("Are you sure you want to approve and disburse this advance? This will post to accounting immediately.")) {
       approveAdvance(id, {
         onSuccess: () => toast.success("Advance approved and disbursed"),
-        onError: (err: any) => toast.error(err.response?.data?.detail || "Failed to approve advance")
+        onError: (err: any) => toast.error(parseApiError(err))
       });
     }
   };

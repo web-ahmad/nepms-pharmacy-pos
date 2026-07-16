@@ -13,6 +13,8 @@ class TokenPayload(BaseModel):
     tenant_id: Optional[str] = None
     branch_id: Optional[str] = None
     role: Optional[str] = None
+    branch_scope: Optional[str] = None
+    data_scope: Optional[str] = None
 
 class UserLogin(BaseModel):
     username: str
@@ -27,6 +29,8 @@ class UserResponse(BaseModel):
     role_id: Optional[str] = None
     is_active: bool
     permissions: list[str] = []
+    branch_scope: Optional[str] = None
+    data_scope: Optional[str] = None
     
     class Config:
         from_attributes = True

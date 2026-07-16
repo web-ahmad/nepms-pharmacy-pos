@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { BranchSettingsOverview, BranchTaxSetting, BranchFinancialAccount, BranchPaymentMethod } from '@/features/branches/types/branchConfig';
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
 import { Badge } from '@/components/ui/badge';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   branchId: string;
@@ -57,7 +58,7 @@ export default function TaxesFinanceTab({ branchId, data, refetch }: Props) {
       setIsTaxOpen(false);
       refetch();
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Error saving tax');
+      toast.error(parseApiError(e));
     } finally { setIsSaving(false); }
   };
   const deleteTax = async (id: string) => {
@@ -79,7 +80,7 @@ export default function TaxesFinanceTab({ branchId, data, refetch }: Props) {
       toast.success('Account saved');
       setIsAccountOpen(false);
       refetch();
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Error saving'); } finally { setIsSaving(false); }
+    } catch (e: any) { toast.error(parseApiError(e)); } finally { setIsSaving(false); }
   };
   const deleteAccount = async (id: string) => {
     if (!confirm('Delete account?')) return;
@@ -100,7 +101,7 @@ export default function TaxesFinanceTab({ branchId, data, refetch }: Props) {
       toast.success('Method saved');
       setIsPaymentOpen(false);
       refetch();
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Error saving'); } finally { setIsSaving(false); }
+    } catch (e: any) { toast.error(parseApiError(e)); } finally { setIsSaving(false); }
   };
   const deletePayment = async (id: string) => {
     if (!confirm('Delete method?')) return;

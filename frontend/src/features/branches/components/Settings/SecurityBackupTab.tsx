@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BranchSettingsOverview, BranchSecuritySetting, BranchBackupSetting } from '@/features/branches/types/branchConfig';
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   branchId: string;
@@ -29,7 +30,7 @@ export default function SecurityBackupTab({ branchId, data, refetch }: Props) {
       toast.success('Security settings saved');
       securityForm.reset(values);
       refetch();
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Error saving security settings'); } finally { setIsSaving(false); }
+    } catch (e: any) { toast.error(parseApiError(e)); } finally { setIsSaving(false); }
   };
 
   const onBackupSubmit = async (values: Partial<BranchBackupSetting>) => {
@@ -39,7 +40,7 @@ export default function SecurityBackupTab({ branchId, data, refetch }: Props) {
       toast.success('Backup settings saved');
       backupForm.reset(values);
       refetch();
-    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Error saving backup settings'); } finally { setIsSaving(false); }
+    } catch (e: any) { toast.error(parseApiError(e)); } finally { setIsSaving(false); }
   };
 
   return (

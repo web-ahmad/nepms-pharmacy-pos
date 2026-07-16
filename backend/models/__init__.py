@@ -1,5 +1,5 @@
 from .base import BaseModel
-from .users import Tenant, Branch, Role, User, UserBranch
+from .users import Tenant, Branch, Role, User, UserBranch, SuperAdmin, Pharmacy, Permission, RolePermission
 from .inventory import (
     Category, Medicine, Batch, StockAdjustment, StockMovement,
     WarehouseRack, WarehouseBin, StockTransfer, StockTransferItem,
@@ -16,12 +16,16 @@ from .accounts import (
     BankAccount, BankTransaction, BankTransfer, Cheque, BankReconciliation, 
     FixedAsset, AssetDepreciation, TaxRule, FinancialClosing
 )
-from .hr import Department, Designation, Employee, Shift, Attendance, LeaveRequest, PayrollRun, PayrollLine
+from .hr import (
+    Department, Designation, Employee, Shift, Attendance, LeaveRequest, PayrollRun, PayrollLine, Holiday, AdvanceSalary, PayrollSetting,
+    EmployeeDocument, PerformanceReview, EmployeeTask, TrainingProgram, TrainingAttendance
+)
 from .settings import TenantSettings, SystemModule
 from .system import Notification, BackupHistory, OCRQueue
 from .cash_register import CashSession, CashLedgerEntry, CashDrawer, PettyCashAccount, CashAdjustment
 from .expenses import ExpenseCategory, ExpenseVoucher, PettyCashCategory, RecurringExpense
 from .audit import AuditEvent, AlertHistory, CameraSnapshot, AlertConfig
+from .reports import ReportTemplate, ReportExecutionHistory
 from .master_data import (
     MasterGeneric, MasterBrand, MasterCategory, MasterManufacturer,
     MasterDosageForm, MasterStrength, MasterStrengthUnit, MasterRoute,
@@ -39,7 +43,7 @@ from .medicine_master import (
 # Expose all models for Alembic
 __all__ = [
     "BaseModel",
-    "Tenant", "Branch", "Role", "User", "UserBranch",
+    "Tenant", "Branch", "Role", "User", "UserBranch", "SuperAdmin", "Pharmacy", "Permission", "RolePermission",
     "Category", "Medicine", "Batch", "StockAdjustment", "StockMovement", "PackagingLevel",
     "WarehouseRack", "WarehouseBin", "StockTransfer", "StockTransferItem",
     "InventoryReservation", "InventoryCycleCount", "InventoryCycleCountItem",
@@ -50,11 +54,13 @@ __all__ = [
     "Account", "JournalEntry", "JournalEntryLine",
     "BankAccount", "BankTransaction", "BankTransfer", "Cheque", "BankReconciliation",
     "FixedAsset", "AssetDepreciation", "TaxRule", "FinancialClosing",
-    "Department", "Designation", "Employee", "Shift", "Attendance", "LeaveRequest", "PayrollRun", "PayrollLine",
+    "Department", "Designation", "Employee", "Shift", "Attendance", "LeaveRequest", "PayrollRun", "PayrollLine", "Holiday", "AdvanceSalary", "PayrollSetting",
+    "EmployeeDocument", "PerformanceReview", "EmployeeTask", "TrainingProgram", "TrainingAttendance",
     "TenantSettings", "SystemModule",
     "Notification", "BackupHistory", "OCRQueue",
     "CashSession", "CashLedgerEntry", "CashDrawer", "PettyCashAccount", "CashAdjustment",
     "ExpenseCategory", "ExpenseVoucher", "PettyCashCategory", "RecurringExpense",
+    "ReportTemplate", "ReportExecutionHistory",
     "MasterGeneric", "MasterBrand", "MasterCategory", "MasterManufacturer",
     "MasterDosageForm", "MasterStrength", "MasterStrengthUnit", "MasterRoute",
     "MasterStorageCondition", "MasterTaxRule", "MasterPackaging", "MasterUnit",

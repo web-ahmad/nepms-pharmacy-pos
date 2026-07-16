@@ -31,7 +31,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean, Column, DateTime, Float, ForeignKey,
-    Integer, JSON, String, Text, Date,
+    Integer, JSON, String, Text, Date, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 
@@ -193,6 +193,7 @@ class EnterpriseUser(BaseModel):
 class EnterprisePermission(BaseModel):
     """Flat permission registry — module × action pairs."""
     __tablename__ = "enterprise_permissions"
+    __table_args__ = (UniqueConstraint("pharmacy_id", "code", name="uq_ent_perm_pharm_code"),)
 
     module          = Column(String(100), nullable=False, index=True)
     action          = Column(String(100), nullable=False)
@@ -219,9 +220,12 @@ class EnterpriseRole(BaseModel):
     user_type           = Column(String(50),  nullable=True)    # maps to EnterpriseUserType
     max_users           = Column(Integer,  nullable=True)        # null = unlimited
     sort_order          = Column(Integer,  default=0)
+    branch_scope        = Column(String(50),  nullable=True, default="assigned_branch")   # global|tenant|all_branches|assigned_branch|assigned_counter|selected_branches
+    data_scope          = Column(String(50),  nullable=True, default="branch")            # global|tenant|branch|own_records
 
     role_permissions    = relationship("EnterpriseRolePermission", back_populates="role", cascade="all, delete-orphan")
     users               = relationship("EnterpriseUser", back_populates="enterprise_role")
+
 
 
 # ── EnterpriseRolePermission ──────────────────────────────────────────────────

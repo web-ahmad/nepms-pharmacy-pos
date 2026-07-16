@@ -446,16 +446,6 @@ export const useCreatePurchaseRequest = () => {
   });
 };
 
-export const usePurchaseQuotations = (requestId?: string) => {
-  return useQuery({
-    queryKey: ['purchase_quotations', requestId],
-    queryFn: async () => {
-      const url = requestId ? `/api/v1/purchase/quotations?request_id=${requestId}` : '/api/v1/purchase/quotations';
-      const res = await api.get(url);
-      return res.data as PurchaseQuotation[];
-    }
-  });
-};
 
 export const useCreatePurchaseQuotation = () => {
   const queryClient = useQueryClient();
@@ -501,5 +491,180 @@ export const useCreateEnterpriseReceiving = () => {
       queryClient.invalidateQueries({ queryKey: ['medicines'] });
       queryClient.invalidateQueries({ queryKey: ['batches'] });
     }
+  });
+};
+
+export const usePurchaseApprovalMatrix = () => {
+  return useQuery({
+    queryKey: ['purchase_matrix'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/purchase/matrix');
+      return res.data as any[]; // To match PurchaseApprovalMatrix
+    }
+  });
+};
+
+export const useCreatePurchaseApprovalMatrix = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: any) => { // To match CreatePurchaseApprovalMatrixPayload
+      const res = await api.post('/api/v1/purchase/matrix', payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_matrix'] });
+    }
+  });
+};
+
+export const usePurchaseTimeline = (referenceId: string) => {
+  return useQuery({
+    queryKey: ['purchase_timeline', referenceId],
+    queryFn: async () => {
+      if (!referenceId) return [];
+      const res = await api.get(`/api/v1/purchase/requests/${referenceId}/timeline`);
+      return res.data as any[]; // To match PurchaseTimeline
+    },
+    enabled: !!referenceId
+  });
+};
+
+export const useApprovePurchaseRequest = (requestId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: any) => { // To match PurchaseApprovalRequestPayload
+      const res = await api.post(`/api/v1/purchase/requests/${requestId}/approve`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_timeline', requestId] });
+    }
+  });
+};
+
+export const useConvertRequestToPO = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (requestId: string) => {
+      const res = await api.post(`/api/v1/purchase/requests/${requestId}/convert`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+    }
+  });
+};
+
+// --- Quotations (Enterprise) ---
+
+export const usePurchaseQuotations = (requestId?: string) => {
+  return useQuery({
+    queryKey: ['purchase_quotations', requestId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (requestId) params.append('request_id', requestId);
+      const res = await api.get(`/api/v1/purchase/quotations?${params.toString()}`);
+      return res.data as PurchaseQuotation[];
+    }
+  });
+};
+
+export const usePurchaseQuotationDetails = (id: string) => {
+  return useQuery({
+    queryKey: ['purchase_quotations', id],
+    queryFn: async () => {
+      if (id === 'new') return null;
+      const res = await api.get(`/api/v1/purchase/quotations/${id}`);
+      return res.data as PurchaseQuotation;
+    },
+    enabled: id !== 'new' && !!id
+  });
+};
+
+export const useCreateQuotation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreatePurchaseQuotationPayload) => {
+      const res = await api.post('/api/v1/purchase/quotations', payload);
+      return res.data as PurchaseQuotation;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_quotations'] });
+      if (variables.request_id) {
+        queryClient.invalidateQueries({ queryKey: ['purchase_requests', variables.request_id] });
+      }
+    }
+  });
+};
+
+export const useUpdateQuotation = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: UpdatePurchaseQuotationPayload) => {
+      const res = await api.patch(`/api/v1/purchase/quotations/${id}`, payload);
+      return res.data as PurchaseQuotation;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_quotations', id] });
+      if (data.request_id) {
+        queryClient.invalidateQueries({ queryKey: ['purchase_quotations', data.request_id] }); // the list by request
+      }
+    }
+  });
+};
+
+export const useUpdateQuotationStatus = (id: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: QuotationStatusUpdate) => {
+      const res = await api.patch(`/api/v1/purchase/quotations/${id}/status`, payload);
+      return res.data as PurchaseQuotation;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_quotations', id] });
+      if (data.request_id) {
+        queryClient.invalidateQueries({ queryKey: ['purchase_quotations', data.request_id] });
+      }
+    }
+  });
+};
+
+export const useQuotationComparison = (requestId: string) => {
+  return useQuery({
+    queryKey: ['quotation_comparison', requestId],
+    queryFn: async () => {
+      const res = await api.get(`/api/v1/purchase/quotations/compare?request_id=${requestId}`);
+      return res.data as QuotationComparisonResponse;
+    },
+    enabled: !!requestId
+  });
+};
+
+export const useConvertQuotationToPO = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (quotationId: string) => {
+      const res = await api.post(`/api/v1/purchase/quotations/${quotationId}/convert-to-po`);
+      return res.data as PurchaseOrder;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchase_quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
+    }
+  });
+};
+
+export const useSupplierScore = (supplierId: string) => {
+  return useQuery({
+    queryKey: ['supplier_score', supplierId],
+    queryFn: async () => {
+      const res = await api.get(`/api/v1/purchase/quotations/supplier-score/${supplierId}`);
+      return res.data as SupplierScorecard;
+    },
+    enabled: !!supplierId
   });
 };

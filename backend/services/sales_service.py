@@ -45,24 +45,26 @@ class SalesService:
                 pass
 
             # Generate sequential invoice_num
-            # Fetch all existing invoice numbers for the tenant
+            # Fetch existing invoice numbers for the specific branch prefix to avoid global UNIQUE constraint violations
+            import uuid
+            branch_short = str(branch_id)[:4].upper() if branch_id else "GEN"
+            prefix = f"INV-{branch_short}-"
+            
             existing_invoices = db.query(Sale.invoice_number).filter(
-                Sale.tenant_id == tenant_id,
-                Sale.invoice_number.like('INV-%')
+                Sale.invoice_number.like(f'{prefix}%')
             ).all()
             
             max_num = 0
             for (inv_num,) in existing_invoices:
                 try:
-                    num_part = inv_num.replace('INV-', '').strip()
-                    # Only consider purely numeric parts to avoid legacy HEX strings messing up the sequence
+                    num_part = inv_num.replace(prefix, '').strip()
                     if num_part.isdigit():
                         max_num = max(max_num, int(num_part))
                 except Exception:
                     pass
             
             next_seq = max_num + 1
-            invoice_num = f"INV-{next_seq:02d}"
+            invoice_num = f"{prefix}{next_seq:04d}"
             total_amount = sum([(i.quantity * i.unit_price) - i.discount for i in checkout_in.items]) + checkout_in.tax_amount + checkout_in.adjustment_amount
             
             # Enforce strict payment validation for Single Counter mode
@@ -210,13 +212,13 @@ class SalesService:
                 je = None
                 if checkout_in.payment_method == "Credit" or sale.amount_paid < sale.total_amount:
                     if sale.amount_paid >= sale.total_amount:
-                        je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount, checkout_in.payment_method)
+                        je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount, checkout_in.payment_method, branch_id=branch_id, source_module="POS", source_id=sale.id)
                     else:
-                        je = auto_post.post_credit_sale(tenant_id, user_id, invoice_num, sale.total_amount)
+                        je = auto_post.post_credit_sale(tenant_id, user_id, invoice_num, sale.total_amount, branch_id=branch_id, source_module="POS", source_id=sale.id)
                         if sale.amount_paid > 0:
-                            auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{invoice_num}", sale.amount_paid)
+                            auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{invoice_num}", sale.amount_paid, branch_id=branch_id, source_module="POS", source_id=sale.id)
                 else:
-                    je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount, checkout_in.payment_method)
+                    je = auto_post.post_cash_sale(tenant_id, user_id, invoice_num, sale.total_amount, checkout_in.payment_method, branch_id=branch_id, source_module="POS", source_id=sale.id)
                 
                 if je:
                     sale.journal_entry_id = je.id
@@ -229,7 +231,7 @@ class SalesService:
                         total_cost += item.quantity * med.cost_per_base_unit
                 
                 if total_cost > 0:
-                    auto_post.post_cogs(tenant_id, user_id, invoice_num, total_cost)
+                    auto_post.post_cogs(tenant_id, user_id, invoice_num, total_cost, branch_id=branch_id, source_module="POS", source_id=sale.id)
 
             db.commit()
             db.refresh(sale)

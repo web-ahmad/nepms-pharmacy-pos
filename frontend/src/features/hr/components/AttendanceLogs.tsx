@@ -74,7 +74,13 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
 };
 
 // ─── Component ───────────────────────────────────────────────────────
-export default function AttendanceLogs() {
+export default function AttendanceLogs({ 
+  employeeId, 
+  hideFilters = false 
+}: { 
+  employeeId?: string; 
+  hideFilters?: boolean; 
+} = {}) {
   const [monthStr, setMonthStr] = useState<string>(new Date().toISOString().substring(0, 7));
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,6 +101,8 @@ export default function AttendanceLogs() {
 
   // Client-side search by employee name or shift, and filter by department
   const filtered = (logs ?? []).filter((rec) => {
+    if (employeeId && rec.employee_id !== employeeId) return false;
+
     const emp = employees?.find((e) => e.id === rec.employee_id);
     if (departmentFilter && emp?.department_id !== departmentFilter) return false;
 
@@ -205,20 +213,8 @@ export default function AttendanceLogs() {
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Search & Buttons */}
+        {/* Buttons */}
         <div className="flex items-center gap-3">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-            <input
-              id="att-logs-search"
-              type="text"
-              placeholder="Search employee or shift…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 bg-white py-2 pl-9 pr-3 text-sm text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-            />
-          </div>
-          
           <button 
             onClick={() => setIsMarkMonthlyOpen(true)}
             className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
@@ -264,21 +260,38 @@ export default function AttendanceLogs() {
             className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
         </div>
-
-        {/* Department Filter */}
-        <div className="relative flex items-center gap-2">
-          <select
-            value={departmentFilter}
-            onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          >
-            <option value="">All Departments</option>
-            {departments?.filter(d => d.is_active).map(d => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </select>
-        </div>
       </div>
+
+      {/* Filters */}
+      {!hideFilters && (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-xl bg-white p-4 shadow-sm border border-zinc-200 dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Search */}
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Search employee or shift..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-lg border-zinc-200 bg-zinc-50 py-2 pl-9 pr-4 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+              />
+            </div>
+            
+            {/* Dept Filter */}
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="rounded-lg border-zinc-200 bg-zinc-50 py-2 pl-3 pr-8 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50"
+            >
+              <option value="">All Departments</option>
+              {departments?.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Summary row */}
       <div className="flex flex-wrap gap-3">
@@ -311,8 +324,13 @@ export default function AttendanceLogs() {
                 <th className="px-6 py-4 whitespace-nowrap"><span className="flex items-center gap-1.5"><Timer size={13} /> Worked Hour</span></th>
                 <th className="px-6 py-4 whitespace-nowrap">Break Time</th>
                 <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4">Shift</th>
+                <th className="px-6 py-4 whitespace-nowrap">Late Mins</th>
+                <th className="px-6 py-4 whitespace-nowrap">Early Exit</th>
                 <th className="px-6 py-4">Overtime</th>
+                <th className="px-6 py-4">Shift</th>
+                <th className="px-6 py-4">Device</th>
+                <th className="px-6 py-4 whitespace-nowrap">Biometric ID</th>
+                <th className="px-6 py-4 whitespace-nowrap">GPS Loc</th>
                 <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
@@ -335,7 +353,7 @@ export default function AttendanceLogs() {
 
               {!isLoading && groupedData.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="py-16 text-center text-zinc-400 dark:text-zinc-600">
+                  <td colSpan={17} className="py-16 text-center text-zinc-400 dark:text-zinc-600">
                     <CalendarDays className="mx-auto mb-3 h-8 w-8 opacity-40" />
                     <p className="font-medium">No attendance records found</p>
                     <p className="mt-0.5 text-xs">Try a different month or search term.</p>
@@ -365,7 +383,6 @@ export default function AttendanceLogs() {
                         </button>
                       </td>
                       <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">
-                        {/* Empty Date column for summary row */}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -389,7 +406,7 @@ export default function AttendanceLogs() {
                       <td className="px-6 py-4 font-mono text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                         {formatHours(group.totalWorkedHours)}
                       </td>
-                      <td colSpan={5} className="px-6 py-4 text-right">
+                      <td colSpan={10} className="px-6 py-4 text-right">
                         <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
                           {group.records.length} records
                         </span>
@@ -421,18 +438,33 @@ export default function AttendanceLogs() {
                             {formatHours(rec.total_hours_worked)}
                           </td>
                           <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                            {rec.break_time ? `${rec.break_time}h` : '—'}
+                            {formatHours(rec.break_time)}
                           </td>
                           <td className="whitespace-nowrap px-6 py-3 text-center">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusStyle}`}>
-                              {STATUS_ICON[rec.status]}{rec.status}
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle}`}>
+                              {rec.status}
                             </span>
                           </td>
-                          <td className="whitespace-nowrap px-6 py-3">
-                            {rec.shift_name ? <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">{rec.shift_name}</span> : <span className="text-zinc-400">—</span>}
+                          <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                            {rec.late_minutes ? `${rec.late_minutes}m` : 'N/A'}
                           </td>
                           <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                            {rec.overtime ? <span className="text-emerald-600 font-semibold">+{rec.overtime}h</span> : '—'}
+                            {rec.early_exit ? 'Yes' : 'N/A'}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                            {formatHours(rec.overtime)}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3">
+                            {rec.shift_name ? <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">{rec.shift_name}</span> : <span className="text-zinc-400">N/A</span>}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 text-xs text-zinc-700 dark:text-zinc-300">
+                            {rec.device || 'N/A'}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 text-xs text-zinc-700 dark:text-zinc-300">
+                            {rec.biometric_id || 'N/A'}
+                          </td>
+                          <td className="whitespace-nowrap px-6 py-3 text-xs text-zinc-700 dark:text-zinc-300">
+                            {rec.gps_location || 'N/A'}
                           </td>
                           <td className="whitespace-nowrap px-6 py-3 text-right">
                             <button title="Edit attendance" onClick={() => setEditingRecord(rec)} className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300">

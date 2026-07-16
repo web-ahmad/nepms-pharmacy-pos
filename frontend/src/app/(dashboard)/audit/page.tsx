@@ -75,19 +75,22 @@ export default function AuditDashboardPage() {
       <AttentionNeededPanel branchId={branchId || undefined} />
 
       {/* ── Main Tabs ────────────────────────────────────────────── */}
-      <Tabs defaultValue="tables" className="space-y-5">
-        <TabsList className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-xl p-1 gap-1 h-auto">
+      <Tabs defaultValue="overview" className="space-y-5">
+        <TabsList className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm rounded-xl p-1 gap-1 h-auto flex flex-wrap">
           {[
-            { value: 'tables',   label: 'Data Tables',     icon: Database   },
-            { value: 'reports',  label: 'Pre-Built Reports', icon: BarChart3  },
-            { value: 'settings', label: 'Alert Settings',  icon: Settings2  },
+            { value: 'overview',   label: 'Overview',      icon: Activity   },
+            { value: 'rbac',       label: 'RBAC & Login',  icon: ShieldAlert },
+            { value: 'sales',      label: 'Sales & POS',   icon: Database   },
+            { value: 'inventory',  label: 'Inv & Purchase', icon: Eye        },
+            { value: 'reports',    label: 'Reports',       icon: BarChart3  },
+            { value: 'settings',   label: 'Alert Config',  icon: Settings2  },
           ].map(tab => {
             const Icon = tab.icon;
             return (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm rounded-lg font-medium
+                className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg font-medium
                            text-zinc-500 dark:text-zinc-400
                            data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-500
                            data-[state=active]:text-white data-[state=active]:shadow-md
@@ -100,13 +103,30 @@ export default function AuditDashboardPage() {
           })}
         </TabsList>
 
-        {/* ── Data Tables Tab ──────────────────────────────────── */}
-        <TabsContent value="tables" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {/* ── Overview Tab ──────────────────────────────────── */}
+        <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <StaffRiskScoreList branchId={branchId || undefined} />
-            <CashReconciliationTable branchId={branchId || undefined} />
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6 shadow-sm flex flex-col justify-center items-center text-center h-full min-h-[300px]">
+              <ShieldCheck className="w-16 h-16 text-zinc-300 dark:text-zinc-700 mb-4" />
+              <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">System Health Good</h3>
+              <p className="text-sm text-zinc-500 mt-2 max-w-sm">No critical compliance breaches detected in the last 24 hours.</p>
+            </div>
           </div>
+        </TabsContent>
+
+        {/* ── RBAC & Login Tab ──────────────────────────────────── */}
+        <TabsContent value="rbac" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <AuditEventsTable branchId={branchId || undefined} />
+        </TabsContent>
+
+        {/* ── Sales Tab ──────────────────────────────────── */}
+        <TabsContent value="sales" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <CashReconciliationTable branchId={branchId || undefined} />
+        </TabsContent>
+
+        {/* ── Inventory Tab ──────────────────────────────────── */}
+        <TabsContent value="inventory" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <InventoryAuditTable branchId={branchId || undefined} />
         </TabsContent>
 

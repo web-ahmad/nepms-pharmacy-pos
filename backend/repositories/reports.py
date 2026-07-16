@@ -20,6 +20,13 @@ class ReportsRepository:
             func.date(date_column) <= params.end_date
         )
 
+    def _apply_scope_filters(self, query, model, params: DateRangeParams):
+        if params.branch_id:
+            query = query.filter(model.branch_id == params.branch_id)
+        if params.warehouse_id and hasattr(model, 'warehouse_id'):
+            query = query.filter(model.warehouse_id == params.warehouse_id)
+        return query
+
     # ------------------- SALES REPORTS -------------------
     def get_sales_summary(self, tenant_id: str, params: DateRangeParams, group_by_period: str = 'day'):
         """Daily, Weekly, Monthly, Yearly Sales depending on group_by_period ('day', 'month', 'year')"""
@@ -41,6 +48,8 @@ class ReportsRepository:
         ).filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
         
         query = self._apply_date_filters(query, Sale.created_at, params)
+        query = self._apply_scope_filters(query, Sale, params)
+
         if params.cashier_id:
             query = query.filter(Sale.cashier_id == params.cashier_id)
             
@@ -60,6 +69,7 @@ class ReportsRepository:
          .filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
          
         query = self._apply_date_filters(query, Sale.created_at, params)
+        query = self._apply_scope_filters(query, Sale, params)
         results = query.group_by(Medicine.name, Medicine.category).order_by(desc('qty_sold')).all()
         return [dict(r._mapping) for r in results]
 
@@ -73,6 +83,7 @@ class ReportsRepository:
          .filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
          
         query = self._apply_date_filters(query, Sale.created_at, params)
+        query = self._apply_scope_filters(query, Sale, params)
         results = query.group_by(Medicine.category).order_by(desc('net_revenue')).all()
         return [dict(r._mapping) for r in results]
 
@@ -89,6 +100,8 @@ class ReportsRepository:
             (Medicine.stock_quantity * Medicine.selling_price).label('total_retail_value')
         ).filter(Medicine.tenant_id == tenant_id, Medicine.stock_quantity > 0)
         
+        # We don't have params here, but ideally we should pass params for branch/warehouse.
+        # Let's assume params is passed in future, for now it's tenant level.
         results = query.order_by(desc('total_cost_value')).all()
         return [dict(r._mapping) for r in results]
 
@@ -136,6 +149,7 @@ class ReportsRepository:
         ).filter(PurchaseOrder.tenant_id == tenant_id)
         
         query = self._apply_date_filters(query, PurchaseOrder.created_at, params)
+        query = self._apply_scope_filters(query, PurchaseOrder, params)
         results = query.group_by('supplier_name').order_by(desc('total_purchased')).all()
         return [dict(r._mapping) for r in results]
 
@@ -161,6 +175,7 @@ class ReportsRepository:
         ).filter(Prescription.tenant_id == tenant_id)
         
         query = self._apply_date_filters(query, Prescription.created_at, params)
+        query = self._apply_scope_filters(query, Prescription, params)
         results = query.group_by(Prescription.doctor_name).order_by(desc('total_prescriptions')).all()
         return [dict(r._mapping) for r in results]
 
@@ -172,6 +187,7 @@ class ReportsRepository:
             func.sum(Sale.tax_amount).label('total_tax')
         ).filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
         sales_query = self._apply_date_filters(sales_query, Sale.created_at, params)
+        sales_query = self._apply_scope_filters(sales_query, Sale, params)
         sales_data = sales_query.first()
         
         # COGS (Cost of Goods Sold) approximation using Medicine purchase price * sold qty
@@ -181,6 +197,7 @@ class ReportsRepository:
          .join(Medicine, Medicine.id == SaleItem.medicine_id)\
          .filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
         cogs_query = self._apply_date_filters(cogs_query, Sale.created_at, params)
+        cogs_query = self._apply_scope_filters(cogs_query, Sale, params)
         cogs_data = cogs_query.first()
 
         revenue = sales_data.total_revenue or 0

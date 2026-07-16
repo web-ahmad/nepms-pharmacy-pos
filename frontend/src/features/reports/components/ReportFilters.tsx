@@ -12,12 +12,16 @@ export default function ReportFilters({ onFilterChange, showPeriod = false }: Re
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [period, setPeriod] = useState('day');
+  const [branchId, setBranchId] = useState('');
+  const [warehouseId, setWarehouseId] = useState('');
 
   const handleApply = () => {
     onFilterChange({
       start_date: startDate,
       end_date: endDate,
-      ...(showPeriod && { period })
+      ...(showPeriod && { period }),
+      ...(branchId && { branch_id: branchId }),
+      ...(warehouseId && { warehouse_id: warehouseId })
     });
   };
 
@@ -85,6 +89,27 @@ export default function ReportFilters({ onFilterChange, showPeriod = false }: Re
             </select>
           </div>
         )}
+
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 mb-1">Branch (Optional)</label>
+          <input
+            type="text"
+            placeholder="Branch ID"
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-sm w-32 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 mb-1">Warehouse (Optional)</label>
+          <input
+            type="text"
+            placeholder="Warehouse ID"
+            value={warehouseId}
+            onChange={(e) => setWarehouseId(e.target.value)}
+            className="rounded-md border border-zinc-300 px-3 py-2 text-sm w-32 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          />
+        </div>
 
         <button
           onClick={handleApply}

@@ -56,7 +56,8 @@ def require_accounts_approve(current_user: User = Depends(get_current_user)):
 @router.post("/seed")
 def seed_chart_of_accounts(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create)
+    current_user: User = Depends(require_accounts_create),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     service.seed_default_chart(scope.tenant_id)
@@ -65,7 +66,8 @@ def seed_chart_of_accounts(
 @router.get("/chart", response_model=List[AccountResponse])
 def get_chart_of_accounts(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view)
+    current_user: User = Depends(require_accounts_view),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     return service.get_chart_of_accounts(scope.tenant_id)
@@ -74,7 +76,8 @@ def get_chart_of_accounts(
 def create_account(
     account_in: AccountCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create)
+    current_user: User = Depends(require_accounts_create),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     return service.create_account(scope.tenant_id, account_in)
@@ -84,6 +87,8 @@ def create_journal_entry(
     journal_in: JournalEntryCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_accounts_create)
+,
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     # Require separate approval if strictly enforcing separation of duties
@@ -96,6 +101,8 @@ def create_journal_entry(
 def get_trial_balance(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_accounts_view)
+,
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     return service.get_trial_balance(scope.tenant_id)
@@ -104,6 +111,8 @@ def get_trial_balance(
 def get_profit_and_loss(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_accounts_view)
+,
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     return service.get_profit_and_loss(scope.tenant_id)
@@ -112,6 +121,8 @@ def get_profit_and_loss(
 def get_balance_sheet(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_accounts_view)
+,
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     return service.get_balance_sheet(scope.tenant_id)
@@ -123,6 +134,8 @@ def get_ledger(
     end_date: str = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_accounts_view)
+,
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     return service.get_ledger(scope.tenant_id, account_id, start_date, end_date)
@@ -131,6 +144,8 @@ def get_ledger(
 def get_journal_entries(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_accounts_view)
+,
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
     return service.get_journal_entries(scope.tenant_id)
@@ -148,7 +163,8 @@ def get_dashboard_stats(
 @router.post("/force-rebuild")
 def force_rebuild_accounting(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create)
+    current_user: User = Depends(require_accounts_create),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     """
     Nuclear rebuild:
@@ -186,13 +202,13 @@ def force_rebuild_accounting(
             je = None
             if sale.payment_method == "Credit" or sale.amount_paid < sale.total_amount:
                 if sale.amount_paid >= sale.total_amount:
-                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, sale.payment_method)
+                    je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, sale.payment_method, branch_id=sale.branch_id, source_module="POS", source_id=sale.id)
                 else:
-                    je = auto_post.post_credit_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount)
+                    je = auto_post.post_credit_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, branch_id=sale.branch_id, source_module="POS", source_id=sale.id)
                     if (sale.amount_paid or 0) > 0:
-                        auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{sale.invoice_number}", sale.amount_paid)
+                        auto_post.post_customer_payment(tenant_id, user_id, f"PAY-{sale.invoice_number}", sale.amount_paid, branch_id=sale.branch_id, source_module="POS", source_id=sale.id)
             else:
-                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, sale.payment_method)
+                je = auto_post.post_cash_sale(tenant_id, user_id, sale.invoice_number, sale.total_amount, sale.payment_method, branch_id=sale.branch_id, source_module="POS", source_id=sale.id)
             if je:
                 sale.journal_entry_id = je.id
                 synced["sales"] += 1
@@ -296,4 +312,5 @@ def close_year(
 ):
     service = ClosingService(db)
     return service.perform_year_end_closing(scope.tenant_id, current_user.id, year, scope.branch_id)
+
 

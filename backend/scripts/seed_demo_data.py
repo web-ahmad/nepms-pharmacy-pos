@@ -94,7 +94,12 @@ def seed_data(db: Session):
         users.append(user)
         db.add(UserBranch(id=gen_id(), user_id=user.id, branch_id=main_branch.id))
     db.flush()
+    
     owner = users[0]
+    sa = SuperAdmin(id=gen_id(), auth_user_id=owner.id, name=owner.full_name, is_active=True, tenant_id=tenant.id)
+    db.add(sa)
+    db.flush()
+
     current_user_id.set(owner.id)
 
     print("Seeding Categories...")

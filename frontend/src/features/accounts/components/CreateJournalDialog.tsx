@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, Trash2 } from 'lucide-react';
 import { useChartAccounts, useCreateJournal } from '../services/accounts.api';
 import { toast } from 'sonner';
+import { parseApiError } from '@/utils/errorParser';
 
 const journalSchema = z.object({
   reference: z.string().min(1, 'Reference is required'),
@@ -85,7 +86,7 @@ export default function CreateJournalDialog({ children }: { children: React.Reac
         window.location.reload(); 
       },
       onError: (err: any) => {
-        toast.error(err?.response?.data?.detail || 'Failed to create entry');
+        toast.error(parseApiError(err));
       }
     });
   };

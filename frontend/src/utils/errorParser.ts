@@ -5,12 +5,23 @@ export const parseApiError = (error: any): string => {
   const detail = error.response?.data?.detail || error.detail;
   
   if (!detail) {
-    return error.message || "An unexpected error occurred.";
+    if (error.message && typeof error.message === 'string') {
+      return error.message;
+    }
+    return "An unexpected error occurred.";
   }
 
   // If detail is a FastAPI validation error array
   if (Array.isArray(detail)) {
-    return detail.map((err: any) => err.msg || "Validation error").join(', ');
+    try {
+      return detail.map((err: any) => {
+        if (typeof err === 'string') return err;
+        if (err && typeof err === 'object' && err.msg) return String(err.msg);
+        return "Validation error";
+      }).join(', ');
+    } catch (e) {
+      return "Validation error";
+    }
   }
 
   // If detail is a string
@@ -20,8 +31,12 @@ export const parseApiError = (error: any): string => {
 
   // Fallback if detail is an object but not an array
   if (typeof detail === 'object') {
-    return JSON.stringify(detail);
+    try {
+      return JSON.stringify(detail);
+    } catch (e) {
+      return "An unexpected error occurred.";
+    }
   }
 
-  return "An unexpected error occurred.";
+  return String(detail);
 };

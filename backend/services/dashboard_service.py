@@ -137,6 +137,7 @@ def get_inventory_overview(db: Session, tenant_id: str, branch_id: str = None) -
     
     if branch_id:
         batch_query = batch_query.filter(Batch.branch_id == branch_id)
+        med_query = med_query.filter(Medicine.batches.any(and_(Batch.branch_id == branch_id, Batch.is_deleted == False)))
 
     total_medicines = med_query.count()
     

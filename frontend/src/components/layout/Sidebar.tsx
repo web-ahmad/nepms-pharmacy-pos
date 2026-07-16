@@ -34,6 +34,7 @@ import {
   Wallet,
   PlusCircle,
   Building2,
+  Megaphone,
 } from 'lucide-react';
 
 interface SidebarState {
@@ -57,38 +58,50 @@ export const useSidebarStore = create<SidebarState>()(
  * - moduleKey: the system_modules key that must be enabled (null = always visible)
  */
 export const NAV_ITEMS = [
-  { label: 'Dashboard', href: '/', icon: LayoutDashboard, permission: null, moduleKey: 'dashboard' },
-  { label: 'POS Terminal', href: '/pos', icon: ShoppingCart, permission: 'pos:create_order', moduleKey: 'pos' },
-  { label: 'Cashier Portal', href: '/pos/cashier', icon: Wallet, permission: 'pos:create_order', moduleKey: 'pos' },
-  { label: 'Sales History', href: '/sales', icon: FileText, permission: 'pos:create_order', moduleKey: 'pos' },
-  // { label: 'All Medicines',   href: '/inventory/medicines',     icon: Package, permission: 'inventory:view', moduleKey: 'inventory' },
-  { label: 'Add Medicine', href: '/inventory/medicines/add', icon: PlusCircle, permission: 'inventory:manage', moduleKey: 'inventory' },
-  { label: 'Inventory Core', href: '/inventory', icon: Package, permission: 'inventory:view', moduleKey: 'inventory' },
-  { label: 'Low Stock Alerts', href: '/inventory/low-stock', icon: AlertTriangle, permission: 'inventory:view', moduleKey: 'inventory' },
-  { label: 'Physical Audit', href: '/inventory/audit', icon: ClipboardList, permission: 'inventory:manage', moduleKey: 'inventory' },
-  { label: 'Purchases', href: '/purchase', icon: ShoppingBag, permission: 'purchase:view', moduleKey: 'purchase_orders' },
-  { label: 'Expenses', href: '/expenses', icon: ClipboardList, permission: 'profit:view', moduleKey: 'journals' },
-  { label: 'Customers', href: '/customers', icon: Users, permission: 'crm:view', moduleKey: 'customers' },
-  { label: 'Prescriptions', href: '/prescriptions', icon: Stethoscope, permission: 'prescription:view', moduleKey: 'digital_rx' },
-  { label: 'Analytics', href: '/analytics', icon: Activity, permission: 'analytics:view', moduleKey: 'analytics' },
-  { label: 'Reports', href: '/reports', icon: PieChart, permission: 'reports:view', moduleKey: 'reports' },
-  { label: 'Accounting', href: '/accounts', icon: DollarSign, permission: 'profit:view', moduleKey: 'journals' },
-  { label: 'HR & Payroll', href: '/hr', icon: UserCog, permission: 'settings:manage', moduleKey: 'employees' },
-  { label: 'Branches', href: '/branches', icon: Building2, permission: 'settings:manage', moduleKey: null },
-  { label: 'Compliance', href: '/compliance', icon: ClipboardList, permission: null, moduleKey: null },
-  { label: 'Audit Center', href: '/audit', icon: ShieldCheck, permission: null, moduleKey: null },
-  { label: 'Notifications', href: '/notifications', icon: Bell, permission: null, moduleKey: null },
-  { label: 'System', href: '/system', icon: Monitor, permission: 'settings:manage', moduleKey: null },
-  { label: 'Users & Roles', href: '/users', icon: Users, permission: 'users:manage', moduleKey: null },
-  { label: 'Roles', href: '/roles', icon: ShieldAlert, permission: 'users:manage', moduleKey: null },
-  { label: 'Settings', href: '/settings', icon: Settings, permission: 'settings:manage', moduleKey: null },
+  // ── Core ─────────────────────────────────────────────────────────────────────
+  { label: 'Dashboard',       href: '/',                          icon: LayoutDashboard, permission: 'dashboard:view',           moduleKey: 'dashboard' },
+  // ── POS & Sales ──────────────────────────────────────────────────────────────
+  { label: 'POS Terminal',    href: '/pos',                       icon: ShoppingCart,    permission: 'pos:create',              moduleKey: 'pos' },
+  { label: 'Cashier Portal',  href: '/pos/cashier',               icon: Wallet,          permission: 'cashier:view',            moduleKey: 'pos' },
+  { label: 'Sales History',   href: '/sales',                     icon: FileText,        permission: 'sales:view',              moduleKey: 'pos' },
+  // ── Inventory ─────────────────────────────────────────────────────────────────
+  { label: 'Add Medicine',    href: '/inventory/medicines/add',   icon: PlusCircle,      permission: 'medicines:create',        moduleKey: 'inventory' },
+  { label: 'Inventory Core',  href: '/inventory',                 icon: Package,         permission: 'inventory:view',          moduleKey: 'inventory' },
+  { label: 'Low Stock Alerts',href: '/inventory/low-stock',       icon: AlertTriangle,   permission: 'inventory:view',          moduleKey: 'inventory' },
+  { label: 'Physical Audit',  href: '/inventory/audit',           icon: ClipboardList,   permission: 'physical_audit:view',     moduleKey: 'inventory' },
+  // ── Purchase ──────────────────────────────────────────────────────────────────
+  { label: 'Purchases',       href: '/purchase',                  icon: ShoppingBag,     permission: 'purchase:view',           moduleKey: 'purchase_orders' },
+  // ── Finance ───────────────────────────────────────────────────────────────────
+  { label: 'Expenses',        href: '/expenses',                  icon: ClipboardList,   permission: 'expenses:view',           moduleKey: 'journals' },
+  { label: 'Accounting',      href: '/accounts',                  icon: DollarSign,      permission: 'accounting:view',         moduleKey: 'journals' },
+  // ── CRM ───────────────────────────────────────────────────────────────────────
+  { label: 'Customers',       href: '/customers',                 icon: Users,           permission: 'customers:view',          moduleKey: 'customers' },
+  { label: 'Marketing',       href: '/marketing',                 icon: Megaphone,       permission: 'marketing:view',          moduleKey: 'customers' },
+  // ── Clinical ──────────────────────────────────────────────────────────────────
+  { label: 'Prescriptions',   href: '/prescriptions',             icon: Stethoscope,     permission: 'prescriptions:view',      moduleKey: 'digital_rx' },
+  // ── Analytics & Reports ───────────────────────────────────────────────────────
+  { label: 'Analytics',       href: '/analytics',                 icon: Activity,        permission: 'analytics:view',          moduleKey: 'analytics' },
+  { label: 'Reports',         href: '/reports',                   icon: PieChart,        permission: 'reports:view',            moduleKey: 'reports' },
+  // ── HR ────────────────────────────────────────────────────────────────────────
+  { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',                 moduleKey: 'employees' },
+  // ── Org ───────────────────────────────────────────────────────────────────────
+  { label: 'Branches',        href: '/branches',                  icon: Building2,       permission: 'branches:view',           moduleKey: null },
+  // ── Compliance & Audit ────────────────────────────────────────────────────────
+  { label: 'Compliance',      href: '/compliance',                icon: ClipboardList,   permission: 'compliance:view',         moduleKey: null },
+  { label: 'Audit Center',    href: '/audit',                     icon: ShieldCheck,     permission: 'audit:view',              moduleKey: null },
+  // ── System ────────────────────────────────────────────────────────────────────
+  { label: 'Notifications',   href: '/notifications',             icon: Bell,            permission: 'notifications:view',      moduleKey: null },
+  { label: 'System',          href: '/system',                    icon: Monitor,         permission: 'system_health:view',      moduleKey: null },
+  { label: 'Users & Roles',   href: '/users',                     icon: Users,           permission: 'users:view',              moduleKey: null },
+  { label: 'Roles',           href: '/roles',                     icon: ShieldAlert,     permission: 'roles:view',              moduleKey: null },
+  { label: 'Settings',        href: '/settings',                  icon: Settings,        permission: 'settings:view',           moduleKey: null },
 ];
+
 
 export function Sidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const { user } = useAuthStore();
-  const { isModuleEnabled, isLoading: modulesLoading } = useModules();
 
   const { data: lowStockData } = useLowStockAlerts({ skip: 0, limit: 1 });
   const lowStockCount = lowStockData?.total || 0;
@@ -97,15 +110,10 @@ export function Sidebar() {
   const userPermissions: string[] = user?.permissions || [];
 
   const visibleItems = NAV_ITEMS.filter((item) => {
-    // 1. RBAC check
+    // 1. RBAC check (Strict adherence to RBAC 3.0 permission codes)
     const hasWildcard = userPermissions.includes('*');
     if (item.permission && !isSuperAdmin && !hasWildcard && !userPermissions.includes(item.permission)) {
       return false;
-    }
-
-    // 2. Module enabled check (Super Admin always sees all)
-    if (item.moduleKey && !isSuperAdmin) {
-      if (!isModuleEnabled(item.moduleKey)) return false;
     }
 
     return true;

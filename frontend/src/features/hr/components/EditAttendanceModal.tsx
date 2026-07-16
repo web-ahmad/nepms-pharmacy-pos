@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 import { Attendance } from '../types/hr';
 import { useUpdateAttendance } from '../services/hr.api';
+import { parseApiError } from '@/utils/errorParser';
 
 const schema = z.object({
   clock_in_time: z.string().optional(),
@@ -111,7 +112,7 @@ export default function EditAttendanceModal({
       toast.success('Attendance updated successfully');
       onClose();
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Failed to update attendance');
+      toast.error(parseApiError(err));
     } finally {
       setIsSubmitting(false);
     }

@@ -431,7 +431,8 @@ def create_purchase_request(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user)
 ):
-    return PurchaseService.create_purchase_request(db, req_in, scope.tenant_id, scope.branch_id, current_user.id)
+    result = PurchaseService.create_purchase_request(db, req_in, scope.tenant_id, scope.branch_id, current_user.id)
+    return PurchaseService._enrich_request(db, result)
 
 @router.post("/quotations", response_model=PurchaseQuotationResponse)
 def create_purchase_quotation(
@@ -458,4 +459,193 @@ def receive_enterprise_grn(
     current_user: User = Depends(get_current_user)
 ):
     return PurchaseService.receive_enterprise_grn(db, rec_in, scope.tenant_id, scope.branch_id, current_user.id)
+
+
+
+@router.get("/requests", response_model=List[PurchaseRequestResponse])
+def get_purchase_requests(
+    skip: int = 0, limit: int = 100,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    return PurchaseService.get_purchase_requests(db, scope.tenant_id, scope.branch_id, skip, limit)
+
+@router.get("/requests/{id}", response_model=PurchaseRequestResponse)
+def get_purchase_request(
+    id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    req = PurchaseService.get_purchase_request(db, id, scope.tenant_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Purchase Request not found")
+    return req
+
+@router.get("/quotations", response_model=List[PurchaseQuotationResponse])
+def get_purchase_quotations(
+    request_id: Optional[str] = None,
+    skip: int = 0, limit: int = 100,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    return PurchaseService.get_purchase_quotations(db, scope.tenant_id, request_id, skip, limit)
+
+@router.get("/quotations/{id}", response_model=PurchaseQuotationResponse)
+def get_purchase_quotation(
+    id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    quot = PurchaseService.get_purchase_quotation(db, id, scope.tenant_id)
+    if not quot:
+        raise HTTPException(status_code=404, detail="Purchase Quotation not found")
+    return quot
+
+@router.get("/approvals", response_model=List[PurchaseApprovalResponse])
+def get_po_approvals(
+    po_id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    return PurchaseService.get_po_approvals(db, po_id, scope.tenant_id)
+
+@router.get("/receiving", response_model=List[PurchaseReceivingResponse])
+def get_purchase_receivings(
+    po_id: Optional[str] = None,
+    skip: int = 0, limit: int = 100,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    return PurchaseService.get_purchase_receivings(db, scope.tenant_id, po_id, skip, limit)
+
+@router.get("/receiving/{id}", response_model=PurchaseReceivingResponse)
+def get_purchase_receiving(
+    id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    recv = PurchaseService.get_purchase_receiving(db, id, scope.tenant_id)
+    if not recv:
+        raise HTTPException(status_code=404, detail="Purchase Receiving not found")
+    return recv
+
+
+# =====================================================================
+# Enterprise Procurement Workflow Endpoints
+# =====================================================================
+
+from schemas.purchase import (
+    PurchaseApprovalMatrixCreate, PurchaseApprovalMatrixResponse,
+    PurchaseTimelineResponse, PurchaseApprovalRequest
+)
+
+@router.post("/matrix", response_model=PurchaseApprovalMatrixResponse)
+def create_approval_matrix(
+    matrix_in: PurchaseApprovalMatrixCreate,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    token_payload: dict = Depends(requires_permission("purchase:matrix:manage"))
+):
+    from models.purchase import PurchaseApprovalMatrix
+    db_matrix = PurchaseApprovalMatrix(
+        tenant_id=scope.tenant_id,
+        branch_id=scope.branch_id,
+        level=matrix_in.level,
+        role_name=matrix_in.role_name,
+        amount_threshold=matrix_in.amount_threshold
+    )
+    db.add(db_matrix)
+    db.commit()
+    db.refresh(db_matrix)
+    return db_matrix
+
+@router.get("/matrix", response_model=List[PurchaseApprovalMatrixResponse])
+def get_approval_matrix(
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    from models.purchase import PurchaseApprovalMatrix
+    return db.query(PurchaseApprovalMatrix).filter(
+        PurchaseApprovalMatrix.tenant_id == scope.tenant_id,
+        PurchaseApprovalMatrix.is_deleted == False
+    ).order_by(PurchaseApprovalMatrix.level.asc()).all()
+
+@router.get("/requests/{id}/timeline", response_model=List[PurchaseTimelineResponse])
+def get_purchase_timeline(
+    id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    from models.purchase import PurchaseTimeline
+    return db.query(PurchaseTimeline).filter(
+        PurchaseTimeline.tenant_id == scope.tenant_id,
+        PurchaseTimeline.reference_id == id,
+        PurchaseTimeline.is_deleted == False
+    ).order_by(PurchaseTimeline.timestamp.asc()).all()
+
+@router.post("/requests/{id}/approve", response_model=PurchaseRequestResponse)
+def approve_purchase_request(
+    id: str,
+    req_in: PurchaseApprovalRequest,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user),
+    token_payload: dict = Depends(requires_permission("purchase:request:approve"))
+):
+    # Determine role (for simplicity, using a mock role or parsing token)
+    user_role = current_user.role if current_user.role else "Super Admin" # Fallback if undefined
+    result = PurchaseService.approve_purchase_request(
+        db=db,
+        request_id=id,
+        tenant_id=scope.tenant_id,
+        user_id=current_user.id,
+        user_role=user_role,
+        status=req_in.status,
+        remarks=req_in.remarks
+    )
+    return PurchaseService._enrich_request(db, result)
+
+@router.post("/requests/{id}/convert", response_model=PurchaseOrderResponse)
+def convert_request_to_po(
+    id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user),
+    token_payload: dict = Depends(requires_permission("purchase:request:approve"))
+):
+    return PurchaseService.convert_request_to_po(
+        db=db,
+        request_id=id,
+        tenant_id=scope.tenant_id,
+        branch_id=scope.branch_id,
+        user_id=current_user.id
+    )
+
+@router.post("/quotations/{id}/convert", response_model=PurchaseOrderResponse)
+def convert_quotation_to_po(
+    id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user),
+    token_payload: dict = Depends(requires_permission("purchase:order:create"))
+):
+    return PurchaseService.convert_quotation_to_po(
+        db=db,
+        quotation_id=id,
+        tenant_id=scope.tenant_id,
+        branch_id=scope.branch_id,
+        user_id=current_user.id
+    )
+
+@router.get("/requests/{id}/quotations/compare", response_model=List[PurchaseQuotationResponse])
+def compare_quotations(
+    id: str,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user)
+):
+    # This acts as a specialized query or we can just reuse get_purchase_quotations
+    return PurchaseService.get_purchase_quotations(db, tenant_id=scope.tenant_id, request_id=id)
 

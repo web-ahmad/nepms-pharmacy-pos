@@ -14,7 +14,7 @@ def get_payroll_settings(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    tenant_id = scope.tenant_id
+    tenant_id = current_user.tenant_id
     settings = db.query(PayrollSetting).filter(PayrollSetting.tenant_id == tenant_id).all()
     
     # We also need employee_name for UI
@@ -33,7 +33,7 @@ def create_payroll_setting(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    tenant_id = scope.tenant_id
+    tenant_id = current_user.tenant_id
     
     existing = db.query(PayrollSetting).filter(PayrollSetting.employee_id == obj_in.employee_id).first()
     if existing:
@@ -60,7 +60,7 @@ def update_payroll_setting(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    tenant_id = scope.tenant_id
+    tenant_id = current_user.tenant_id
     
     setting = db.query(PayrollSetting).filter(PayrollSetting.id == setting_id, PayrollSetting.tenant_id == tenant_id).first()
     if not setting:
@@ -84,7 +84,7 @@ def delete_payroll_setting(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    tenant_id = scope.tenant_id
+    tenant_id = current_user.tenant_id
     
     setting = db.query(PayrollSetting).filter(PayrollSetting.id == setting_id, PayrollSetting.tenant_id == tenant_id).first()
     if not setting:

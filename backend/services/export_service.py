@@ -6,7 +6,10 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from models.audit import AuditEvent
+from models.users import User
 
 class ExportService:
     @staticmethod
@@ -83,8 +86,36 @@ class ExportService:
         return response
         
     @classmethod
-    def dispatch_export(cls, export_format: str, title: str, headers: List[str], rows: List[Dict[str, Any]]) -> StreamingResponse:
+    def dispatch_export(
+        cls, 
+        export_format: str, 
+        title: str, 
+        headers: List[str], 
+        rows: List[Dict[str, Any]],
+        db: Optional[Session] = None,
+        user: Optional[User] = None,
+        branch_id: Optional[str] = None,
+        ip_address: Optional[str] = None
+    ) -> StreamingResponse:
         fmt = export_format.lower()
+        
+        # Log Audit Event if db and user are provided
+        if db and user:
+            audit = AuditEvent(
+                branch_id=branch_id or getattr(user, 'branch_id', 'SYSTEM'),
+                staff_id=user.id,
+                event_type="REPORT_EXPORT",
+                metadata_={
+                    "report_name": title,
+                    "export_type": fmt,
+                    "ip_address": ip_address,
+                    "row_count": len(rows)
+                },
+                severity="low"
+            )
+            db.add(audit)
+            db.commit()
+
         if fmt == "csv":
             return cls.export_csv(title, headers, rows)
         elif fmt == "excel" or fmt == "xlsx":

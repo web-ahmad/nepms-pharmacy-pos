@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { BranchSettingsOverview } from '@/features/branches/types/branchConfig';
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   branchId: string;
@@ -47,7 +48,7 @@ export default function WorkingHoursTab({ branchId, data, refetch }: Props) {
       toast.success('Working hours updated successfully');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to update working hours');
+      toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
     }

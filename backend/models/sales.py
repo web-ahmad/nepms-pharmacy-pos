@@ -168,6 +168,14 @@ class PromotionCampaign(BaseModel):
     discount_value = Column(Float, default=0.0)
     is_active = Column(Boolean, default=True)
 
+    # CRM Phase 9 Targeting
+    target_customer_id = Column(String(36), ForeignKey("customers.id"), nullable=True)
+    target_loyalty_tier = Column(String(50), nullable=True)
+    target_segment_id = Column(String(50), nullable=True) # Logical string or FK
+    
+    created_by = Column(String(36), nullable=True)
+    updated_by = Column(String(36), nullable=True)
+
 
 class Coupon(BaseModel):
     __tablename__ = "coupons"
@@ -181,6 +189,13 @@ class Coupon(BaseModel):
     expiry_date = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
 
+    # CRM Phase 9 Extensions
+    stacking_rules = Column(Text, nullable=True) # JSON or descriptive string
+    max_usage_per_customer = Column(Integer, default=1)
+    
+    created_by = Column(String(36), nullable=True)
+    updated_by = Column(String(36), nullable=True)
+
 
 class GiftVoucher(BaseModel):
     __tablename__ = "gift_vouchers"
@@ -193,6 +208,13 @@ class GiftVoucher(BaseModel):
     issue_date = Column(DateTime, nullable=False)
     expiry_date = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
+
+    # CRM Phase 9 Extensions
+    partial_usage_allowed = Column(Boolean, default=True)
+    redemption_history = Column(Text, nullable=True) # JSON dump of redemptions
+    
+    created_by = Column(String(36), nullable=True)
+    updated_by = Column(String(36), nullable=True)
 
 
 class CustomerCredit(BaseModel):

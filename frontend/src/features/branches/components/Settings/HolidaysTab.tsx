@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { BranchSettingsOverview, BranchHoliday } from '@/features/branches/types/branchConfig';
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
 import { Badge } from '@/components/ui/badge';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   branchId: string;
@@ -52,7 +53,7 @@ export default function HolidaysTab({ branchId, data, refetch }: Props) {
       setIsOpen(false);
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to save holiday');
+      toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
     }
@@ -65,7 +66,7 @@ export default function HolidaysTab({ branchId, data, refetch }: Props) {
       toast.success('Holiday deleted');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to delete');
+      toast.error(parseApiError(err));
     }
   };
 

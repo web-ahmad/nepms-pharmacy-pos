@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { BranchSettingsOverview } from '@/features/branches/types/branchConfig';
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
+import { parseApiError } from '@/utils/errorParser';
 
 const generalSchema = z.object({
   timezone: z.string().min(1, 'Timezone is required'),
@@ -73,7 +74,7 @@ export default function GeneralTab({ branchId, data, refetch }: Props) {
       toast.success('Configuration saved successfully');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to save configuration');
+      toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
     }

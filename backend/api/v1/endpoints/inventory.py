@@ -32,6 +32,9 @@ class MedicinePaginatedResponse(BaseModel):
 from datetime import date, timedelta
 from sqlalchemy import func
 
+from sqlalchemy.orm import contains_eager
+from sqlalchemy import and_
+
 @router.get("/medicines", response_model=MedicinePaginatedResponse)
 def list_or_search_medicines(
     search_term: Optional[str] = None,
@@ -49,10 +52,18 @@ def list_or_search_medicines(
     """
     List all medicines with optional search and filters.
     """
-    query = db.query(Medicine).options(joinedload(Medicine.batches), joinedload(Medicine.packaging_levels)).filter(
+    query = db.query(Medicine).options(joinedload(Medicine.packaging_levels)).filter(
         Medicine.is_deleted == False,
         or_(Medicine.tenant_id == scope.tenant_id, Medicine.tenant_id == None)
     )
+    
+    if scope.branch_id:
+        query = query.filter(Medicine.batches.any(and_(Batch.branch_id == scope.branch_id, Batch.is_deleted == False)))
+        query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == scope.branch_id, Batch.is_deleted == False))
+    else:
+        query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.is_deleted == False))
+        
+    query = query.options(contains_eager(Medicine.batches))
 
     if search_term:
         query = query.filter(or_(
@@ -83,6 +94,9 @@ def list_or_search_medicines(
         )
         if warehouse_id:
             batch_stats = batch_stats.filter(Batch.warehouse_id == warehouse_id)
+            
+        if scope.branch_id:
+            batch_stats = batch_stats.filter(Batch.branch_id == scope.branch_id)
             
         batch_stats = batch_stats.group_by(Batch.medicine_id).subquery()
         
@@ -149,7 +163,17 @@ def create_medicine(
                 db.flush()
             data["category_id"] = cat.id
 
-        med = Medicine(**data, tenant_id=scope.tenant_id)
+        valid_columns = {c.name for c in Medicine.__table__.columns}
+        UNIQUE_FIELDS = {'sku', 'barcode', 'slug', 'internal_product_code', 'qr_code'}
+        
+        filtered_data = {}
+        for field, value in data.items():
+            if field in valid_columns and field not in ['id', 'tenant_id', 'created_at', 'updated_at']:
+                if field in UNIQUE_FIELDS and value == '':
+                    value = None
+                filtered_data[field] = value
+
+        med = Medicine(**filtered_data, tenant_id=scope.tenant_id)
         
         if substitute_ids:
             subs = db.query(Medicine).filter(Medicine.id.in_(substitute_ids)).all()
@@ -229,13 +253,17 @@ def create_medicine(
             if total_value > 0:
                 from services.auto_posting_service import AutoPostingService
                 auto_poster = AutoPostingService(db)
-                auto_poster.post_opening_stock(
-                    tenant_id=scope.tenant_id,
-                    user_id=current_user.id,
-                    reference=f"OPENING-MED-{med.id[:8]}",
-                    amount=total_value,
-                    description=f"Opening Stock for {med.name}"
-                )
+                try:
+                    auto_poster.post_opening_stock(
+                        tenant_id=scope.tenant_id,
+                        user_id=current_user.id,
+                        reference=f"OPENING-MED-{med.id[:8]}",
+                        amount=total_value,
+                        description=f"Opening Stock for {med.name}"
+                    )
+                except ValueError as e:
+                    db.rollback()
+                    raise HTTPException(status_code=400, detail=str(e))
             
         db.commit()
         db.refresh(med)
@@ -507,6 +535,11 @@ def bulk_import_medicines(
             db.flush()
 
             if initial_batch and initial_batch.current_stock > 0:
+                if not initial_batch.purchase_price or initial_batch.purchase_price <= 0:
+                    db.rollback()
+                    failed_items.append({"name": medicine_in.name, "reason": "Purchase Price is required when opening stock is > 0"})
+                    continue
+
                 batch = Batch(
                     tenant_id=scope.tenant_id,
                     branch_id=scope.branch_id,
@@ -516,6 +549,7 @@ def bulk_import_medicines(
                     expiry_date=initial_batch.expiry_date,
                     supplier_id=initial_batch.supplier_id,
                     purchase_invoice_id=initial_batch.purchase_invoice_id,
+                    purchase_price=initial_batch.purchase_price,
                     mrp=initial_batch.mrp,
                     initial_quantity=initial_batch.current_stock,
                     current_quantity=initial_batch.current_stock,
@@ -542,6 +576,21 @@ def bulk_import_medicines(
                     bin_id=initial_batch.bin_id
                 )
                 db.add(movement)
+                
+                # Auto Posting for Opening Stock
+                total_value = initial_batch.current_stock * initial_batch.purchase_price
+                if total_value > 0:
+                    from services.auto_posting_service import AutoPostingService
+                    auto_posting = AutoPostingService(db)
+                    auto_posting.post_opening_stock(
+                        tenant_id=scope.tenant_id,
+                        user_id=current_user.id,
+                        reference=f"OPEN-{batch.batch_number}",
+                        amount=total_value,
+                        branch_id=scope.branch_id,
+                        source_module="Inventory",
+                        source_id=batch.id
+                    )
             
             db.commit()
             success_count += 1
@@ -652,3 +701,4 @@ def adjust_stock(
     db.commit()
     db.refresh(movement)
     return movement
+

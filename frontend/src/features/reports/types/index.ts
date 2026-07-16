@@ -4,6 +4,7 @@ export interface DateRangeParams {
   period?: string;
   cashier_id?: string;
   branch_id?: string;
+  warehouse_id?: string;
   export?: string;
   expired?: boolean;
 }

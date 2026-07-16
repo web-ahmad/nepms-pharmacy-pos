@@ -20,6 +20,8 @@ def create_access_token(
     permissions: List[str] = [],
     pharmacy_id: str = "",          # ← SaaS: caller's pharmacy UUID
     is_super_admin: bool = False,   # ← SaaS: platform super-admin bypass
+    branch_scope: str = "assigned_branch",
+    data_scope: str = "branch",
     expires_delta: timedelta = None,
 ) -> str:
     if expires_delta:
@@ -37,6 +39,8 @@ def create_access_token(
         "permissions":    permissions,
         "pharmacy_id":    pharmacy_id,      # ← NEW
         "is_super_admin": is_super_admin,   # ← NEW
+        "branch_scope":   branch_scope,
+        "data_scope":     data_scope,
     }
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt

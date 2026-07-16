@@ -26,6 +26,7 @@ class InitialBatch(BaseModel):
     expiry_date: date
     supplier_id: Optional[str] = None
     purchase_invoice_id: Optional[str] = None
+    purchase_price: Optional[float] = 0.0
     mrp: Optional[float] = None
     current_stock: int
     warehouse_id: Optional[str] = None
@@ -74,13 +75,13 @@ class MedicineBase(BaseModel):
     is_controlled: Optional[bool] = False
     barcode: Optional[str] = None
     
-    cost_per_base_unit: float = 0.0
-    margin_percent: float = 0.0
-    mrp: float = 0.0
-    tax_rate: float = 0.0
+    cost_per_base_unit: Optional[float] = 0.0
+    margin_percent: Optional[float] = 0.0
+    mrp: Optional[float] = 0.0
+    tax_rate: Optional[float] = 0.0
     
-    min_stock_level: int = 0
-    max_stock_level: int = 0
+    min_stock_level: Optional[int] = 100
+    max_stock_level: Optional[int] = 500
     reorder_level: Optional[int] = None
     is_active: Optional[bool] = True
     shelf: Optional[str] = None
@@ -229,10 +230,10 @@ class BatchBase(BaseModel):
     medicine_id: str
     manufacturing_date: Optional[date] = None
     expiry_date: date
-    purchase_price: float = 0.0
+    purchase_price: Optional[float] = 0.0
     mrp: Optional[float] = None
-    current_quantity: int = 0
-    reserved_quantity: int = 0
+    current_quantity: Optional[int] = 0
+    reserved_quantity: Optional[int] = 0
     supplier_id: Optional[str] = None
     purchase_invoice_id: Optional[str] = None
     status: str = "Active"
@@ -246,15 +247,15 @@ class BatchCreate(BatchBase):
 class BatchResponse(BatchBase):
     id: str
     branch_id: Optional[str] = None
-    available_quantity: int
-    selling_price: float = 0.0
+    available_quantity: Optional[int] = 0
+    selling_price: Optional[float] = 0.0
     model_config = ConfigDict(from_attributes=True)
 
 class MedicineResponse(MedicineBase):
     id: str
-    tenant_id: str
-    total_quantity: int
-    stock_value: float
+    tenant_id: Optional[str] = None
+    total_quantity: Optional[int] = 0
+    stock_value: Optional[float] = 0.0
     packaging_levels: List[PackagingLevelResponse] = []
     batches: Optional[List[BatchResponse]] = []
     model_config = ConfigDict(from_attributes=True)

@@ -54,9 +54,14 @@ def list_permissions(
     pid = _resolve_pid(scope)
     # Seed if not present
     role_repository.seed_permissions(db, pid)
-    all_perms = role_repository.get_all_permissions(db)
+    all_perms = role_repository.get_all_permissions(db, pid)
+    # Deduplicate by code (safety net against any DB duplicates)
+    seen_codes: set = set()
     grouped: dict = {}
     for p in all_perms:
+        if p.code in seen_codes:
+            continue
+        seen_codes.add(p.code)
         if p.module not in grouped:
             grouped[p.module] = []
         grouped[p.module].append(PermissionRead(
@@ -90,6 +95,9 @@ def list_roles(
             icon=r.icon,
             is_system_default=r.is_system_default,
             user_type=r.user_type,
+            branch_scope=getattr(r, 'branch_scope', None),
+            data_scope=getattr(r, 'data_scope', None),
+            sort_order=r.sort_order,
             permission_count=len(r.role_permissions),
             user_count=user_count,
             created_at=r.created_at,
@@ -214,6 +222,34 @@ def seed_defaults(
     }
 
 
+@router.post("/seed-enterprise", status_code=status.HTTP_200_OK, summary="Seed Enterprise RBAC 3.0 — 85 modules, ~800 permissions, 27 roles")
+def seed_enterprise(
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    db: Session = Depends(get_db),
+    _: dict = Depends(requires_permission("settings:manage")),
+):
+    """
+    Idempotent enterprise seed endpoint.
+    - Seeds all ~800 permissions from the 85-module catalog.
+    - Seeds all 27 default enterprise roles with scopes.
+    - Safe to run multiple times — adds only what is missing.
+    """
+    pid = _resolve_pid(scope)
+    perms_created = role_repository.seed_permissions(db, pid)
+    roles_created = role_repository.seed_default_roles(db, pid)
+    # Count totals in DB after seeding
+    all_perms = role_repository.get_all_permissions(db, pid)
+    roles_total, _ = role_repository.get_list(db, pid, limit=500)
+    return {
+        "status": "ok",
+        "permissions_created": len(perms_created),
+        "permissions_total": len(all_perms),
+        "roles_created": len(roles_created),
+        "roles_total": len(roles_total),
+        "message": f"Enterprise RBAC 3.0 seed complete. {len(perms_created)} new permissions, {len(roles_created)} new roles.",
+    }
+
+
 # ── Helper ────────────────────────────────────────────────────────────────────
 
 def _build_role_read(db: Session, role) -> RoleRead:
@@ -231,6 +267,13 @@ def _build_role_read(db: Session, role) -> RoleRead:
         for rp in (role.role_permissions or [])
         if rp.permission
     ]
+    # Deduplicate by code
+    seen: set = set()
+    unique_perms = []
+    for p in perms:
+        if p.code not in seen:
+            seen.add(p.code)
+            unique_perms.append(p)
     return RoleRead(
         id=role.id,
         name=role.name,
@@ -242,10 +285,12 @@ def _build_role_read(db: Session, role) -> RoleRead:
         user_type=role.user_type,
         max_users=role.max_users,
         sort_order=role.sort_order,
+        branch_scope=getattr(role, 'branch_scope', None),
+        data_scope=getattr(role, 'data_scope', None),
         pharmacy_id=role.pharmacy_id,
-        permission_count=len(perms),
+        permission_count=len(unique_perms),
         user_count=user_count,
-        permissions=perms,
+        permissions=unique_perms,
         created_at=role.created_at,
         updated_at=role.updated_at,
     )

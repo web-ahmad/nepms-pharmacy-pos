@@ -9,6 +9,7 @@ import { BranchSettingsOverview, BranchWarehouse } from '@/features/branches/typ
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   branchId: string;
@@ -53,7 +54,7 @@ export default function WarehousesTab({ branchId, data, refetch }: Props) {
       setIsOpen(false);
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to save warehouse');
+      toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
     }
@@ -66,7 +67,7 @@ export default function WarehousesTab({ branchId, data, refetch }: Props) {
       toast.success('Warehouse deleted');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to delete');
+      toast.error(parseApiError(err));
     }
   };
 
@@ -76,7 +77,7 @@ export default function WarehousesTab({ branchId, data, refetch }: Props) {
       toast.success('Default warehouse updated');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to set default');
+      toast.error(parseApiError(err));
     }
   };
 

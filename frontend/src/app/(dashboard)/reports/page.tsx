@@ -2,20 +2,24 @@
 
 import Link from 'next/link';
 import { BarChart3, TrendingUp, Package, Users, Activity, FileText } from 'lucide-react';
+import { useAuthStore } from '@/stores/auth-store';
 
 export default function ReportsHubPage() {
+  const { user } = useAuthStore();
   const reports = [
-    { name: 'Sales Reports', href: '/reports/sales', icon: TrendingUp, desc: 'Daily, weekly, custom sales trends, and breakdown by medicine or category.' },
-    { name: 'Purchase Reports', href: '/reports/purchases', icon: BarChart3, desc: 'Supplier performance, outstanding payables, and historical purchase summaries.' },
-    { name: 'Inventory Reports', href: '/reports/inventory', icon: Package, desc: 'Real-time stock valuation, low stock alerts, and expiry tracking.' },
-    { name: 'Customer Reports', href: '/reports/customers', icon: Users, desc: 'Loyalty point liabilities, outstanding balances, and customer ledger summaries.' },
-    { name: 'Prescription Reports', href: '/reports/prescriptions', icon: Activity, desc: 'Prescription volume by doctor, active vs expired counts.' },
-    { name: 'Financial Reports', href: '/reports/financial', icon: FileText, desc: 'Profit and Loss statements, revenue trends, and gross margin analysis.' },
+    { name: 'Sales Reports', href: '/reports/sales', icon: TrendingUp, desc: 'Daily, weekly, custom sales trends, and breakdown by medicine or category.', permission: 'reports.sales' },
+    { name: 'Purchase Reports', href: '/reports/purchases', icon: BarChart3, desc: 'Supplier performance, outstanding payables, and historical purchase summaries.', permission: 'reports.purchases' },
+    { name: 'Inventory Reports', href: '/reports/inventory', icon: Package, desc: 'Real-time stock valuation, low stock alerts, and expiry tracking.', permission: 'reports.inventory' },
+    { name: 'Customer Reports', href: '/reports/customers', icon: Users, desc: 'Loyalty point liabilities, outstanding balances, and customer ledger summaries.', permission: 'reports.customers' },
+    { name: 'Prescription Reports', href: '/reports/prescriptions', icon: Activity, desc: 'Prescription volume by doctor, active vs expired counts.', permission: 'reports.sales' },
+    { name: 'Financial Reports', href: '/reports/financial', icon: FileText, desc: 'Profit and Loss statements, revenue trends, and gross margin analysis.', permission: 'reports.financial' },
   ];
+
+  const allowedReports = reports.filter(r => !r.permission || (user?.permissions || []).includes(r.permission) || (user?.role === 'super_admin' || user?.role === 'admin'));
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {reports.map((report) => {
+      {allowedReports.map((report) => {
         const Icon = report.icon;
         return (
           <Link

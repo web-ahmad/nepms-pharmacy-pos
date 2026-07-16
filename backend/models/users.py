@@ -84,6 +84,8 @@ class Role(BaseModel):
     name = Column(String(100), nullable=False)
     description = Column(Text)
     is_system_default = Column(Boolean, default=False)
+    branch_scope = Column(String(50), nullable=True, default="assigned_branch")
+    data_scope = Column(String(50), nullable=True, default="branch")
     
     users = relationship("User", back_populates="role")
     role_permissions = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
@@ -107,15 +109,55 @@ class User(BaseModel):
 
     branches = relationship("UserBranch", back_populates="user")
 
+    enterprise_user = relationship("EnterpriseUser", back_populates="user", uselist=False, primaryjoin="User.id == foreign(EnterpriseUser.user_id)")
+
     @property
     def permissions(self):
         if self.is_super_admin:
             return ["*"]
+        
+        # Check enterprise profile first
+        eu = getattr(self, "enterprise_user", None)
+        if eu and eu.enterprise_role:
+            if eu.enterprise_role.name == "Pharmacy Owner":
+                return ["*"]
+            return [rp.permission.code for rp in eu.enterprise_role.role_permissions if rp.permission]
+
         if self.role and self.role.name == "Pharmacy Owner":
             return ["*"]
         if self.role and self.role.role_permissions:
             return [rp.permission.code for rp in self.role.role_permissions if rp.permission]
         return []
+
+    @property
+    def branch_scope(self):
+        if self.is_super_admin:
+            return "global"
+            
+        eu = getattr(self, "enterprise_user", None)
+        if eu and eu.enterprise_role:
+            if eu.enterprise_role.name == "Pharmacy Owner":
+                return "global"
+            return eu.enterprise_role.branch_scope or "assigned_branch"
+            
+        if self.role and self.role.name == "Pharmacy Owner":
+            return "global"
+        return self.role.branch_scope if self.role else "assigned_branch"
+
+    @property
+    def data_scope(self):
+        if self.is_super_admin:
+            return "global"
+            
+        eu = getattr(self, "enterprise_user", None)
+        if eu and eu.enterprise_role:
+            if eu.enterprise_role.name == "Pharmacy Owner":
+                return "tenant"
+            return eu.enterprise_role.data_scope or "own_records"
+            
+        if self.role and self.role.name == "Pharmacy Owner":
+            return "tenant"
+        return self.role.data_scope if self.role else "own_records"
 
 class UserBranch(BaseModel):
     __tablename__ = "user_branches"

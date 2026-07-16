@@ -3,12 +3,16 @@ import { useLedger } from '@/features/accounts/services/accounts.api';
 import GeneralLedgerTable from '@/features/accounts/components/GeneralLedgerTable';
 import { BookOpen } from 'lucide-react';
 import AccountingFilterBar from '@/features/accounts/components/AccountingFilterBar';
-import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useState, Suspense } from 'react';
 
-export default function GeneralLedgerPage() {
+function GeneralLedgerContent() {
+  const searchParams = useSearchParams();
+  const initialAccountId = searchParams.get('account_id') || '';
+  
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [searchRef, setSearchRef] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState(initialAccountId);
 
   const { data, isLoading, refetch } = useLedger({
     start_date: dateRange.start || undefined,
@@ -43,5 +47,13 @@ export default function GeneralLedgerPage() {
 
       <GeneralLedgerTable data={data!} isLoading={isLoading} searchRef={searchRef} />
     </div>
+  );
+}
+
+export default function GeneralLedgerPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse h-48 rounded-xl bg-zinc-100 dark:bg-zinc-900" />}>
+      <GeneralLedgerContent />
+    </Suspense>
   );
 }

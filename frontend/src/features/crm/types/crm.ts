@@ -18,6 +18,22 @@ export interface Customer {
   is_active?: boolean;
   created_at: string;
   updated_at: string;
+
+  // Phase 9 CRM Fields
+  preferred_branch_id?: string;
+  preferred_language?: string;
+  marketing_opt_in?: boolean;
+  whatsapp_opt_in?: boolean;
+  email_opt_in?: boolean;
+  sms_opt_in?: boolean;
+  anniversary?: string;
+  occupation?: string;
+  risk_score?: number;
+  last_visit?: string;
+  lifetime_value?: number;
+  average_basket?: number;
+  total_orders?: number;
+  total_returns?: number;
 }
 
 export interface CustomerLedger {
@@ -76,4 +92,90 @@ export interface CustomerPaymentPayload {
 export interface LoyaltyRedeemPayload {
   points_to_redeem: number;
   reason?: string;
+}
+
+// ── Phase 9 CRM Extensions ────────────────────────────────────────────────
+
+export interface WalletTransaction {
+  id: string;
+  transaction_date: string;
+  amount: number;
+  transaction_type: string;
+  opening_balance: number;
+  closing_balance: number;
+  notes?: string;
+}
+
+export interface CustomerWallet {
+  id: string;
+  balance: number;
+  available_balance: number;
+  pending_balance: number;
+  currency: string;
+  last_transaction_at?: string;
+  transactions: WalletTransaction[];
+}
+
+export interface WalletTransactionCreate {
+  amount: number;
+  transaction_type: string;
+  notes?: string;
+  source_module?: string;
+  source_id?: string;
+}
+
+export interface TimelineItem {
+  date: string;
+  type: string;
+  title: string;
+  description?: string;
+  reference_id?: string;
+  amount?: number;
+  points?: number;
+}
+
+export interface CustomerSegment {
+  segment_name: string;
+  calculated_at: string;
+}
+
+export interface MarketingCampaign {
+  id: string;
+  name: string;
+  channel: string;
+  target_audience_type: string;
+  target_segment?: string;
+  target_loyalty_tier?: string;
+  template_body: string;
+  schedule_date?: string;
+  status: string;
+  campaign_code?: string;
+  estimated_reach: number;
+  sent_count: number;
+  delivered_count: number;
+  failed_count: number;
+  opened_count: number;
+  clicked_count: number;
+  conversion_count: number;
+  created_at: string;
+}
+
+export interface MarketingCampaignCreate {
+  name: string;
+  channel: string;
+  target_audience_type: string;
+  target_segment?: string;
+  target_loyalty_tier?: string;
+  template_body: string;
+  schedule_date?: string;
+  status?: string;
+}
+
+export interface CustomerReferral {
+  id: string;
+  referral_code: string;
+  referred_id?: string;
+  status: string;
+  reward_issued: boolean;
+  reward_date?: string;
 }

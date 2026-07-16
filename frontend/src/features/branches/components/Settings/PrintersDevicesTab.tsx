@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { BranchSettingsOverview, BranchPrinter, BranchDevice } from '@/features/branches/types/branchConfig';
 import { branchConfigService } from '@/features/branches/services/branchConfigService';
 import { Badge } from '@/components/ui/badge';
+import { parseApiError } from '@/utils/errorParser';
 
 interface Props {
   branchId: string;
@@ -59,7 +60,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       setIsPrinterOpen(false);
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to save printer');
+      toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
     }
@@ -72,7 +73,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       toast.success('Printer deleted');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to delete');
+      toast.error(parseApiError(err));
     }
   };
 
@@ -82,7 +83,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       toast.success('Default printer updated');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to set default');
+      toast.error(parseApiError(err));
     }
   };
 
@@ -102,7 +103,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       setIsDeviceOpen(false);
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to update device');
+      toast.error(parseApiError(err));
     } finally {
       setIsSaving(false);
     }
@@ -115,7 +116,7 @@ export default function PrintersDevicesTab({ branchId, data, refetch }: Props) {
       toast.success('Device deleted');
       refetch();
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to delete');
+      toast.error(parseApiError(err));
     }
   };
 
