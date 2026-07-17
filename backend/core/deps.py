@@ -90,8 +90,9 @@ class requires_permission:
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
             permissions = payload.get("permissions", [])
             role = payload.get("role", "")
+            is_sa = payload.get("is_super_admin", False)
             
-            if role == "Owner" or "*" in permissions:
+            if is_sa or role in ["Owner", "Pharmacy Owner", "System Admin", "Super Admin"] or "*" in permissions:
                 return payload
                 
             if self.permission_code not in permissions:

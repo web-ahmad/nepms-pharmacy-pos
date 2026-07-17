@@ -182,10 +182,15 @@ def list_pos_branch_ids(
         return []
 
 
+from pydantic import BaseModel
+
+class PosLinkRequest(BaseModel):
+    legacy_branch_id: str
+
 @router.patch("/{branch_id}/set-pos-link", response_model=BranchResponse, summary="Link Enterprise branch to POS branch_id")
 def set_pos_link(
     branch_id: str,
-    legacy_branch_id: str,
+    req: PosLinkRequest,
     db:    Session       = Depends(get_db),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     _:     dict          = Depends(_require_branch_access),
@@ -193,7 +198,7 @@ def set_pos_link(
     """Sets legacy_branch_id on an Enterprise branch so the stats queries
     use the correct POS/JWT branch_id to find sales & inventory records."""
     from schemas.enterprise.branch import BranchUpdate
-    return branch_service.update_branch(db, scope, branch_id, BranchUpdate(legacy_branch_id=legacy_branch_id))
+    return branch_service.update_branch(db, scope, branch_id, BranchUpdate(legacy_branch_id=req.legacy_branch_id))
 
 
 # ── Staff ─────────────────────────────────────────────────────────────────────
@@ -240,3 +245,61 @@ def remove_staff(
     _:     dict          = Depends(_require_branch_access),
 ):
     return branch_service.remove_staff(db, scope, branch_id, assignment_id)
+
+# ── Master Epic Data Isolation Endpoints ─────────────────────────────────────
+
+@router.get(
+    "/{branch_id}/sales",
+    summary="List branch sales (isolated)",
+)
+def list_branch_sales(
+    branch_id: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    _: dict = Depends(_require_branch_access),
+):
+    return branch_service.list_branch_sales(db, scope, branch_id, page, limit)
+
+@router.get(
+    "/{branch_id}/inventory",
+    summary="List branch inventory batches (isolated)",
+)
+def list_branch_inventory(
+    branch_id: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    _: dict = Depends(_require_branch_access),
+):
+    return branch_service.list_branch_inventory(db, scope, branch_id, page, limit)
+
+@router.get(
+    "/{branch_id}/customers",
+    summary="List branch customers (isolated)",
+)
+def list_branch_customers(
+    branch_id: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    _: dict = Depends(_require_branch_access),
+):
+    return branch_service.list_branch_customers(db, scope, branch_id, page, limit)
+
+@router.get(
+    "/{branch_id}/activity",
+    summary="List branch activity logs (isolated)",
+)
+def list_branch_activity(
+    branch_id: str,
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    _: dict = Depends(_require_branch_access),
+):
+    return branch_service.list_branch_activity(db, scope, branch_id, page, limit)

@@ -11,7 +11,11 @@ class AutoPostingService:
         # Cache or fetch from DB
         acc = self.accounts_svc.repo.get_account_by_code(tenant_id, code)
         if not acc:
-            raise ValueError(f"CRITICAL: Account code {code} not found. Please run COA Seeder.")
+            # Auto-seed the chart of accounts and retry
+            self.accounts_svc.seed_default_chart(tenant_id)
+            acc = self.accounts_svc.repo.get_account_by_code(tenant_id, code)
+            if not acc:
+                raise ValueError(f"CRITICAL: Account code {code} not found. Please run COA Seeder.")
         return acc.id
 
     def _get_or_create_account(self, tenant_id: str, code: str, name: str, category: str):

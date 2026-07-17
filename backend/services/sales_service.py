@@ -112,6 +112,8 @@ class SalesService:
             db.add(sale)
             db.flush() # get sale.id
             
+            sale_profit = 0.0
+            
             # 2. Iterate items, deduct stock using FEFO, create SaleItems
             for item in checkout_in.items:
                 if not checkout_in.hold_sale and status != "Pending Verification":
@@ -132,6 +134,13 @@ class SalesService:
                     # Create SaleItem records per batch allocated
                     for alloc in allocations:
                         med = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
+                        batch = db.query(Batch).filter(Batch.id == alloc["batch_id"]).first()
+                        
+                        if batch and batch.purchase_price:
+                            actual_cost = batch.purchase_price
+                        else:
+                            actual_cost = med.cost_per_base_unit if med else 0.0
+                            
                         sale_item = SaleItem(
                             sale_id=sale.id,
                             medicine_id=item.medicine_id,
@@ -144,13 +153,14 @@ class SalesService:
                             promotion_discount=item.promotion_discount * (alloc["quantity_taken"]/item.quantity),
                             scheme_discount=item.scheme_discount * (alloc["quantity_taken"]/item.quantity),
                             manual_discount=item.manual_discount * (alloc["quantity_taken"]/item.quantity),
-                            cost_price=med.cost_per_base_unit if med else 0.0,
+                            cost_price=actual_cost,
                             total=(alloc["quantity_taken"] * item.unit_price) - (item.discount * (alloc["quantity_taken"]/item.quantity))
                         )
                         sale_item.gross_profit = sale_item.total - (sale_item.cost_price * sale_item.quantity)
                         if sale_item.total > 0:
                             sale_item.margin_percentage = (sale_item.gross_profit / sale_item.total) * 100
                         db.add(sale_item)
+                        sale_profit += sale_item.gross_profit
                 else:
                     # Held Sale or Pending Verification: No batch allocation, just save the intent
                     med = db.query(Medicine).filter(Medicine.id == item.medicine_id).first()
@@ -173,6 +183,9 @@ class SalesService:
                     if sale_item.total > 0:
                         sale_item.margin_percentage = (sale_item.gross_profit / sale_item.total) * 100
                     db.add(sale_item)
+                    sale_profit += sale_item.gross_profit
+            
+            sale.profit = sale_profit
             
             # 3. Handle Loyalty and Customer Ledger (if not Held/Pending Verification)
             if not checkout_in.hold_sale and status != "Pending Verification" and checkout_in.customer_id:

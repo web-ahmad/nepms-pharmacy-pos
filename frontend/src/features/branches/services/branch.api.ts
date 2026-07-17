@@ -112,6 +112,52 @@ export function useBranchStaff(branchId: string) {
   });
 }
 
+// ── Epic Data Isolation Hooks ───────────────────────────────────────────────────
+
+export function useBranchSales(branchId: string, page = 1, limit = 20) {
+  return useQuery({
+    queryKey: [...branchKeys.detail(branchId), 'sales', page, limit],
+    queryFn: async () => {
+      const res = await api.get(`${BASE}/${branchId}/sales?page=${page}&limit=${limit}`);
+      return res.data;
+    },
+    enabled: !!branchId,
+  });
+}
+
+export function useBranchInventory(branchId: string, page = 1, limit = 20) {
+  return useQuery({
+    queryKey: [...branchKeys.detail(branchId), 'inventory', page, limit],
+    queryFn: async () => {
+      const res = await api.get(`${BASE}/${branchId}/inventory?page=${page}&limit=${limit}`);
+      return res.data;
+    },
+    enabled: !!branchId,
+  });
+}
+
+export function useBranchCustomers(branchId: string, page = 1, limit = 20) {
+  return useQuery({
+    queryKey: [...branchKeys.detail(branchId), 'customers', page, limit],
+    queryFn: async () => {
+      const res = await api.get(`${BASE}/${branchId}/customers?page=${page}&limit=${limit}`);
+      return res.data;
+    },
+    enabled: !!branchId,
+  });
+}
+
+export function useBranchActivity(branchId: string, page = 1, limit = 20) {
+  return useQuery({
+    queryKey: [...branchKeys.detail(branchId), 'activity', page, limit],
+    queryFn: async () => {
+      const res = await api.get(`${BASE}/${branchId}/activity?page=${page}&limit=${limit}`);
+      return res.data;
+    },
+    enabled: !!branchId,
+  });
+}
+
 // ── Comparison ────────────────────────────────────────────────────────────────
 
 export function useBranchComparison() {

@@ -184,6 +184,10 @@ def create_pharmacy(
     db.add(tenant)
     db.flush()
 
+    # Automatically seed the Chart of Accounts for this tenant
+    from services.accounts_service import AccountsService
+    AccountsService(db).seed_default_chart(tenant.id)
+
     # 2. Create Pharmacy
     pharmacy = Pharmacy(
         id=str(uuid.uuid4()),

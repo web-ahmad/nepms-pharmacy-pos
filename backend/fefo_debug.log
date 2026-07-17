@@ -1777,3 +1777,16 @@ preferred_batch_id: None
 warehouse_id: None
 Found active batches count: 1
   Batch 1: B001 (qty: 190, reserved: 0, status: Active, expiry: 2027-12-31)
+
+--- FEFO ALLOCATION START ---
+tenant_id: None
+branch_id: 'e7f2bb73-dfb4-41a9-bb55-fe6c565749da'
+medicine_id: 'f695ade3-7dfe-44b8-8e20-98087f446b65'
+quantity_required: 1
+user_id: 'b13c185b-cd43-43a0-adb2-891edd0075e9'
+reference_id: '0d19d163-af23-4db5-8b41-beeb572746af'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: BAT-28956 (qty: 100, reserved: 0, status: Active, expiry: 2029-07-17)

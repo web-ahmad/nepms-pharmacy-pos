@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import List, Dict, Any
 
 from database import get_db
@@ -54,6 +56,10 @@ def create_master_data(master_type: str, data: MasterDataCreate, db: Session = D
     # Check duplicate
     existing = repo.get_by_name(db, data.name, tenant_id=current_user.tenant_id)
     if existing:
-        raise HTTPException(status_code=400, detail=f"{data.name} already exists.")
+        return JSONResponse(status_code=400, content={"error": f"{data.name} already exists."})
     
-    return repo.create(db, obj_in=data, tenant_id=current_user.tenant_id)
+    try:
+        return repo.create(db, obj_in=data, tenant_id=current_user.tenant_id)
+    except IntegrityError:
+        db.rollback()
+        return JSONResponse(status_code=400, content={"error": f"{data.name} already exists."})

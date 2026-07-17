@@ -16,6 +16,7 @@ class Sale(BaseModel):
     discount_amount = Column(Float, default=0.0)
     tax_amount = Column(Float, default=0.0)
     total_amount = Column(Float, default=0.0)
+    profit = Column(Float, default=0.0)
     
     payment_method = Column(String(50))  # Cash, Card, Credit, Mixed
     amount_paid = Column(Float, default=0.0)

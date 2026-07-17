@@ -4,7 +4,7 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Plus, Copy, Trash2, ChevronDown, ChevronRight, Loader2, RefreshCw, Download, Upload, Scale, Search, CheckSquare, Square, Check, X, Users } from 'lucide-react';
+import { Shield, Plus, Copy, Trash2, ChevronDown, ChevronRight, Loader2, RefreshCw, Download, Upload, Scale, Search, CheckSquare, Square, Check, X, Users, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -16,6 +16,7 @@ import {
   roleKeys,
 } from '@/features/users/services/role.api';
 import type { Role, RoleListItem, PermissionGrouped, Permission } from '@/features/users/types/user';
+import { api } from '@/services/api';
 
 // ── Virtualized Permission matrix ─────────────────────────────────────────────────────────
 
@@ -25,12 +26,14 @@ function VirtualizedPermissionMatrix({
   onToggle,
   onToggleModule,
   onSelectAll,
+  readOnly = false,
 }: {
   groups: PermissionGrouped[];
   selectedIds: Set<string>;
   onToggle: (id: string) => void;
   onToggleModule: (module: string, perms: Permission[]) => void;
   onSelectAll: (all: boolean, perms: Permission[]) => void;
+  readOnly?: boolean;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const parentRef = useRef<HTMLDivElement>(null);
@@ -69,14 +72,15 @@ function VirtualizedPermissionMatrix({
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={() => onSelectAll(selectedIds.size !== flatPermissions.length, flatPermissions)}
-            className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-indigo-600 transition-colors"
+            onClick={() => !readOnly && onSelectAll(selectedIds.size !== flatPermissions.length, flatPermissions)}
+            className={`flex items-center gap-2 text-sm font-medium transition-colors ${readOnly ? 'text-zinc-400 cursor-default' : 'text-zinc-700 dark:text-zinc-300 hover:text-indigo-600'}`}
           >
             {selectedIds.size === flatPermissions.length && flatPermissions.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
             {selectedIds.size === flatPermissions.length && flatPermissions.length > 0 ? 'Deselect All' : 'Select All'}
           </button>
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
             {selectedIds.size} / {flatPermissions.length} selected
+            {readOnly && <span className="ml-2 text-indigo-600 dark:text-indigo-400 font-semibold">• System Locked</span>}
           </span>
         </div>
         
@@ -125,8 +129,8 @@ function VirtualizedPermissionMatrix({
                   <div className="sm:w-1/4">
                     <button
                       type="button"
-                      onClick={() => onToggleModule(group.module, group.permissions)}
-                      className="flex items-center gap-2 group text-left w-full"
+                      onClick={() => !readOnly && onToggleModule(group.module, group.permissions)}
+                      className={`flex items-center gap-2 group text-left w-full ${readOnly ? 'cursor-default' : ''}`}
                     >
                       <div className="relative flex items-center justify-center w-5 h-5 flex-shrink-0">
                         <input
@@ -134,30 +138,32 @@ function VirtualizedPermissionMatrix({
                           checked={isAllSelected}
                           ref={input => { if (input) input.indeterminate = isSomeSelected; }}
                           readOnly
-                          className="peer w-5 h-5 cursor-pointer appearance-none rounded border border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:bg-indigo-600 indeterminate:border-indigo-600 dark:border-zinc-600 dark:bg-zinc-800"
+                          className={`peer w-5 h-5 appearance-none rounded border ${readOnly ? 'cursor-default border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/30' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:bg-indigo-600 indeterminate:border-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
                         />
-                        {isAllSelected && <Check className="absolute text-white w-3.5 h-3.5 pointer-events-none" />}
-                        {isSomeSelected && <div className="absolute bg-white w-2.5 h-0.5 rounded-full pointer-events-none" />}
+                        {isAllSelected && (readOnly ? <Lock className="absolute text-indigo-400 w-3 h-3 pointer-events-none" /> : <Check className="absolute text-white w-3.5 h-3.5 pointer-events-none" />)}
+                        {isSomeSelected && !readOnly && <div className="absolute bg-white w-2.5 h-0.5 rounded-full pointer-events-none" />}
+                        {isSomeSelected && readOnly && <div className="absolute bg-indigo-400 w-2.5 h-0.5 rounded-full pointer-events-none" />}
                       </div>
-                      <span className="font-semibold text-zinc-800 dark:text-zinc-200 capitalize group-hover:text-indigo-600 transition-colors">
+                      <span className={`font-semibold capitalize transition-colors ${readOnly ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-800 dark:text-zinc-200 group-hover:text-indigo-600'}`}>
                         {group.module.replace(/_/g, ' ')} ({group.permissions.filter(p => selectedIds.has(p.id)).length}/{group.permissions.length})
                       </span>
                     </button>
                   </div>
                   <div className="sm:w-3/4 flex flex-wrap gap-x-6 gap-y-3">
                     {group.permissions.map(perm => (
-                      <label key={perm.id} className="flex items-center gap-2 cursor-pointer group">
+                      <label key={perm.id} className={`flex items-center gap-2 group ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}>
                         <div className="relative flex items-center justify-center">
                           <input
                             type="checkbox"
                             checked={selectedIds.has(perm.id)}
-                            onChange={() => onToggle(perm.id)}
-                            className="w-4 h-4 cursor-pointer appearance-none rounded border border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 dark:border-zinc-600 dark:bg-zinc-800 transition-all"
+                            onChange={() => !readOnly && onToggle(perm.id)}
+                            readOnly={readOnly}
+                            className={`w-4 h-4 appearance-none rounded border transition-all ${readOnly ? 'cursor-default border-indigo-200 bg-indigo-50/50 checked:bg-indigo-100 checked:border-indigo-300 dark:border-indigo-900/50 dark:bg-indigo-900/20 dark:checked:bg-indigo-900/40 dark:checked:border-indigo-800' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
                           />
-                          {selectedIds.has(perm.id) && <Check className="absolute text-white w-3 h-3 pointer-events-none" />}
+                          {selectedIds.has(perm.id) && (readOnly ? <Lock className="absolute text-indigo-400 dark:text-indigo-500 w-2.5 h-2.5 pointer-events-none" /> : <Check className="absolute text-white w-3 h-3 pointer-events-none" />)}
                         </div>
                         <div className="flex flex-col">
-                          <span className={`text-sm ${perm.is_sensitive ? 'text-amber-600 dark:text-amber-500 font-medium' : 'text-zinc-600 dark:text-zinc-400'} capitalize group-hover:text-zinc-900 dark:group-hover:text-zinc-200 transition-colors`}>
+                          <span className={`text-sm ${perm.is_sensitive ? 'text-amber-600 dark:text-amber-500 font-medium' : (readOnly ? 'text-zinc-500' : 'text-zinc-600 dark:text-zinc-400')} capitalize ${readOnly ? '' : 'group-hover:text-zinc-900 dark:group-hover:text-zinc-200'} transition-colors`}>
                             {perm.action.replace(/_/g, ' ')}
                           </span>
                         </div>
@@ -407,6 +413,7 @@ export default function RolesPage() {
   const [newDataScope, setNewDataScope] = useState('global');
   
   const [compareModalOpen, setCompareModalOpen] = useState(false);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [compareRole, setCompareRole] = useState<RoleListItem | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -419,8 +426,7 @@ export default function RolesPage() {
   const handleSelectRole = async (role: RoleListItem) => {
     setSelectedRoleId(role.id);
     try {
-      const res = await fetch(`/api/v1/enterprise/roles/${role.id}`);
-      const data = await res.json();
+      const { data } = await api.get(`/api/v1/enterprise/roles/${role.id}`);
       setSelectedPerms(new Set((data.permissions ?? []).map((p: Permission) => p.id)));
     } catch {
       setSelectedPerms(new Set());
@@ -664,8 +670,9 @@ export default function RolesPage() {
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden flex flex-col h-full">
             <div className="flex flex-wrap items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
               <div>
-                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                   {selectedRole ? `Permissions — ${selectedRole.name}` : 'Select a role to configure permissions'}
+                  {selectedRole?.is_system_default && <Lock size={16} className="text-indigo-500" />}
                 </h2>
                 {selectedRole && (
                   <p className="text-sm text-zinc-500 mt-0.5">
@@ -692,7 +699,13 @@ export default function RolesPage() {
                       <Download size={14} /> Export
                     </button>
                     <button
-                      onClick={handleSavePermissions}
+                      onClick={() => {
+                        if (selectedRole.is_system_default) {
+                          setConfirmModalOpen(true);
+                        } else {
+                          handleSavePermissions();
+                        }
+                      }}
                       disabled={setPerms.isPending}
                       className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors ml-2"
                     >
@@ -726,6 +739,7 @@ export default function RolesPage() {
                   onToggle={handleTogglePermission}
                   onToggleModule={handleToggleModule}
                   onSelectAll={handleSelectAll}
+                  readOnly={false} // Users can now edit system default roles
                 />
               )}
             </div>
@@ -741,6 +755,53 @@ export default function RolesPage() {
           initialRole1={compareRole}
         />
       )}
+
+      <AnimatePresence>
+        {confirmModalOpen && selectedRole && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm"
+              onClick={() => setConfirmModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md overflow-hidden rounded-2xl border border-amber-200/50 dark:border-amber-700/50 bg-white/80 dark:bg-zinc-900/80 p-6 shadow-2xl backdrop-blur-xl"
+            >
+              <div className="flex items-center gap-3 text-amber-600 dark:text-amber-500 mb-4">
+                <Shield className="h-6 w-6" />
+                <h3 className="text-lg font-bold">Modify System Default Role?</h3>
+              </div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-300 mb-6 leading-relaxed">
+                <strong>Warning:</strong> You are modifying a System Default Role. Removing core permissions could lock you out of your own system or disrupt standard workflows. Are you sure you want to proceed?
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setConfirmModalOpen(false)}
+                  className="rounded-xl px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirmModalOpen(false);
+                    handleSavePermissions();
+                  }}
+                  disabled={setPerms.isPending}
+                  className="flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50 transition-all"
+                >
+                  {setPerms.isPending ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+                  Yes, Save Changes
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

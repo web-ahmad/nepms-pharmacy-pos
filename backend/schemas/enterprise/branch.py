@@ -263,6 +263,7 @@ class BranchStatsResponse(BaseModel):
     daily_sales:       Optional[float] = 0.0
     total_profit:      Optional[float] = 0.0
     monthly_profit:    Optional[float] = 0.0
+    aov:               Optional[float] = 0.0
 
     # CRM
     total_customers:   Optional[int] = 0
@@ -285,6 +286,8 @@ class BranchStatsResponse(BaseModel):
     top_low_stock:     Optional[List[dict]] = None
     recent_activity:   Optional[List[dict]] = None
     active_cashier:    Optional[str] = None
+    trend_data:        Optional[List[dict]] = None
+    top_items:         Optional[List[dict]] = None
 
 
 # ── Comparison schema ─────────────────────────────────────────────────────────

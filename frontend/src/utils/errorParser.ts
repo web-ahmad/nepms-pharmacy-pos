@@ -2,7 +2,7 @@ export const parseApiError = (error: any): string => {
   if (!error) return "An unexpected error occurred.";
   
   // Extract detail from axios/fetch response
-  const detail = error.response?.data?.detail || error.detail;
+  const detail = error.response?.data?.detail || error.response?.data?.error || error.detail || error.error;
   
   if (!detail) {
     if (error.message && typeof error.message === 'string') {

@@ -164,6 +164,28 @@ class BranchService:
                 detail=f"Branch code '{data.code}' already exists in this pharmacy.",
             )
         branch = branch_repo.create_branch(db, data, pharmacy_id, scope.tenant_id)
+        
+        # --- AUTO-LINK POS DATA START ---
+        from models.users import Branch as LegacyBranch
+        
+        legacy_id = branch.id
+        legacy_branch = LegacyBranch(
+            id=legacy_id,
+            name=branch.name,
+            code=branch.code,
+            is_main=(branch.type in ["main_branch", "head_office"]),
+            pharmacy_id=pharmacy_id,
+            tenant_id=scope.tenant_id
+        )
+        db.add(legacy_branch)
+        db.flush()
+        
+        branch.legacy_branch_id = legacy_id
+        db.add(branch)
+        db.commit()
+        db.refresh(branch)
+        # --- AUTO-LINK POS DATA END ---
+
         return _to_response(branch)
 
     # ── Update ────────────────────────────────────────────────────────────────
@@ -230,6 +252,8 @@ class BranchService:
         monthly_sales = 0.0
         daily_sales = 0.0
         total_profit = 0.0
+        monthly_profit = 0.0
+        aov = 0.0
         total_customers = 0
         total_prescriptions = 0
         inventory_value = 0.0
@@ -244,21 +268,31 @@ class BranchService:
 
             if hasattr(Sale, "branch_id"):
                 # ── SEPARATE queries (not chained) to avoid SQLAlchemy mutation bug ──
-                total_sales = float(
-                    db.query(func.coalesce(func.sum(Sale.total_amount), 0))
-                    .filter(Sale.branch_id == data_bid, Sale.is_deleted == False)
-                    .scalar() or 0
-                )
-                monthly_sales = float(
-                    db.query(func.coalesce(func.sum(Sale.total_amount), 0))
-                    .filter(
-                        Sale.branch_id == data_bid,
-                        Sale.is_deleted == False,
-                        extract("year",  Sale.created_at) == now.year,
-                        extract("month", Sale.created_at) == now.month,
-                    )
-                    .scalar() or 0
-                )
+                sales_metrics = db.query(
+                    func.coalesce(func.sum(Sale.total_amount), 0),
+                    func.coalesce(func.sum(Sale.profit), 0),
+                    func.count(Sale.id)
+                ).filter(Sale.branch_id == data_bid, Sale.is_deleted == False).first()
+                
+                if sales_metrics:
+                    total_sales = float(sales_metrics[0])
+                    total_profit = float(sales_metrics[1])
+                    if sales_metrics[2] > 0:
+                        aov = total_sales / sales_metrics[2]
+                
+                monthly_metrics = db.query(
+                    func.coalesce(func.sum(Sale.total_amount), 0),
+                    func.coalesce(func.sum(Sale.profit), 0)
+                ).filter(
+                    Sale.branch_id == data_bid,
+                    Sale.is_deleted == False,
+                    extract("year",  Sale.created_at) == now.year,
+                    extract("month", Sale.created_at) == now.month,
+                ).first()
+                
+                if monthly_metrics:
+                    monthly_sales = float(monthly_metrics[0])
+                    monthly_profit = float(monthly_metrics[1])
                 daily_sales = float(
                     db.query(func.coalesce(func.sum(Sale.total_amount), 0))
                     .filter(
@@ -353,6 +387,56 @@ class BranchService:
         except Exception:
             pass
 
+        trend_data = []
+        top_items = []
+        try:
+            from models.sales import Sale, SaleItem
+            from models.inventory import Medicine
+            from datetime import timedelta
+            
+            if hasattr(Sale, "branch_id"):
+                # 7-day trend
+                seven_days_ago = datetime.utcnow() - timedelta(days=6)
+                seven_days_ago_date = seven_days_ago.date()
+                
+                trend_results = (
+                    db.query(
+                        func.date(Sale.created_at).label("day"),
+                        func.coalesce(func.sum(Sale.total_amount), 0).label("value"),
+                        func.coalesce(func.sum(Sale.profit), 0).label("profit")
+                    )
+                    .filter(Sale.branch_id == data_bid, Sale.is_deleted == False, Sale.created_at >= seven_days_ago_date)
+                    .group_by(func.date(Sale.created_at))
+                    .order_by(func.date(Sale.created_at))
+                    .all()
+                )
+                
+                # Fill missing days
+                trend_dict = {str(r.day): {"value": float(r.value), "profit": float(r.profit)} for r in trend_results}
+                for i in range(7):
+                    d = seven_days_ago_date + timedelta(days=i)
+                    d_str = str(d)
+                    trend_data.append({
+                        "day": d.strftime("%a"),
+                        "value": trend_dict.get(d_str, {}).get("value", 0.0),
+                        "profit": trend_dict.get(d_str, {}).get("profit", 0.0),
+                    })
+                    
+                # Top 3 items
+                top_item_results = (
+                    db.query(Medicine.name, func.sum(SaleItem.quantity).label("qty"))
+                    .join(SaleItem, Medicine.id == SaleItem.medicine_id)
+                    .join(Sale, SaleItem.sale_id == Sale.id)
+                    .filter(Sale.branch_id == data_bid, Sale.is_deleted == False)
+                    .group_by(Medicine.name)
+                    .order_by(func.sum(SaleItem.quantity).desc())
+                    .limit(3)
+                    .all()
+                )
+                top_items = [{"name": r.name, "qty": int(r.qty)} for r in top_item_results]
+        except Exception:
+            pass
+
         active_cashier = None
         try:
             # Check staff assignments for a cashier role
@@ -376,7 +460,8 @@ class BranchService:
             monthly_sales=monthly_sales,
             daily_sales=daily_sales,
             total_profit=total_profit,
-            monthly_profit=0.0,
+            monthly_profit=monthly_profit,
+            aov=aov,
             total_customers=total_customers,
             total_prescriptions=total_prescriptions,
             inventory_value=inventory_value,
@@ -389,6 +474,8 @@ class BranchService:
             top_low_stock=top_low_stock,
             recent_activity=recent_activity,
             active_cashier=active_cashier,
+            trend_data=trend_data,
+            top_items=top_items,
         )
         # Recompute health score dynamically
         stats.health_score = _compute_health_score(stats)
@@ -502,6 +589,140 @@ class BranchService:
         if not ok:
             raise HTTPException(status_code=404, detail="Assignment not found")
         return {"success": True}
+
+    # ── Master Epic Data Isolation ────────────────────────────────────────────
+
+    def list_branch_sales(self, db: Session, scope: PharmacyScope, branch_id: str, page: int = 1, limit: int = 20) -> Dict[str, Any]:
+        pharmacy_id = scope.pharmacy_id or ""
+        branch = branch_repo.get_by_id(db, branch_id, pharmacy_id)
+        if not branch:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        data_bid = getattr(branch, "legacy_branch_id", None) or branch_id
+        
+        from models.sales import Sale
+        query = db.query(Sale).filter(Sale.branch_id == data_bid, Sale.is_deleted == False).order_by(Sale.created_at.desc())
+        total = query.count()
+        sales = query.offset((page - 1) * limit).limit(limit).all()
+        
+        from api.v1.endpoints.sales import map_sale_to_response
+        return {
+            "items": [map_sale_to_response(s) for s in sales],
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": (total + limit - 1) // limit
+        }
+
+    def list_branch_inventory(self, db: Session, scope: PharmacyScope, branch_id: str, page: int = 1, limit: int = 20) -> Dict[str, Any]:
+        pharmacy_id = scope.pharmacy_id or ""
+        branch = branch_repo.get_by_id(db, branch_id, pharmacy_id)
+        if not branch:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        data_bid = getattr(branch, "legacy_branch_id", None) or branch_id
+        
+        from models.inventory import Batch, Medicine
+        query = db.query(Batch).join(Medicine, Batch.medicine_id == Medicine.id).filter(
+            Batch.branch_id == data_bid, Batch.is_deleted == False
+        ).order_by(Batch.expiry_date.asc())
+        total = query.count()
+        batches = query.offset((page - 1) * limit).limit(limit).all()
+        
+        items = []
+        for b in batches:
+            items.append({
+                "id": b.id,
+                "batch_number": b.batch_number,
+                "medicine_name": b.medicine.name if b.medicine else "Unknown",
+                "current_quantity": b.current_quantity,
+                "expiry_date": b.expiry_date,
+                "status": "Expired" if b.expiry_date and b.expiry_date < date.today() else ("Low Stock" if b.current_quantity <= 5 else "OK"),
+                "purchase_price": b.purchase_price
+            })
+            
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": (total + limit - 1) // limit
+        }
+
+    def list_branch_customers(self, db: Session, scope: PharmacyScope, branch_id: str, page: int = 1, limit: int = 20) -> Dict[str, Any]:
+        pharmacy_id = scope.pharmacy_id or ""
+        branch = branch_repo.get_by_id(db, branch_id, pharmacy_id)
+        if not branch:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        data_bid = getattr(branch, "legacy_branch_id", None) or branch_id
+        
+        from models.sales import Sale
+        from models.crm import Customer
+        from sqlalchemy import func
+        
+        # Customers who bought from this branch and their total spend
+        query = (
+            db.query(Customer, func.sum(Sale.total_amount).label("total_spend"))
+            .join(Sale, Customer.id == Sale.customer_id)
+            .filter(Sale.branch_id == data_bid, Sale.is_deleted == False)
+            .group_by(Customer.id)
+            .order_by(func.sum(Sale.total_amount).desc())
+        )
+        total = query.count()
+        results = query.offset((page - 1) * limit).limit(limit).all()
+        
+        items = []
+        for c, spend in results:
+            items.append({
+                "id": c.id,
+                "name": f"{c.first_name} {c.last_name}".strip() or "Unknown",
+                "phone": c.phone,
+                "total_spend": float(spend),
+                "loyalty_points": c.loyalty_points
+            })
+            
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": (total + limit - 1) // limit
+        }
+
+    def list_branch_activity(self, db: Session, scope: PharmacyScope, branch_id: str, page: int = 1, limit: int = 20) -> Dict[str, Any]:
+        pharmacy_id = scope.pharmacy_id or ""
+        branch = branch_repo.get_by_id(db, branch_id, pharmacy_id)
+        if not branch:
+            raise HTTPException(status_code=404, detail="Branch not found")
+        
+        try:
+            from models.audit import AuditLog
+            query = db.query(AuditLog).filter(
+                (AuditLog.branch_id == branch_id) | (AuditLog.resource_id == branch_id)
+            ).order_by(AuditLog.timestamp.desc())
+            
+            total = query.count()
+            logs = query.offset((page - 1) * limit).limit(limit).all()
+            
+            items = []
+            for log in logs:
+                items.append({
+                    "id": log.id,
+                    "action": log.action,
+                    "resource_type": log.resource_type,
+                    "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                    "user_id": log.user_id,
+                    "details": log.details
+                })
+        except Exception:
+            items = []
+            total = 0
+            
+        return {
+            "items": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": (total + limit - 1) // limit
+        }
 
     # ── Dashboard summary ─────────────────────────────────────────────────────
 

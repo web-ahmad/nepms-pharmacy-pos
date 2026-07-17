@@ -44,7 +44,8 @@ def get_customer(
 def create_customer(
     customer: CustomerCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = CRMService(db)
     return service.create_customer(customer, scope.tenant_id)
