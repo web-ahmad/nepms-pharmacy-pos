@@ -70,7 +70,13 @@ export const useUpdateCustomerStatus = (id: string) => {
       // Update cache atomically
       queryClient.setQueriesData({ queryKey: ['customers'] }, (old: any) => {
         if (!old) return old;
-        return old.map((c: any) => c.id === id ? updatedCustomer : c);
+        if (Array.isArray(old)) {
+          return old.map((c: any) => c.id === id ? updatedCustomer : c);
+        }
+        if (old.id === id) {
+          return updatedCustomer;
+        }
+        return old;
       });
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       queryClient.invalidateQueries({ queryKey: ['customers', id] });

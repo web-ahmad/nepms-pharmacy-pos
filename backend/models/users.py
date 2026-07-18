@@ -115,16 +115,16 @@ class User(BaseModel):
     def permissions(self):
         if self.is_super_admin:
             return ["*"]
-        
-        # Check enterprise profile first
+
+        # Check enterprise profile first — hierarchy_level is canonical
         eu = getattr(self, "enterprise_user", None)
         if eu and eu.enterprise_role:
-            if eu.enterprise_role.name == "Pharmacy Owner":
+            # L2 = Pharmacy Owner → full access to their pharmacy
+            if eu.enterprise_role.hierarchy_level == 2:
                 return ["*"]
             return [rp.permission.code for rp in eu.enterprise_role.role_permissions if rp.permission]
 
-        if self.role and self.role.name == "Pharmacy Owner":
-            return ["*"]
+        # Legacy fallback
         if self.role and self.role.role_permissions:
             return [rp.permission.code for rp in self.role.role_permissions if rp.permission]
         return []
@@ -132,32 +132,33 @@ class User(BaseModel):
     @property
     def branch_scope(self):
         if self.is_super_admin:
-            return "global"
-            
+            return "saas_only"
+
         eu = getattr(self, "enterprise_user", None)
         if eu and eu.enterprise_role:
-            if eu.enterprise_role.name == "Pharmacy Owner":
-                return "global"
+            if eu.enterprise_role.hierarchy_level == 2:
+                return "all_branches"
+            if eu.enterprise_role.hierarchy_level == 1:
+                return "saas_only"
             return eu.enterprise_role.branch_scope or "assigned_branch"
-            
-        if self.role and self.role.name == "Pharmacy Owner":
-            return "global"
+
         return self.role.branch_scope if self.role else "assigned_branch"
 
     @property
     def data_scope(self):
         if self.is_super_admin:
-            return "global"
-            
+            return "saas_only"
+
         eu = getattr(self, "enterprise_user", None)
         if eu and eu.enterprise_role:
-            if eu.enterprise_role.name == "Pharmacy Owner":
-                return "tenant"
-            return eu.enterprise_role.data_scope or "own_records"
-            
-        if self.role and self.role.name == "Pharmacy Owner":
-            return "tenant"
-        return self.role.data_scope if self.role else "own_records"
+            if eu.enterprise_role.hierarchy_level == 2:
+                return "tenant"   # Pharmacy Owner sees whole tenant
+            if eu.enterprise_role.hierarchy_level == 1:
+                return "saas_only"
+            return eu.enterprise_role.data_scope or "branch"
+
+        return self.role.data_scope if self.role else "branch"
+
 
 class UserBranch(BaseModel):
     __tablename__ = "user_branches"

@@ -81,7 +81,7 @@ function StatCard({
   }
 
   const displayValue = value != null
-    ? (format === 'currency' ? `Rs ${fmtShort(value)}` : `${prefix || ''}${fmtShort(value)}${suffix || ''}`)
+    ? (format === 'currency' ? `Rs ${value.toLocaleString()}` : `${prefix || ''}${value.toLocaleString()}${suffix || ''}`)
     : '—';
 
   return (
@@ -467,7 +467,7 @@ function SalesTab({ branchId, stats, isLoading }: { branchId: string; stats?: Br
                   cursor={{ fill: '#3f3f46', opacity: 0.1 }}
                   contentStyle={{ background: '#18181b', border: 'none', borderRadius: 12, padding: '12px' }}
                   labelStyle={{ color: '#a1a1aa', fontSize: 11, marginBottom: 4 }}
-                  formatter={(v: any, name: string) => [`Rs ${Number(v).toLocaleString()}`, name === 'value' ? 'Revenue' : 'Profit']}
+                  formatter={(v: any, name: any) => [`Rs ${Number(v).toLocaleString()}`, name === 'value' ? 'Revenue' : 'Profit']}
                 />
                 <Bar dataKey="value" name="Revenue" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40} />
                 <Bar dataKey="profit" name="Profit" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -556,8 +556,15 @@ function InventoryTab({ branchId, stats, isLoading }: { branchId: string; stats?
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <StatCard label="Inventory Value" value={stats?.inventory_value} color="violet" isLoading={isLoading} format="currency"
-          icon={<Package className="h-5 w-5 text-violet-600" />} />
+        <div className="relative group">
+          <StatCard label="Inventory Value" value={stats?.inventory_value} color="violet" isLoading={isLoading} format="currency"
+            icon={<Package className="h-5 w-5 text-violet-600" />} />
+          {stats?.has_missing_costs && !isLoading && (
+            <div className="absolute top-4 right-4 flex items-center justify-center cursor-help" title="Some items have Rs 0 purchase price, affecting total valuation.">
+              <AlertTriangle className="h-5 w-5 text-rose-500 animate-pulse" />
+            </div>
+          )}
+        </div>
         <StatCard label="Low Stock Items" value={stats?.low_stock_count} color="amber"  isLoading={isLoading}
           icon={<AlertTriangle className="h-5 w-5 text-amber-500" />} />
         <StatCard label="Expiring ≤30d"  value={stats?.expiry_count}   color="rose"   isLoading={isLoading}
@@ -581,7 +588,15 @@ function InventoryTab({ branchId, stats, isLoading }: { branchId: string; stats?
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {invLoading ? (
-                <tr><td colSpan={5} className="px-5 py-8 text-center text-zinc-400">Loading inventory...</td></tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-5 py-4"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-3/4"></div></td>
+                    <td className="px-5 py-4"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-1/2"></div></td>
+                    <td className="px-5 py-4 flex justify-end"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-1/3"></div></td>
+                    <td className="px-5 py-4"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-2/3"></div></td>
+                    <td className="px-5 py-4"><div className="h-6 bg-zinc-100 dark:bg-zinc-800 rounded-full w-16"></div></td>
+                  </tr>
+                ))
               ) : invData?.items?.length ? (
                 invData.items.map((b: any) => (
                   <tr key={b.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
@@ -601,7 +616,19 @@ function InventoryTab({ branchId, stats, isLoading }: { branchId: string; stats?
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={5} className="px-5 py-8 text-center text-zinc-500">No inventory found for this branch.</td></tr>
+                <tr>
+                  <td colSpan={5} className="px-5 py-16 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center mb-4 ring-8 ring-zinc-50/50 dark:ring-zinc-900/50">
+                        <Package className="h-8 w-8 text-zinc-400 dark:text-zinc-500" />
+                      </div>
+                      <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">No Inventory Found</h4>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
+                        This branch doesn't have any stock batches yet. Receive a purchase order or transfer stock to get started.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -626,9 +653,16 @@ function StaffTab({ branchId }: { branchId: string }) {
 
   if (isLoading) {
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+          <div key={i} className="h-[72px] rounded-2xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm flex items-center px-5 animate-pulse">
+            <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 mr-4" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-1/4" />
+              <div className="h-3 bg-zinc-100 dark:bg-zinc-800 rounded w-1/3" />
+            </div>
+            <div className="w-20 h-6 bg-zinc-100 dark:bg-zinc-800 rounded-full" />
+          </div>
         ))}
       </div>
     );
@@ -636,9 +670,14 @@ function StaffTab({ branchId }: { branchId: string }) {
 
   if (!staff?.length) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 text-center rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-700">
-        <Users className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mb-3" />
-        <p className="text-sm font-semibold text-zinc-500 dark:text-zinc-400">No staff assigned yet.</p>
+      <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20">
+        <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4 ring-8 ring-white dark:ring-zinc-900">
+          <Users className="h-8 w-8 text-zinc-400 dark:text-zinc-500" />
+        </div>
+        <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">No Staff Assigned</h4>
+        <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
+          You haven't assigned any staff members to this branch yet.
+        </p>
       </div>
     );
   }
@@ -703,7 +742,14 @@ function CustomersTab({ branchId, stats, isLoading }: { branchId: string; stats?
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {custLoading ? (
-                <tr><td colSpan={4} className="px-5 py-8 text-center text-zinc-400">Loading customers...</td></tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-5 py-4"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-1/2"></div></td>
+                    <td className="px-5 py-4"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-1/3"></div></td>
+                    <td className="px-5 py-4"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-1/4"></div></td>
+                    <td className="px-5 py-4"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-8"></div></td>
+                  </tr>
+                ))
               ) : custData?.items?.length ? (
                 custData.items.map((c: any) => (
                   <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
@@ -714,7 +760,19 @@ function CustomersTab({ branchId, stats, isLoading }: { branchId: string; stats?
                   </tr>
                 ))
               ) : (
-                <tr><td colSpan={4} className="px-5 py-8 text-center text-zinc-500">No customers found for this branch.</td></tr>
+                <tr>
+                  <td colSpan={4} className="px-5 py-16 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mb-4 ring-8 ring-blue-50/50 dark:ring-blue-900/10">
+                        <UserCheck className="h-8 w-8 text-blue-500 dark:text-blue-400" />
+                      </div>
+                      <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">No Customers Yet</h4>
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
+                        There are no registered customers at this branch.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -770,7 +828,17 @@ function ActivityTab({ branchId, branch }: { branchId: string; branch: Branch })
         </div>
         <div className="p-0">
           {actLoading ? (
-            <div className="py-8 text-center text-sm text-zinc-400">Loading activity...</div>
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="p-5 flex items-start gap-4 animate-pulse">
+                  <div className="mt-1 flex-shrink-0 w-2 h-2 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-1/3" />
+                    <div className="h-3 bg-zinc-100 dark:bg-zinc-800 rounded w-1/4" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : actData?.items?.length ? (
             <div className="divide-y divide-zinc-100 dark:divide-zinc-800/80">
               {actData.items.map((log: any) => (
@@ -791,7 +859,15 @@ function ActivityTab({ branchId, branch }: { branchId: string; branch: Branch })
               ))}
             </div>
           ) : (
-            <div className="py-8 text-center text-sm text-zinc-500">No activity logs found for this branch.</div>
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center mb-4 ring-8 ring-zinc-50/50 dark:ring-zinc-900/50">
+                <Activity className="h-8 w-8 text-zinc-400 dark:text-zinc-500" />
+              </div>
+              <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">No Recent Activity</h4>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
+                All branch operations and system logs will appear here.
+              </p>
+            </div>
           )}
         </div>
         {actData && actData.pages > 1 && (

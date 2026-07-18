@@ -1,6 +1,6 @@
 import { Department } from '../types/hr';
 import { useEmployees } from '../services/hr.api';
-import { Building2, Users, Edit2, Ban, CheckCircle, MoreVertical } from 'lucide-react';
+import { Building2, Users, Edit2, Ban, CheckCircle, MoreVertical, Trash2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
 
@@ -9,6 +9,7 @@ interface DepartmentsGridProps {
   isLoading: boolean;
   onEdit: (dept: Department) => void;
   onToggleStatus: (dept: Department) => void;
+  onDelete: (dept: Department) => void;
 }
 
 const DEPT_GRADIENTS = [
@@ -20,7 +21,7 @@ const DEPT_GRADIENTS = [
   'from-cyan-500 to-sky-600',
 ];
 
-export default function DepartmentsGrid({ data, isLoading, onEdit, onToggleStatus }: DepartmentsGridProps) {
+export default function DepartmentsGrid({ data, isLoading, onEdit, onToggleStatus, onDelete }: DepartmentsGridProps) {
   const { data: employees } = useEmployees();
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -80,9 +81,9 @@ export default function DepartmentsGrid({ data, isLoading, onEdit, onToggleStatu
           const gradient = DEPT_GRADIENTS[idx % DEPT_GRADIENTS.length];
 
           return (
-            <div key={dept.id} className={`group relative flex flex-col rounded-2xl overflow-hidden border shadow-sm hover:shadow-lg transition-all duration-200 ${dept.is_active ? 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950' : 'border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 opacity-70'}`}>
+            <div key={dept.id} className={`group relative flex flex-col rounded-2xl border shadow-sm hover:shadow-lg transition-all duration-200 ${dept.is_active ? 'border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950' : 'border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 opacity-70'}`}>
               {/* Top gradient strip */}
-              <div className={`h-1.5 w-full bg-gradient-to-r ${gradient}`} />
+              <div className={`h-1.5 w-full rounded-t-2xl bg-gradient-to-r ${gradient}`} />
 
               <div className="flex flex-col flex-1 p-5">
                 <div className="flex items-start justify-between mb-4">
@@ -101,7 +102,14 @@ export default function DepartmentsGrid({ data, isLoading, onEdit, onToggleStatu
                   {/* Menu */}
                   <div className="relative">
                     <button
-                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === dept.id ? null : dept.id); }}
+                      onClick={(e) => { 
+                        e.preventDefault();
+                        e.stopPropagation(); 
+                        if (e.nativeEvent && e.nativeEvent.stopImmediatePropagation) {
+                          e.nativeEvent.stopImmediatePropagation();
+                        }
+                        setOpenMenuId(openMenuId === dept.id ? null : dept.id); 
+                      }}
                       className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
                     >
                       <MoreVertical className="h-4 w-4" />
@@ -111,9 +119,12 @@ export default function DepartmentsGrid({ data, isLoading, onEdit, onToggleStatu
                         <button onClick={() => { setOpenMenuId(null); onEdit(dept); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 dark:text-zinc-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 hover:text-emerald-700 rounded-t-xl transition-colors">
                           <Edit2 className="h-3.5 w-3.5" /> Edit
                         </button>
-                        <button onClick={() => { setOpenMenuId(null); onToggleStatus(dept); }} className={`flex items-center gap-2 w-full px-3 py-2 text-sm rounded-b-xl transition-colors ${dept.is_active ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}>
+                        <button onClick={() => { setOpenMenuId(null); onToggleStatus(dept); }} className={`flex items-center gap-2 w-full px-3 py-2 text-sm transition-colors ${dept.is_active ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}>
                           {dept.is_active ? <Ban className="h-3.5 w-3.5" /> : <CheckCircle className="h-3.5 w-3.5" />}
                           {dept.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => { setOpenMenuId(null); onDelete(dept); }} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-b-xl transition-colors">
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
                         </button>
                       </div>
                     )}

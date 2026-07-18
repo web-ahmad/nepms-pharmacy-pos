@@ -303,3 +303,162 @@ class AccountsService:
             ar_balance=ar_balance,
             ap_balance=ap_balance
         )
+
+    # =====================================================================
+    # Enterprise Extensions (Phase 8)
+    # =====================================================================
+
+    def get_cash_flow(self, tenant_id: str):
+        """Simplified Cash Flow (Direct Method) based on cash/bank ledger entries."""
+        from sqlalchemy import func
+        from models.accounts import JournalEntry, JournalEntryLine, Account
+        
+        # Get all lines hitting cash/bank accounts
+        rows = (
+            self.db.query(
+                JournalEntry.description,
+                JournalEntry.date,
+                JournalEntryLine.debit,
+                JournalEntryLine.credit
+            )
+            .join(JournalEntryLine, JournalEntryLine.journal_entry_id == JournalEntry.id)
+            .join(Account, Account.id == JournalEntryLine.account_id)
+            .filter(
+                JournalEntry.tenant_id == tenant_id,
+                JournalEntry.status == "Approved",
+                (Account.code.like("100%")) | (Account.code.like("101%"))
+            )
+            .order_by(JournalEntry.date)
+            .all()
+        )
+        
+        inflows = sum(r.debit for r in rows if r.debit)
+        outflows = sum(r.credit for r in rows if r.credit)
+        
+        return {
+            "operating_activities": inflows - outflows,
+            "investing_activities": 0.0,
+            "financing_activities": 0.0,
+            "net_cash_flow": inflows - outflows,
+            "transactions": [
+                {
+                    "date": r.date,
+                    "description": r.description,
+                    "inflow": r.debit or 0.0,
+                    "outflow": r.credit or 0.0
+                } for r in rows
+            ]
+        }
+
+    def get_aging_report(self, tenant_id: str, report_type: str = "AR"):
+        """Generates AR or AP Aging report based on unpaid/partially paid sales or purchases."""
+        from sqlalchemy import func
+        from models.sales import Sale
+        from models.purchase import Purchase
+        
+        buckets = {"0-30": 0.0, "31-60": 0.0, "61-90": 0.0, "90+": 0.0, "total": 0.0}
+        now = datetime.utcnow()
+        
+        if report_type == "AR":
+            # Unpaid Sales
+            records = self.db.query(Sale).filter(
+                Sale.tenant_id == tenant_id,
+                Sale.status.notin_(["Voided", "Cancelled"]),
+                Sale.payment_status.notin_(["Paid"])
+            ).all()
+            
+            for rec in records:
+                due = rec.grand_total - (rec.paid_amount or 0.0)
+                if due <= 0: continue
+                days_old = (now - rec.created_at).days
+                if days_old <= 30: buckets["0-30"] += due
+                elif days_old <= 60: buckets["31-60"] += due
+                elif days_old <= 90: buckets["61-90"] += due
+                else: buckets["90+"] += due
+                buckets["total"] += due
+                
+        elif report_type == "AP":
+            # Unpaid Purchases
+            records = self.db.query(Purchase).filter(
+                Purchase.tenant_id == tenant_id,
+                Purchase.status == "Received",
+                Purchase.payment_status.notin_(["Paid"])
+            ).all()
+            
+            for rec in records:
+                due = rec.grand_total - (rec.paid_amount or 0.0)
+                if due <= 0: continue
+                days_old = (now - rec.created_at).days
+                if days_old <= 30: buckets["0-30"] += due
+                elif days_old <= 60: buckets["31-60"] += due
+                elif days_old <= 90: buckets["61-90"] += due
+                else: buckets["90+"] += due
+                buckets["total"] += due
+                
+        return {"report_type": report_type, "buckets": buckets}
+
+    def get_sub_ledger(self, tenant_id: str, source_module: str, source_id: str):
+        """Retrieve ledger lines for a specific customer or supplier (via source_id)."""
+        from models.accounts import JournalEntry, JournalEntryLine, Account
+        
+        rows = (
+            self.db.query(JournalEntry, JournalEntryLine, Account)
+            .join(JournalEntryLine, JournalEntryLine.journal_entry_id == JournalEntry.id)
+            .join(Account, Account.id == JournalEntryLine.account_id)
+            .filter(
+                JournalEntry.tenant_id == tenant_id,
+                JournalEntry.source_module == source_module,
+                JournalEntry.source_id == source_id,
+                JournalEntry.status == "Approved"
+            )
+            .order_by(JournalEntry.date)
+            .all()
+        )
+        
+        parsed = []
+        balance = 0.0
+        for je, line, acc in rows:
+            balance += (line.debit or 0.0) - (line.credit or 0.0)
+            parsed.append({
+                "date": je.date,
+                "reference": je.reference,
+                "description": je.description,
+                "account_name": acc.name,
+                "debit": line.debit or 0.0,
+                "credit": line.credit or 0.0,
+                "running_balance": balance
+            })
+            
+        return {"source_module": source_module, "source_id": source_id, "rows": parsed, "closing_balance": balance}
+
+    def get_tax_ledger(self, tenant_id: str):
+        """Retrieve all entries hitting tax liability accounts."""
+        from models.accounts import JournalEntry, JournalEntryLine, Account
+        
+        rows = (
+            self.db.query(JournalEntry, JournalEntryLine, Account)
+            .join(JournalEntryLine, JournalEntryLine.journal_entry_id == JournalEntry.id)
+            .join(Account, Account.id == JournalEntryLine.account_id)
+            .filter(
+                JournalEntry.tenant_id == tenant_id,
+                Account.code.like("201%"), # Tax Payable
+                JournalEntry.status == "Approved"
+            )
+            .order_by(JournalEntry.date)
+            .all()
+        )
+        
+        parsed = []
+        balance = 0.0
+        for je, line, acc in rows:
+            balance += (line.credit or 0.0) - (line.debit or 0.0) # Normal Liability balance
+            parsed.append({
+                "date": je.date,
+                "reference": je.reference,
+                "tax_account": acc.name,
+                "tax_collected": line.credit or 0.0,
+                "tax_paid": line.debit or 0.0,
+                "running_liability": balance
+            })
+            
+        return {"rows": parsed, "total_liability": balance}

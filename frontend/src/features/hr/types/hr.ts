@@ -28,7 +28,10 @@ export interface Employee {
   dob?: string;
   gender?: string;
   employee_id?: string;
+  employee_code?: string;
   username?: string;
+  user_id?: string;
+  branch_id?: string | null;
   shift_id?: string;
   department_id: string;
   designation_id: string;

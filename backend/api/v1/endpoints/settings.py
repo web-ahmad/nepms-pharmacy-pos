@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
 from models.users import User
-from dependencies.auth import require_role
+from core.deps import requires_permission
 from schemas.settings import (
     TenantSettingsUpdate, TenantSettingsResponse, 
     SystemModuleResponse, SystemModuleUpdate,
@@ -14,32 +14,32 @@ from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
-def require_settings_view(current_user: User = Depends(require_role("settings.view"))): return current_user
-def require_settings_update(current_user: User = Depends(require_role("settings.update"))): return current_user
+def require_settings_view(token_payload: dict = Depends(requires_permission("settings:view"))): return token_payload
+def require_settings_update(token_payload: dict = Depends(requires_permission("settings:update"))): return token_payload
 
 @router.get("", response_model=TenantSettingsResponse)
-def get_settings(db: Session = Depends(get_db), current_user: User = Depends(require_settings_view)):
-    return SettingsService(db).get_settings(current_user.tenant_id)
+def get_settings(db: Session = Depends(get_db), current_user: dict = Depends(require_settings_view)):
+    return SettingsService(db).get_settings(current_user.get("tenant_id"))
 
 @router.put("", response_model=TenantSettingsResponse)
-def update_settings(obj_in: TenantSettingsUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_settings_update)):
-    return SettingsService(db).update_settings(current_user.tenant_id, obj_in)
+def update_settings(obj_in: TenantSettingsUpdate, db: Session = Depends(get_db), current_user: dict = Depends(require_settings_update)):
+    return SettingsService(db).update_settings(current_user.get("tenant_id"), obj_in)
 
 @router.get("/invoice", response_model=InvoiceSettingsResponse)
-def get_invoice_settings(db: Session = Depends(get_db), current_user: User = Depends(require_settings_view)):
-    return SettingsService(db).get_invoice_settings(current_user.tenant_id)
+def get_invoice_settings(db: Session = Depends(get_db), current_user: dict = Depends(require_settings_view)):
+    return SettingsService(db).get_invoice_settings(current_user.get("tenant_id"))
 
 @router.put("/invoice", response_model=InvoiceSettingsResponse)
-def update_invoice_settings(obj_in: InvoiceSettingsUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_settings_update)):
-    return SettingsService(db).update_invoice_settings(current_user.tenant_id, obj_in)
+def update_invoice_settings(obj_in: InvoiceSettingsUpdate, db: Session = Depends(get_db), current_user: dict = Depends(require_settings_update)):
+    return SettingsService(db).update_invoice_settings(current_user.get("tenant_id"), obj_in)
 
 @router.get("/modules", response_model=List[SystemModuleResponse])
-def get_modules(db: Session = Depends(get_db), current_user: User = Depends(require_settings_view)):
-    return SettingsService(db).get_modules(current_user.tenant_id)
+def get_modules(db: Session = Depends(get_db), current_user: dict = Depends(require_settings_view)):
+    return SettingsService(db).get_modules(current_user.get("tenant_id"))
 
 @router.put("/modules/{id}", response_model=SystemModuleResponse)
-def update_module(id: str, obj_in: SystemModuleUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_settings_update)):
-    return SettingsService(db).update_module(current_user.tenant_id, id, current_user.id, obj_in)
+def update_module(id: str, obj_in: SystemModuleUpdate, db: Session = Depends(get_db), current_user: dict = Depends(require_settings_update)):
+    return SettingsService(db).update_module(current_user.get("tenant_id"), id, current_user.get("sub"), obj_in)
 
 @router.get("/whatsapp/qr")
 def get_whatsapp_qr(current_user: User = Depends(require_settings_view)):

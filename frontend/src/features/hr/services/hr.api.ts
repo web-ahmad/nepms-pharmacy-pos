@@ -57,6 +57,19 @@ export const useUpdateDepartment = (id: string) => {
   });
 };
 
+export const useDeleteDepartment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/api/v1/hr/departments/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'departments'] });
+    },
+  });
+};
+
 // Designations
 export const useDesignations = () => {
   return useQuery({

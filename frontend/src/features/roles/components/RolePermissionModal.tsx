@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Role, Permission, RoleCreateUpdate } from '../types/roles';
 import { useCreateRole, useUpdateRole } from '../services/roles.api';
 import toast from 'react-hot-toast';
 import { parseApiError } from '@/utils/errorParser';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { Search, CheckSquare, Square, Check, X } from 'lucide-react';
+import { Search, CheckSquare, Square, Check, X, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface RolePermissionModalProps {
   isOpen: boolean;
@@ -12,6 +12,131 @@ interface RolePermissionModalProps {
   role: Role | null;
   permissions: Permission[];
 }
+
+const getBadgeColor = (action: string) => {
+  const a = action.toLowerCase();
+  if (['create', 'add'].includes(a)) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
+  if (['delete', 'remove', 'void'].includes(a)) return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800';
+  if (['view', 'read'].includes(a)) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800';
+  if (['update', 'edit', 'manage', 'approve'].includes(a)) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800';
+  if (['export', 'import'].includes(a)) return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800';
+  return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700';
+};
+
+const ModuleAccordion = ({
+  module,
+  perms,
+  selectedPermissions,
+  handleTogglePermission,
+  handleToggleModule,
+  isReadOnly,
+  searchQuery
+}: any) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  // Auto-expand if searching and there is a match
+  useEffect(() => {
+    if (searchQuery) setIsOpen(true);
+    else setIsOpen(false);
+  }, [searchQuery]);
+
+  const selectedCount = perms.filter((p: any) => selectedPermissions.has(p.code)).length;
+  const isAllSelected = selectedCount === perms.length;
+  const isSomeSelected = selectedCount > 0 && !isAllSelected;
+
+  return (
+    <div className="mb-3 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-900/40 shadow-sm hover:shadow-md transition-shadow">
+      <div 
+        className="px-5 py-4 flex items-center justify-between cursor-pointer select-none bg-slate-50/50 dark:bg-slate-800/20 hover:bg-slate-100/50 dark:hover:bg-slate-800/40 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center gap-4">
+          <div className="relative flex items-center justify-center w-5 h-5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={isAllSelected}
+              ref={input => { if (input) input.indeterminate = isSomeSelected; }}
+              onChange={() => handleToggleModule(module, perms)}
+              disabled={isReadOnly}
+              className="peer w-5 h-5 cursor-pointer appearance-none rounded border border-slate-300 bg-white checked:border-blue-500 checked:bg-blue-500 indeterminate:bg-blue-500 indeterminate:border-blue-500 dark:border-slate-600 dark:bg-slate-800 disabled:opacity-50 transition-all"
+            />
+            {isAllSelected && <Check className="absolute text-white w-3.5 h-3.5 pointer-events-none" />}
+            {isSomeSelected && <div className="absolute bg-blue-500 w-2.5 h-0.5 rounded-full pointer-events-none" />}
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200 capitalize text-base tracking-tight">
+              {module.replace(/_/g, ' ')}
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              <span className={selectedCount > 0 ? "text-blue-600 dark:text-blue-400 font-bold" : ""}>{selectedCount}</span> of {perms.length} permissions
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown className="text-slate-400" size={20} />
+          </motion.div>
+        </div>
+      </div>
+      
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800/60 bg-white dark:bg-slate-900/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {perms.map((p: any) => {
+                const checked = selectedPermissions.has(p.code);
+                return (
+                  <label 
+                    key={p.id} 
+                    className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                      checked 
+                        ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800/50 shadow-sm' 
+                        : 'bg-white border-slate-100 hover:border-slate-300 dark:bg-slate-900/30 dark:border-slate-800/60 dark:hover:border-slate-700'
+                    } ${isReadOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    <div className="relative flex items-center justify-center mt-0.5 flex-shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => handleTogglePermission(p.code)}
+                        disabled={isReadOnly}
+                        className="w-4 h-4 cursor-pointer appearance-none rounded border border-slate-300 bg-white checked:border-blue-500 checked:bg-blue-500 dark:border-slate-600 dark:bg-slate-800 transition-all disabled:opacity-50"
+                      />
+                      {checked && <Check className="absolute text-white w-3 h-3 pointer-events-none" />}
+                    </div>
+                    <div className="flex flex-col gap-1.5 overflow-hidden">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-md border capitalize tracking-wide ${getBadgeColor(p.action)}`}>
+                          {p.action.replace(/_/g, ' ')}
+                        </span>
+                        {p.is_sensitive && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 bg-rose-100 border border-rose-200 dark:border-rose-800 dark:text-rose-400 dark:bg-rose-900/30 px-1.5 py-0.5 rounded-md">
+                            Sensitive
+                          </span>
+                        )}
+                      </div>
+                      {p.description && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight truncate" title={p.description}>
+                          {p.description}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 export const RolePermissionModal: React.FC<RolePermissionModalProps> = ({ isOpen, onClose, role, permissions }) => {
   const [name, setName] = useState('');
@@ -23,7 +148,6 @@ export const RolePermissionModal: React.FC<RolePermissionModalProps> = ({ isOpen
   
   const createMutation = useCreateRole();
   const updateMutation = useUpdateRole();
-  const parentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (role) {
@@ -60,13 +184,6 @@ export const RolePermissionModal: React.FC<RolePermissionModalProps> = ({ isOpen
     });
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [permissions, searchQuery]);
-
-  const rowVirtualizer = useVirtualizer({
-    count: groupedPermissions.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 80,
-    overscan: 5,
-  });
 
   const handleTogglePermission = (code: string) => {
     if (role?.is_system_default) return;
@@ -130,202 +247,183 @@ export const RolePermissionModal: React.FC<RolePermissionModalProps> = ({ isOpen
   const isReadOnly = role?.is_system_default;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-6xl flex flex-col h-[95vh] border border-slate-200 dark:border-slate-800">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-              {role ? (isReadOnly ? 'View System Role' : 'Edit Role') : 'Create Custom Role'}
-            </h2>
-            <p className="text-sm text-slate-500 mt-1">
-              {isReadOnly ? 'System roles cannot be modified.' : 'Configure role settings and granular permissions.'}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6 flex-shrink-0 grid grid-cols-4 gap-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              disabled={isReadOnly}
-              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-60"
-              placeholder="e.g., Senior Cashier"
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
-            <input
-              type="text"
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              disabled={isReadOnly}
-              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-60"
-              placeholder="Optional description"
-            />
-          </div>
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Branch Scope</label>
-            <select
-              value={branchScope}
-              onChange={e => setBranchScope(e.target.value)}
-              disabled={isReadOnly}
-              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-60"
-            >
-              <option value="global">Global (All Branches)</option>
-              <option value="all_branches">All Branches (Tenant)</option>
-              <option value="assigned_branch">Assigned Branch Only</option>
-              <option value="selected_branches">Selected Branches</option>
-              <option value="assigned_counter">Assigned Counter</option>
-            </select>
-          </div>
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Data Scope</label>
-            <select
-              value={dataScope}
-              onChange={e => setDataScope(e.target.value)}
-              disabled={isReadOnly}
-              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-60"
-            >
-              <option value="global">Global</option>
-              <option value="tenant">Tenant Wide</option>
-              <option value="branch">Branch Wide</option>
-              <option value="selected_branches">Selected Branches</option>
-              <option value="own_records">Own Records Only</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Sticky Toolbar */}
-        <div className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur sticky top-0 z-10 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={handleSelectAll}
-              disabled={isReadOnly}
-              className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-blue-600 disabled:opacity-50"
-            >
-              {selectedPermissions.size === permissions.length ? <CheckSquare size={18} /> : <Square size={18} />}
-              {selectedPermissions.size === permissions.length ? 'Deselect All' : 'Select All'}
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 sm:p-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+          className="bg-slate-50 dark:bg-slate-950 rounded-2xl shadow-2xl w-full max-w-7xl flex flex-col h-[95vh] border border-slate-200 dark:border-slate-800 overflow-hidden"
+        >
+          {/* Header */}
+          <div className="px-8 py-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">
+                  {role ? (isReadOnly ? 'View System Role' : 'Edit Role') : 'Create Custom Role'}
+                </h2>
+                {isReadOnly && (
+                  <span className="px-2.5 py-1 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400 text-xs font-bold uppercase tracking-wider">
+                    System Default
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-slate-500 font-medium">
+                {isReadOnly ? 'System roles are managed by the platform and cannot be modified.' : 'Configure role identity, access boundaries, and granular module permissions.'}
+              </p>
+            </div>
+            <button onClick={onClose} className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">
+              <X size={22} />
             </button>
-            <span className="text-sm text-slate-500">
-              {selectedPermissions.size} / {permissions.length} selected
-            </span>
           </div>
-          <div className="relative w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Search permissions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            />
-          </div>
-        </div>
 
-        {/* Virtualized Matrix */}
-        <div ref={parentRef} className="flex-1 overflow-auto custom-scrollbar px-6 py-4">
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: '100%',
-              position: 'relative',
-            }}
-          >
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const [module, perms] = groupedPermissions[virtualRow.index];
-              const isAllModuleSelected = perms.every(p => selectedPermissions.has(p.code));
-              const isSomeModuleSelected = perms.some(p => selectedPermissions.has(p.code)) && !isAllModuleSelected;
-
-              return (
-                <div
-                  key={virtualRow.index}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: `${virtualRow.size}px`,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                  className="border-b border-slate-100 dark:border-slate-800 py-3"
-                >
-                  <div className="flex">
-                    <div className="w-1/4 pr-4">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleModule(module, perms)}
+          <div className="flex-1 overflow-auto custom-scrollbar flex flex-col">
+            {/* Metadata Section */}
+            <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">Role Identity</label>
+                  <div className="space-y-4">
+                    <div>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
                         disabled={isReadOnly}
-                        className="flex items-center gap-2 group text-left w-full"
-                      >
-                        <div className="relative flex items-center justify-center w-5 h-5 flex-shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={isAllModuleSelected}
-                            ref={input => {
-                              if (input) input.indeterminate = isSomeModuleSelected;
-                            }}
-                            readOnly
-                            className="peer w-5 h-5 cursor-pointer appearance-none rounded border border-slate-300 bg-white checked:border-blue-500 checked:bg-blue-500 indeterminate:bg-blue-500 indeterminate:border-blue-500 dark:border-slate-600 dark:bg-slate-800"
-                          />
-                          {isAllModuleSelected && <Check className="absolute text-white w-3.5 h-3.5 pointer-events-none" />}
-                          {isSomeModuleSelected && <div className="absolute bg-blue-500 w-2.5 h-0.5 rounded-full pointer-events-none" />}
-                        </div>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200 capitalize group-hover:text-blue-600 transition-colors">
-                          {module.replace(/_/g, ' ')} ({perms.filter(p => selectedPermissions.has(p.code)).length}/{perms.length})
-                        </span>
-                      </button>
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-60 font-medium text-slate-900 dark:text-white placeholder-slate-400"
+                        placeholder="e.g., Senior Pharmacist"
+                      />
                     </div>
-                    <div className="w-3/4 flex flex-wrap gap-x-6 gap-y-3">
-                      {perms.map(p => (
-                        <label key={p.id} className={`flex items-center gap-2 cursor-pointer ${isReadOnly ? 'opacity-70 cursor-not-allowed' : ''}`}>
-                          <div className="relative flex items-center justify-center">
-                            <input
-                              type="checkbox"
-                              checked={selectedPermissions.has(p.code)}
-                              onChange={() => handleTogglePermission(p.code)}
-                              disabled={isReadOnly}
-                              className="w-4 h-4 cursor-pointer appearance-none rounded border border-slate-300 bg-white checked:border-blue-500 checked:bg-blue-500 dark:border-slate-600 dark:bg-slate-800 transition-all"
-                            />
-                            {selectedPermissions.has(p.code) && <Check className="absolute text-white w-3 h-3 pointer-events-none" />}
-                          </div>
-                          <span className="text-sm text-slate-600 dark:text-slate-400 capitalize">
-                            {p.action.replace(/_/g, ' ')}
-                          </span>
-                        </label>
-                      ))}
+                    <div>
+                      <input
+                        type="text"
+                        value={description}
+                        onChange={e => setDescription(e.target.value)}
+                        disabled={isReadOnly}
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-60 text-sm text-slate-900 dark:text-white placeholder-slate-400"
+                        placeholder="Brief description of responsibilities..."
+                      />
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              </div>
 
-        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 rounded-b-2xl">
-          <button
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-lg text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-          >
-            {isReadOnly ? 'Close' : 'Cancel'}
-          </button>
-          {!isReadOnly && (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wider">Access Boundaries</label>
+                  <div className="space-y-4 grid grid-cols-2 gap-4">
+                    <div className="mt-0">
+                      <select
+                        value={branchScope}
+                        onChange={e => setBranchScope(e.target.value)}
+                        disabled={isReadOnly}
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-60 text-sm font-medium text-slate-800 dark:text-slate-200"
+                      >
+                        <option value="global">Global (All Branches)</option>
+                        <option value="all_branches">All Branches (Tenant)</option>
+                        <option value="assigned_branch">Assigned Branch Only</option>
+                        <option value="selected_branches">Selected Branches</option>
+                        <option value="assigned_counter">Assigned Counter</option>
+                      </select>
+                    </div>
+                    <div className="mt-0">
+                      <select
+                        value={dataScope}
+                        onChange={e => setDataScope(e.target.value)}
+                        disabled={isReadOnly}
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all disabled:opacity-60 text-sm font-medium text-slate-800 dark:text-slate-200"
+                      >
+                        <option value="global">Global</option>
+                        <option value="tenant">Tenant Wide</option>
+                        <option value="branch">Branch Wide</option>
+                        <option value="selected_branches">Selected Branches</option>
+                        <option value="own_records">Own Records Only</option>
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Controls which branches this role can access and whether they see all branch data or only their own records.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Permissions Toolbar */}
+            <div className="px-8 py-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-center gap-6">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Module Permissions</h3>
+                <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 hidden sm:block"></div>
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  disabled={isReadOnly}
+                  className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 transition-colors"
+                >
+                  {selectedPermissions.size === permissions.length ? <CheckSquare size={18} className="text-blue-600" /> : <Square size={18} />}
+                  {selectedPermissions.size === permissions.length ? 'Deselect All Permissions' : 'Select All Permissions'}
+                </button>
+                <span className="text-sm font-medium bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  <span className="text-blue-600 dark:text-blue-400 font-bold">{selectedPermissions.size}</span> / {permissions.length} selected
+                </span>
+              </div>
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search modules or actions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm font-medium bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder-slate-400"
+                />
+              </div>
+            </div>
+
+            {/* Accordions Container */}
+            <div className="flex-1 p-8 bg-slate-50/50 dark:bg-slate-950/50">
+              {groupedPermissions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-slate-500">
+                  <Search size={32} className="mb-3 opacity-50" />
+                  <p className="font-medium">No permissions found matching "{searchQuery}"</p>
+                </div>
+              ) : (
+                <div className="max-w-6xl mx-auto space-y-4">
+                  {groupedPermissions.map(([module, perms]) => (
+                    <ModuleAccordion
+                      key={module}
+                      module={module}
+                      perms={perms}
+                      selectedPermissions={selectedPermissions}
+                      handleTogglePermission={handleTogglePermission}
+                      handleToggleModule={handleToggleModule}
+                      isReadOnly={isReadOnly}
+                      searchQuery={searchQuery}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-8 py-5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3 rounded-b-2xl shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
             <button
-              onClick={handleSave}
-              disabled={isSaving || !name.trim()}
-              className="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              onClick={onClose}
+              className="px-6 py-2.5 rounded-xl text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
             >
-              {isSaving ? 'Saving...' : 'Save Role'}
+              {isReadOnly ? 'Close View' : 'Cancel'}
             </button>
-          )}
-        </div>
+            {!isReadOnly && (
+              <button
+                onClick={handleSave}
+                disabled={isSaving || !name.trim()}
+                className="px-8 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 active:bg-blue-800 transition-all disabled:opacity-50 disabled:hover:bg-blue-600 shadow-md shadow-blue-500/20"
+              >
+                {isSaving ? 'Saving...' : role ? 'Save Changes' : 'Create Role'}
+              </button>
+            )}
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </AnimatePresence>
   );
 };

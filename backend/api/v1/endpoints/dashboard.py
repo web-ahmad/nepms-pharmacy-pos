@@ -17,22 +17,27 @@ router = APIRouter(tags=["Dashboard"])
 from fastapi import HTTPException, status
 
 def get_dashboard_filters(user: User, scope: PharmacyScope, query_branch_id: Optional[str] = None):
-    """Determine branch_id and cashier_id filters based on scope and role."""
-    # Use explicit query param if provided (e.g. for HQ viewing a specific branch), 
-    # otherwise fallback to the active session's branch_id
+    """Determine branch_id and cashier_id filters based on scope and hierarchy level."""
     branch_id = query_branch_id or scope.branch_id
-    
+
     if not branch_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Branch context required. Please select an active branch."
         )
-        
+
     cashier_id = None
-    role_name = user.role.name if user.role else "Pharmacy Owner"
-    if role_name == "Cashier":
+    # Cashiers are identified by permission 'pos:create' without 'dashboard:view'
+    # Use _jwt_permissions injected by get_current_user — never compare role names
+    user_permissions = getattr(user, "_jwt_permissions", user.permissions or [])
+    is_cashier_only = (
+        "pos:create" in user_permissions
+        and "dashboard:view" not in user_permissions
+        and "*" not in user_permissions
+    )
+    if is_cashier_only:
         cashier_id = user.id
-        
+
     return branch_id, cashier_id
 
 @router.get("/overview", response_model=SalesOverviewSchema)

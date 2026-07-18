@@ -53,7 +53,6 @@ export default function AddDesignationModal({ onClose, designation }: AddDesigna
         notify.success('Designation created successfully');
       }
     } catch (err: any) {
-      console.error("Full Backend Response:", err.response?.data);
       const data = err.response?.data;
       const exactMessage =
         (typeof data === 'string' && data ? data : null) ||

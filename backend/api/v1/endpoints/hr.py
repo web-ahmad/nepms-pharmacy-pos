@@ -6,7 +6,7 @@ from datetime import date
 
 from database import get_db
 from models.users import User
-from dependencies.auth import require_role
+from core.deps import requires_permission
 from dependencies.module_guard import require_module
 from schemas.hr import (
     DepartmentCreate, DepartmentResponse,
@@ -30,12 +30,12 @@ from services.hr_service import HRService
 
 router = APIRouter(dependencies=[Depends(require_module("employees"))])
 
-def require_hr_view(current_user: User = Depends(require_role("hr.view"))): return current_user
-def require_hr_create(current_user: User = Depends(require_role("hr.create"))): return current_user
-def require_hr_update(current_user: User = Depends(require_role("hr.update"))): return current_user
-def require_hr_approve(current_user: User = Depends(require_role("hr.approve"))): return current_user
-def require_payroll_view(current_user: User = Depends(require_role("payroll.view"))): return current_user
-def require_payroll_run(current_user: User = Depends(require_role("payroll.run"))): return current_user
+def require_hr_view(token_payload: dict = Depends(requires_permission("hr:view"))): return token_payload
+def require_hr_create(token_payload: dict = Depends(requires_permission("hr:create"))): return token_payload
+def require_hr_update(token_payload: dict = Depends(requires_permission("hr:update"))): return token_payload
+def require_hr_approve(token_payload: dict = Depends(requires_permission("hr:approve"))): return token_payload
+def require_payroll_view(token_payload: dict = Depends(requires_permission("payroll:view"))): return token_payload
+def require_payroll_run(token_payload: dict = Depends(requires_permission("payroll:run"))): return token_payload
 
 # Departments
 @router.get("/departments", response_model=List[DepartmentResponse])
@@ -53,6 +53,8 @@ def create_department(obj_in: DepartmentCreate, db: Session = Depends(get_db), c
         if getattr(obj_in, 'head_id', None) == "":
             obj_in.head_id = None
         return HRService(db).create_department(current_user.tenant_id, obj_in)
+    except HTTPException as he:
+        raise he
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -66,10 +68,23 @@ def update_department(id: str, obj_in: DepartmentUpdate, db: Session = Depends(g
         if getattr(obj_in, 'head_id', None) == "":
             obj_in.head_id = None
         return HRService(db).update_department(current_user.tenant_id, id, obj_in)
+    except HTTPException as he:
+        raise he
     except Exception as e:
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=f"Failed to update department: {str(e)}")
+
+@router.delete("/departments/{id}")
+def delete_department(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+    try:
+        return HRService(db).delete_department(current_user.tenant_id, id)
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Failed to delete department: {str(e)}")
 
 # Designations
 @router.get("/designations", response_model=List[DesignationResponse])
@@ -115,6 +130,8 @@ def create_employee(obj_in: EmployeeCreate, db: Session = Depends(get_db), curre
             obj_in.shift_id = None
             
         return HRService(db).create_employee(current_user.tenant_id, current_user.id, obj_in)
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         import traceback

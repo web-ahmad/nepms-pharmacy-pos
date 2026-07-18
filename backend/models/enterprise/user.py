@@ -208,20 +208,39 @@ class EnterprisePermission(BaseModel):
 # ── EnterpriseRole ────────────────────────────────────────────────────────────
 
 class EnterpriseRole(BaseModel):
-    """Rich RBAC role scoped to a pharmacy."""
+    """
+    Rich RBAC role scoped to a pharmacy.
+
+    hierarchy_level controls what the role can access:
+        1 = Software Company Super Admin  (SaaS-only, no pharmacy data)
+        2 = Pharmacy Owner                (whole tenant, all branches)
+        3 = Branch Owner                  (own branch only)
+        4 = Branch Staff                  (permission-driven, own branch)
+    """
     __tablename__ = "enterprise_roles"
 
     name                = Column(String(100), nullable=False, index=True)
     description         = Column(Text,        nullable=True)
     color               = Column(String(20),  nullable=True, default="#6366f1")   # hex
     icon                = Column(String(50),  nullable=True)                       # lucide icon name
-    is_system_default   = Column(Boolean, default=False)   # cannot be deleted
+    is_system_default   = Column(Boolean, default=False)   # cannot be deleted by users
+    is_system_role      = Column(Boolean, default=False)   # super admin only, hidden from tenants
     is_branch_specific  = Column(Boolean, default=False)   # permissions vary per branch
     user_type           = Column(String(50),  nullable=True)    # maps to EnterpriseUserType
     max_users           = Column(Integer,  nullable=True)        # null = unlimited
     sort_order          = Column(Integer,  default=0)
-    branch_scope        = Column(String(50),  nullable=True, default="assigned_branch")   # global|tenant|all_branches|assigned_branch|assigned_counter|selected_branches
-    data_scope          = Column(String(50),  nullable=True, default="branch")            # global|tenant|branch|own_records
+    branch_scope        = Column(String(50),  nullable=True, default="assigned_branch")
+    # branch_scope values: global | all_branches | assigned_branch | assigned_counter
+    data_scope          = Column(String(50),  nullable=True, default="branch")
+    # data_scope values:   global | tenant | branch | own_records
+
+    # ── Hierarchy Level — THE canonical field for access control ─────────────
+    # NEVER check role.name for business logic. Use hierarchy_level instead.
+    hierarchy_level     = Column(Integer, nullable=False, default=4, index=True)
+    # 1 = Super Admin (SaaS), 2 = Pharmacy Owner, 3 = Branch Owner, 4 = Staff
+
+    # Whether this role is visible only to SaaS admins (level 1)
+    is_global_role      = Column(Boolean, default=False)
 
     role_permissions    = relationship("EnterpriseRolePermission", back_populates="role", cascade="all, delete-orphan")
     users               = relationship("EnterpriseUser", back_populates="enterprise_role")

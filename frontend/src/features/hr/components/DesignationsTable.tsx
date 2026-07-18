@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useDesignations, useDepartments } from '../services/hr.api';
 import AddDesignationModal from './AddDesignationModal';
 import { Designation } from '../types/hr';
-import { Edit2, Search, ShieldOff, Plus } from 'lucide-react';
+import { Edit2, Search, ShieldOff, ShieldCheck, Plus } from 'lucide-react';
 import { DataExportMenu, ExportColumn } from '@/components/ui/DataExportMenu';
+import { api } from '@/services/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { notify } from '@/utils/toast';
 
 export default function DesignationsTable() {
   const { data: designations, isLoading } = useDesignations();
@@ -15,6 +18,17 @@ export default function DesignationsTable() {
 
   const handleEdit = (d: Designation) => { setSelectedDesignation(d); setIsModalOpen(true); };
   const handleAdd  = () => { setSelectedDesignation(undefined); setIsModalOpen(true); };
+
+  const queryClient = useQueryClient();
+  const handleToggleStatus = async (d: Designation) => {
+    try {
+      await api.put(`/api/v1/hr/designations/${d.id}`, { is_active: !d.is_active });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'designations'] });
+      notify.success(`Designation ${d.is_active ? 'deactivated' : 'activated'} successfully`);
+    } catch (err) {
+      notify.error('Failed to change designation status');
+    }
+  };
 
   const filtered = designations?.filter(d =>
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -111,8 +125,8 @@ export default function DesignationsTable() {
                       <button onClick={() => handleEdit(d)} className="p-1.5 rounded-lg text-gray-400 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 transition-colors">
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
-                      <button className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors">
-                        <ShieldOff className="h-3.5 w-3.5" />
+                      <button onClick={() => handleToggleStatus(d)} className={`p-1.5 rounded-lg transition-colors ${d.is_active ? 'text-red-400 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/30 dark:hover:text-red-400' : 'text-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400'}`}>
+                        {d.is_active ? <ShieldOff className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                   </td>

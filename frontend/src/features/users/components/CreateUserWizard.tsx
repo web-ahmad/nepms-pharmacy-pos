@@ -1,20 +1,21 @@
 'use client';
 // features/users/components/CreateUserWizard.tsx
-// 4-step wizard: Identity → Role & Access → Staff Info → Review
+// 3-step wizard: Identity → Role & Access → Review
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  User, Shield, Briefcase, ClipboardCheck,
-  ChevronLeft, ChevronRight, Loader2, CheckCircle2, X,
+  User, Shield, ClipboardCheck,
+  ChevronLeft, ChevronRight, Loader2, CheckCircle2, X, Link as LinkIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useCreateUser } from '../services/user.api';
 import { useEnterpriseRoles } from '../services/role.api';
+import { useEmployees } from '@/features/hr/services/hr.api';
 import type { EnterpriseUserCreate } from '../types/user';
 import { USER_TYPE_LABELS } from '../types/user';
 
@@ -22,6 +23,7 @@ import { USER_TYPE_LABELS } from '../types/user';
 
 const schema = z.object({
   // Step 1
+  employee_id:          z.string().optional(),
   username:             z.string().min(3, 'Username must be at least 3 characters'),
   email:                z.string().email('Invalid email'),
   password:             z.string().min(8, 'Password must be at least 8 characters'),
@@ -35,15 +37,6 @@ const schema = z.object({
   max_concurrent_sessions: z.coerce.number().int().min(1).max(20).optional(),
   allowed_ips:          z.string().optional(), // comma-separated, parsed on submit
 
-  // Step 3
-  employee_id:          z.string().optional(),
-  cnic:                 z.string().optional(),
-  license_number:       z.string().optional(),
-  qualification:        z.string().optional(),
-  joining_date:         z.string().optional(),
-  blood_group:          z.string().optional(),
-  address:              z.string().optional(),
-
   // Notification prefs
   notif_email:    z.boolean().optional(),
   notif_sms:      z.boolean().optional(),
@@ -55,21 +48,66 @@ type FormValues = z.infer<typeof schema>;
 
 // ── Step components ───────────────────────────────────────────────────────────
 
-function Step1({ register, errors }: { register: any; errors: any }) {
+function Step1({ register, errors, setValue, watch, employees }: { register: any; errors: any; setValue: any; watch: any; employees: any[] }) {
+  const selectedEmployeeId = watch('employee_id');
+  const isLinked = !!selectedEmployeeId;
+
+  // Sync data when employee changes
+  useEffect(() => {
+    if (selectedEmployeeId) {
+      const emp = employees.find(e => e.id === selectedEmployeeId);
+      if (emp) {
+        setValue('full_name', `${emp.first_name || ''} ${emp.last_name || ''}`.trim(), { shouldValidate: true });
+        if (emp.phone) setValue('phone', emp.phone, { shouldValidate: true });
+        if (emp.email && !watch('email')) setValue('email', emp.email, { shouldValidate: true });
+      }
+    } else {
+      // If unlinked, we don't automatically clear to allow manual entry,
+      // but you could if desired.
+    }
+  }, [selectedEmployeeId, employees, setValue, watch]);
+
   return (
-    <div className="space-y-5">
-      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Identity</h3>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Identity</h3>
+      </div>
+
+      {/* Bridge: Select Existing Employee */}
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/10 p-4">
+        <label className="flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-400 mb-2">
+          <LinkIcon size={16} /> 🔗 Select Existing Employee (Optional)
+        </label>
+        <p className="text-xs text-indigo-600/80 dark:text-indigo-400/80 mb-3">
+          Linking an employee will auto-fill and lock their Name and Phone to match HR records.
+        </p>
+        <select {...register('employee_id')}
+          className="w-full rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-900 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all">
+          <option value="">-- No Employee Link (Create standalone user) --</option>
+          {employees.map((emp) => (
+            <option key={emp.id} value={emp.id}>
+              {emp.first_name} {emp.last_name} {emp.employee_code ? `(${emp.employee_code})` : ''}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Full Name</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+            Full Name {isLinked && <span className="text-xs font-normal text-amber-600 dark:text-amber-400 ml-1">(Locked by HR)</span>}
+          </label>
           <input {...register('full_name')} placeholder="e.g. Dr. John Doe"
-            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all" />
+            disabled={isLinked}
+            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all disabled:opacity-50 disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Phone</label>
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+            Phone {isLinked && <span className="text-xs font-normal text-amber-600 dark:text-amber-400 ml-1">(Locked by HR)</span>}
+          </label>
           <input {...register('phone')} placeholder="+92 300 1234567"
-            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all" />
+            disabled={isLinked}
+            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all disabled:opacity-50 disabled:bg-zinc-50 dark:disabled:bg-zinc-900/50" />
         </div>
       </div>
 
@@ -164,56 +202,22 @@ function Step2({ register, errors, roles }: { register: any; errors: any; roles:
   );
 }
 
-function Step3({ register }: { register: any }) {
-  const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
-  return (
-    <div className="space-y-5">
-      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Staff Information</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[
-          { name: 'employee_id', label: 'Employee ID', placeholder: 'EMP-001' },
-          { name: 'cnic', label: 'CNIC', placeholder: '42201-1234567-1' },
-          { name: 'license_number', label: 'License No.', placeholder: 'PM-12345' },
-          { name: 'qualification', label: 'Qualification', placeholder: 'Pharm-D' },
-          { name: 'joining_date', label: 'Joining Date', type: 'date' },
-        ].map(({ name, label, placeholder, type }) => (
-          <div key={name}>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">{label}</label>
-            <input {...register(name)} type={type ?? 'text'} placeholder={placeholder}
-              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all" />
-          </div>
-        ))}
-        <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Blood Group</label>
-          <select {...register('blood_group')}
-            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all">
-            <option value="">Select</option>
-            {bloodGroups.map((bg) => <option key={bg} value={bg}>{bg}</option>)}
-          </select>
-        </div>
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">Address</label>
-        <textarea {...register('address')} rows={2} placeholder="Street address…"
-          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all resize-none" />
-      </div>
-    </div>
-  );
-}
+function Step3({ values, employees }: { values: FormValues; employees: any[] }) {
+  const linkedEmployee = values.employee_id ? employees.find(e => e.id === values.employee_id) : null;
+  const employeeLabel = linkedEmployee 
+    ? `${linkedEmployee.first_name} ${linkedEmployee.last_name} (${linkedEmployee.employee_code || 'No Code'})`
+    : 'None (Standalone User)';
 
-function Step4({ values }: { values: FormValues }) {
   const rows = [
+    { label: 'Linked Employee', value: employeeLabel },
     { label: 'Full Name', value: values.full_name },
     { label: 'Username', value: values.username },
     { label: 'Email', value: values.email },
     { label: 'User Type', value: values.user_type ? USER_TYPE_LABELS[values.user_type as keyof typeof USER_TYPE_LABELS] : '—' },
-    { label: 'Employee ID', value: values.employee_id },
-    { label: 'CNIC', value: values.cnic },
-    { label: 'License No.', value: values.license_number },
-    { label: 'Joining Date', value: values.joining_date },
     { label: 'Max Sessions', value: values.max_concurrent_sessions },
     { label: 'Force PW Change', value: values.force_password_change ? 'Yes' : 'No' },
   ].filter((r) => r.value !== undefined && r.value !== '');
+
   return (
     <div className="space-y-5">
       <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Review & Confirm</h3>
@@ -243,18 +247,22 @@ interface Props {
 const STEPS = [
   { label: 'Identity',    icon: <User size={16} /> },
   { label: 'Role',        icon: <Shield size={16} /> },
-  { label: 'Staff Info',  icon: <Briefcase size={16} /> },
   { label: 'Review',      icon: <ClipboardCheck size={16} /> },
 ];
 
 export function CreateUserWizard({ open, onClose }: Props) {
   const [step, setStep] = useState(0);
   const [createdPassword, setCreatedPassword] = useState<string | null>(null);
+  
   const { data: rolesData } = useEnterpriseRoles();
+  const { data: allEmployees } = useEmployees();
   const createUser = useCreateUser();
 
+  // Only show unlinked employees in the bridge combobox
+  const unlinkedEmployees = useMemo(() => allEmployees?.filter(e => !e.user_id) ?? [], [allEmployees]);
+
   const methods = useForm<FormValues>({ resolver: zodResolver(schema) as any });
-  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = methods;
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = methods;
 
   const onSubmit = async (values: FormValues) => {
     const payload: EnterpriseUserCreate = {
@@ -265,13 +273,7 @@ export function CreateUserWizard({ open, onClose }: Props) {
       phone: values.phone,
       user_type: values.user_type,
       enterprise_role_id: values.enterprise_role_id || undefined,
-      employee_id: values.employee_id,
-      cnic: values.cnic,
-      license_number: values.license_number,
-      qualification: values.qualification,
-      joining_date: values.joining_date,
-      blood_group: values.blood_group,
-      address: values.address,
+      employee_id: values.employee_id || undefined,
       force_password_change: values.force_password_change,
       max_concurrent_sessions: values.max_concurrent_sessions,
       allowed_ips: values.allowed_ips
@@ -386,10 +388,9 @@ export function CreateUserWizard({ open, onClose }: Props) {
                     exit={{ opacity: 0, x: -16 }}
                     transition={{ duration: 0.18 }}
                   >
-                    {step === 0 && <Step1 register={register} errors={errors} />}
+                    {step === 0 && <Step1 register={register} errors={errors} setValue={setValue} watch={watch} employees={unlinkedEmployees} />}
                     {step === 1 && <Step2 register={register} errors={errors} roles={rolesData?.items ?? []} />}
-                    {step === 2 && <Step3 register={register} />}
-                    {step === 3 && <Step4 values={watch()} />}
+                    {step === 2 && <Step3 values={watch()} employees={unlinkedEmployees} />}
                   </motion.div>
                 )}
               </AnimatePresence>

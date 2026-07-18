@@ -142,11 +142,50 @@ export const useBalanceSheet = () => {
   });
 };
 
+// =====================================================================
+// Enterprise Extensions (Phase 8) - Banking
+// =====================================================================
+
+export interface BankAccount {
+  id: string;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  branch_name?: string;
+  routing_number?: string;
+  account_id: string; // GL Account ID
+  current_balance?: number; // Usually joined from GL Account
+}
+
+export const useBankAccounts = () => {
+  return useQuery({
+    queryKey: ['enterprise', 'banking', 'banks'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/enterprise/banking/banks');
+      return res.data as BankAccount[];
+    }
+  });
+};
+
+export const useCreateBankAccount = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: Partial<BankAccount>) => {
+      const res = await api.post('/api/v1/enterprise/banking/banks', data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['enterprise', 'banking', 'banks'] });
+      queryClient.invalidateQueries({ queryKey: ['accounts', 'chart'] });
+    }
+  });
+};
+
 export const useDashboardStats = () => {
   return useQuery({
     queryKey: ['accounts', 'dashboard-stats'],
     queryFn: async () => {
-      const res = await api.get('/api/v1/accounts/dashboard-stats');
+      const res = await api.get('/api/v1/accounts/reports/dashboard-stats');
       return res.data as import('../types/accounts').DashboardStatsResponse;
     }
   });

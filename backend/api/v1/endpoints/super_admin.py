@@ -21,7 +21,8 @@ from sqlalchemy.orm import Session
 
 from core.config import settings
 from database import SessionLocal
-from models.users import Pharmacy, SuperAdmin, Branch, User
+from models.users import Pharmacy, SuperAdmin, Branch, Tenant, User as BaseUser, UserBranch
+from models.enterprise.user import EnterpriseUser as User, EnterpriseRole as Role
 
 router = APIRouter()
 
@@ -213,7 +214,21 @@ def create_pharmacy(
     db.add(branch)
     db.flush()
 
-    # 4. Create Admin User
+    # 4. Create base auth user
+    auth_user = BaseUser(
+        id=str(uuid.uuid4()),
+        username=body.admin_username,
+        email=f"{body.admin_username}@pharmacy.local",
+        hashed_password=get_password_hash(body.admin_password),
+        full_name="Pharmacy Admin",
+        is_active=True,
+        tenant_id=tenant.id,
+        pharmacy_id=pharmacy.id,
+    )
+    db.add(auth_user)
+    db.flush()
+
+    # 5. Create EnterpriseUser mapping
     role = db.query(Role).filter(Role.name == "Pharmacy Owner").first()
     if not role:
         role = Role(
@@ -224,24 +239,30 @@ def create_pharmacy(
         )
         db.add(role)
         db.flush()
-    user = User(
+        
+    enterprise_user = User(
         id=str(uuid.uuid4()),
-        username=body.admin_username,
-        email=f"{body.admin_username}@pharmacy.local",
-        hashed_password=get_password_hash(body.admin_password),
-        full_name="Pharmacy Admin",
-        is_active=True,
-        role_id=role.id if role else None,
-        tenant_id=tenant.id,
-        pharmacy_id=pharmacy.id,
+        user_id=auth_user.id,
+        enterprise_role_id=role.id,
+        user_type="OWNER"
     )
-    db.add(user)
+    db.add(enterprise_user)
     db.flush()
 
-    # Link user to branch
-    ub = UserBranch(user_id=user.id, branch_id=branch.id)
+    # Link base user to branch (backward compat)
+    ub = UserBranch(user_id=auth_user.id, branch_id=branch.id)
     db.add(ub)
-
+    
+    # Also link enterprise user to branch
+    from models.enterprise.user import BranchUserAssignment
+    bua = BranchUserAssignment(
+        id=str(uuid.uuid4()),
+        enterprise_user_id=enterprise_user.id,
+        branch_id=branch.id,
+        is_primary=True
+    )
+    db.add(bua)
+    
     db.commit()
     db.refresh(pharmacy)
 

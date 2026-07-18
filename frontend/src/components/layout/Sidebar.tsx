@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthStore, useIsSuperAdmin } from '@/stores/auth-store';
 import { useModules } from '@/lib/modules';
 import { useLowStockAlerts } from '@/features/inventory/services/alerts.api';
 import {
@@ -106,16 +106,14 @@ export function Sidebar() {
   const { data: lowStockData } = useLowStockAlerts({ skip: 0, limit: 1 });
   const lowStockCount = lowStockData?.total || 0;
 
-  const isSuperAdmin = user?.role === 'Super Admin';
-  const userPermissions: string[] = user?.permissions || [];
+  const isSuperAdmin = useIsSuperAdmin();
+  const hasPermission = useAuthStore((state) => state.hasPermission);
 
   const visibleItems = NAV_ITEMS.filter((item) => {
-    // 1. RBAC check (Strict adherence to RBAC 3.0 permission codes)
-    const hasWildcard = userPermissions.includes('*');
-    if (item.permission && !isSuperAdmin && !hasWildcard && !userPermissions.includes(item.permission)) {
+    // 1. RBAC check using the helper
+    if (item.permission && !isSuperAdmin && !hasPermission(item.permission)) {
       return false;
     }
-
     return true;
   });
 
@@ -173,7 +171,14 @@ export function Sidebar() {
             {!isCollapsed && (
               <div className="flex-1 truncate">
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">{user?.username}</p>
-                <p className="text-xs text-zinc-500 truncate">{user?.role ?? 'User'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-zinc-500 truncate">{user?.role ?? 'User'}</p>
+                  {user?.hierarchy_level && (
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                      L{user.hierarchy_level}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>

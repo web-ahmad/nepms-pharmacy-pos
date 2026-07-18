@@ -451,9 +451,22 @@ def delete_medicine(
     if not medicine:
         raise HTTPException(status_code=404, detail="Medicine not found")
     
-    db.delete(medicine)
-    db.commit()
-    return {"detail": "Medicine deleted"}
+    from models.inventory import Inventory
+    from models.sales import SaleItem
+    from models.purchase import POItem
+    
+    has_inventory = db.query(Inventory).filter(Inventory.medicine_id == id, Inventory.tenant_id == scope.tenant_id).first()
+    has_sales = db.query(SaleItem).filter(SaleItem.medicine_id == id).first()
+    has_pos = db.query(POItem).filter(POItem.medicine_id == id).first()
+    
+    if has_inventory or has_sales or has_pos:
+        medicine.is_deleted = True
+        db.commit()
+        return {"detail": "Medicine soft-deleted because usage history exists."}
+    else:
+        db.delete(medicine)
+        db.commit()
+        return {"detail": "Medicine permanently deleted."}
 
 
 @router.post("/medicines/bulk-delete")

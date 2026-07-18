@@ -8,6 +8,7 @@ import { Shield, Plus, Copy, Trash2, ChevronDown, ChevronRight, Loader2, Refresh
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { RouteGuard } from '@/components/auth/RouteGuard';
 
 import {
   useEnterpriseRoles, usePermissionsCatalogue,
@@ -18,9 +19,18 @@ import {
 import type { Role, RoleListItem, PermissionGrouped, Permission } from '@/features/users/types/user';
 import { api } from '@/services/api';
 
-// ── Virtualized Permission matrix ─────────────────────────────────────────────────────────
+// ── Hierarchy level label + color map ────────────────────────────────────────
+const HIERARCHY_CONFIG: Record<number, { label: string; color: string; bg: string; border: string }> = {
+  1: { label: 'L1 · SaaS Admin',    color: 'text-red-600 dark:text-red-400',    bg: 'bg-red-50 dark:bg-red-500/10',    border: 'border-red-200 dark:border-red-500/20' },
+  2: { label: 'L2 · Pharmacy Owner', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-500/10', border: 'border-violet-200 dark:border-violet-500/20' },
+  3: { label: 'L3 · Branch Owner',  color: 'text-sky-600 dark:text-sky-400',    bg: 'bg-sky-50 dark:bg-sky-500/10',    border: 'border-sky-200 dark:border-sky-500/20' },
+  4: { label: 'L4 · Branch Staff',  color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/20' },
+};
 
-function VirtualizedPermissionMatrix({
+
+// ── Accordion Permission matrix (Glassmorphism) ───────────────────────────────────
+
+function AccordionPermissionMatrix({
   groups,
   selectedIds,
   onToggle,
@@ -36,7 +46,7 @@ function VirtualizedPermissionMatrix({
   readOnly?: boolean;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const parentRef = useRef<HTMLDivElement>(null);
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
   const dedupedGroups = useMemo(() => {
     return groups.map(g => {
@@ -58,17 +68,22 @@ function VirtualizedPermissionMatrix({
     })).filter(g => g.permissions.length > 0);
   }, [dedupedGroups, searchQuery]);
 
-  const rowVirtualizer = useVirtualizer({
-    count: filteredGroups.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 80,
-    overscan: 5,
-  });
+  const toggleAccordion = (module: string) => {
+    setExpandedModules(prev => {
+      const next = new Set(prev);
+      if (next.has(module)) next.delete(module);
+      else next.add(module);
+      return next;
+    });
+  };
+
+  const expandAll = () => setExpandedModules(new Set(filteredGroups.map(g => g.module)));
+  const collapseAll = () => setExpandedModules(new Set());
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-zinc-900">
+    <div className="flex flex-col h-full bg-white/40 dark:bg-zinc-900/40 backdrop-blur-md rounded-b-2xl">
       {/* Sticky Toolbar */}
-      <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/90 dark:bg-zinc-800/90 backdrop-blur sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4">
+      <div className="px-5 py-4 border-b border-zinc-200/50 dark:border-zinc-800/50 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-xl sticky top-0 z-10 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
             type="button"
@@ -78,107 +93,163 @@ function VirtualizedPermissionMatrix({
             {selectedIds.size === flatPermissions.length && flatPermissions.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
             {selectedIds.size === flatPermissions.length && flatPermissions.length > 0 ? 'Deselect All' : 'Select All'}
           </button>
-          <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+          <div className="h-4 w-px bg-zinc-300 dark:bg-zinc-700"></div>
+          <button type="button" onClick={expandAll} className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-indigo-600">Expand All</button>
+          <button type="button" onClick={collapseAll} className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-indigo-600">Collapse All</button>
+          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-500 ml-2">
             {selectedIds.size} / {flatPermissions.length} selected
             {readOnly && <span className="ml-2 text-indigo-600 dark:text-indigo-400 font-semibold">• System Locked</span>}
           </span>
         </div>
         
         <div className="flex items-center gap-2">
-          <div className="relative w-64">
+          <div className="relative w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
             <input
               type="text"
               placeholder="Search permissions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              className="w-full pl-9 pr-4 py-2 text-sm bg-white/50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none backdrop-blur-sm transition-all"
             />
           </div>
         </div>
       </div>
 
-      {/* Virtualized List */}
-      <div ref={parentRef} className="flex-1 overflow-auto custom-scrollbar px-4 py-2" style={{ maxHeight: '600px' }}>
-        <div
-          style={{
-            height: `${rowVirtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }}
-        >
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const group = filteredGroups[virtualRow.index];
+      {/* Accordion List */}
+      <div className="flex-1 overflow-auto custom-scrollbar p-5 space-y-4" style={{ maxHeight: '650px' }}>
+        <AnimatePresence>
+          {filteredGroups.map((group) => {
             const isAllSelected = group.permissions.every(p => selectedIds.has(p.id));
             const isSomeSelected = group.permissions.some(p => selectedIds.has(p.id)) && !isAllSelected;
+            const isExpanded = expandedModules.has(group.module) || searchQuery.length > 0;
+
+            // CRUD shortcuts logic
+            const getActionPerms = (actionKw: string) => group.permissions.filter(p => p.action.toLowerCase().includes(actionKw));
+            const createPerms = getActionPerms('create');
+            const readPerms = getActionPerms('view').concat(getActionPerms('read'), getActionPerms('list'));
+            const updatePerms = getActionPerms('update').concat(getActionPerms('edit'), getActionPerms('manage'));
+            const deletePerms = getActionPerms('delete').concat(getActionPerms('remove'));
 
             return (
-              <div
-                key={virtualRow.index}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: `${virtualRow.size}px`,
-                  transform: `translateY(${virtualRow.start}px)`,
-                }}
-                className="border-b border-zinc-100 dark:border-zinc-800 py-3"
+              <motion.div
+                key={group.module}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className={`rounded-2xl border transition-all duration-300 overflow-hidden shadow-sm hover:shadow-md ${isExpanded ? 'border-indigo-200 dark:border-indigo-800 bg-white/80 dark:bg-zinc-800/80 ring-1 ring-indigo-500/10' : 'border-zinc-200 dark:border-zinc-700/50 bg-white/50 dark:bg-zinc-900/50'}`}
               >
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="sm:w-1/4">
-                    <button
-                      type="button"
-                      onClick={() => !readOnly && onToggleModule(group.module, group.permissions)}
-                      className={`flex items-center gap-2 group text-left w-full ${readOnly ? 'cursor-default' : ''}`}
+                {/* Header */}
+                <div 
+                  className="px-5 py-4 flex items-center justify-between cursor-pointer select-none group"
+                  onClick={() => toggleAccordion(group.module)}
+                >
+                  <div className="flex items-center gap-4">
+                    <div 
+                      className="relative flex items-center justify-center w-5 h-5 flex-shrink-0"
+                      onClick={(e) => { e.stopPropagation(); !readOnly && onToggleModule(group.module, group.permissions); }}
                     >
-                      <div className="relative flex items-center justify-center w-5 h-5 flex-shrink-0">
-                        <input
-                          type="checkbox"
-                          checked={isAllSelected}
-                          ref={input => { if (input) input.indeterminate = isSomeSelected; }}
-                          readOnly
-                          className={`peer w-5 h-5 appearance-none rounded border ${readOnly ? 'cursor-default border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/30' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:bg-indigo-600 indeterminate:border-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
-                        />
-                        {isAllSelected && (readOnly ? <Lock className="absolute text-indigo-400 w-3 h-3 pointer-events-none" /> : <Check className="absolute text-white w-3.5 h-3.5 pointer-events-none" />)}
-                        {isSomeSelected && !readOnly && <div className="absolute bg-white w-2.5 h-0.5 rounded-full pointer-events-none" />}
-                        {isSomeSelected && readOnly && <div className="absolute bg-indigo-400 w-2.5 h-0.5 rounded-full pointer-events-none" />}
-                      </div>
-                      <span className={`font-semibold capitalize transition-colors ${readOnly ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-800 dark:text-zinc-200 group-hover:text-indigo-600'}`}>
-                        {group.module.replace(/_/g, ' ')} ({group.permissions.filter(p => selectedIds.has(p.id)).length}/{group.permissions.length})
-                      </span>
-                    </button>
+                      <input
+                        type="checkbox"
+                        checked={isAllSelected}
+                        ref={input => { if (input) input.indeterminate = isSomeSelected; }}
+                        readOnly
+                        className={`peer w-5 h-5 appearance-none rounded border ${readOnly ? 'cursor-default border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/30' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:bg-indigo-600 indeterminate:border-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
+                      />
+                      {isAllSelected && (readOnly ? <Lock className="absolute text-indigo-400 w-3 h-3 pointer-events-none" /> : <Check className="absolute text-white w-3.5 h-3.5 pointer-events-none" />)}
+                      {isSomeSelected && !readOnly && <div className="absolute bg-white w-2.5 h-0.5 rounded-full pointer-events-none" />}
+                      {isSomeSelected && readOnly && <div className="absolute bg-indigo-400 w-2.5 h-0.5 rounded-full pointer-events-none" />}
+                    </div>
+                    <span className="font-semibold capitalize text-lg text-zinc-900 dark:text-zinc-100 tracking-tight group-hover:text-indigo-600 transition-colors">
+                      {group.module.replace(/_/g, ' ')}
+                    </span>
+                    <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                      {group.permissions.filter(p => selectedIds.has(p.id)).length} / {group.permissions.length}
+                    </span>
                   </div>
-                  <div className="sm:w-3/4 flex flex-wrap gap-x-6 gap-y-3">
-                    {group.permissions.map(perm => (
-                      <label key={perm.id} className={`flex items-center gap-2 group ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}>
-                        <div className="relative flex items-center justify-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(perm.id)}
-                            onChange={() => !readOnly && onToggle(perm.id)}
-                            readOnly={readOnly}
-                            className={`w-4 h-4 appearance-none rounded border transition-all ${readOnly ? 'cursor-default border-indigo-200 bg-indigo-50/50 checked:bg-indigo-100 checked:border-indigo-300 dark:border-indigo-900/50 dark:bg-indigo-900/20 dark:checked:bg-indigo-900/40 dark:checked:border-indigo-800' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
-                          />
-                          {selectedIds.has(perm.id) && (readOnly ? <Lock className="absolute text-indigo-400 dark:text-indigo-500 w-2.5 h-2.5 pointer-events-none" /> : <Check className="absolute text-white w-3 h-3 pointer-events-none" />)}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className={`text-sm ${perm.is_sensitive ? 'text-amber-600 dark:text-amber-500 font-medium' : (readOnly ? 'text-zinc-500' : 'text-zinc-600 dark:text-zinc-400')} capitalize ${readOnly ? '' : 'group-hover:text-zinc-900 dark:group-hover:text-zinc-200'} transition-colors`}>
-                            {perm.action.replace(/_/g, ' ')}
-                          </span>
-                        </div>
-                      </label>
-                    ))}
+                  
+                  <div className="flex items-center gap-4">
+                    {/* Quick CRUD toggle shortcuts for the module header */}
+                    {!readOnly && (
+                      <div className="hidden md:flex items-center gap-3 mr-4" onClick={(e) => e.stopPropagation()}>
+                        {[
+                          { label: 'R', perms: readPerms, color: 'text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400' },
+                          { label: 'C', perms: createPerms, color: 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400' },
+                          { label: 'U', perms: updatePerms, color: 'text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400' },
+                          { label: 'D', perms: deletePerms, color: 'text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400' }
+                        ].map(shortcut => {
+                          if (shortcut.perms.length === 0) return null;
+                          const allHas = shortcut.perms.every(p => selectedIds.has(p.id));
+                          return (
+                            <button
+                              key={shortcut.label}
+                              onClick={() => {
+                                if (allHas) shortcut.perms.forEach(p => onToggle(p.id)); // Actually we should toggle module, but we only have individual toggles here. So we iterate.
+                                // Instead of mutating directly, we should call a specific function. We'll simulate it:
+                                // To be safe, we just use onToggleModule with the subset!
+                                onToggleModule(`subset_${group.module}_${shortcut.label}`, shortcut.perms);
+                              }}
+                              title={`Toggle ${shortcut.label} permissions`}
+                              className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${allHas ? 'ring-2 ring-offset-1 ring-indigo-500 dark:ring-offset-zinc-900 ' + shortcut.color : 'text-zinc-400 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700'}`}
+                            >
+                              {shortcut.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <motion.div animate={{ rotate: isExpanded ? 90 : 0 }} className="text-zinc-400">
+                      <ChevronRight size={20} />
+                    </motion.div>
                   </div>
                 </div>
-              </div>
+
+                {/* Body */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="border-t border-zinc-100 dark:border-zinc-800"
+                    >
+                      <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 bg-zinc-50/50 dark:bg-zinc-900/30">
+                        {group.permissions.map(perm => (
+                          <label key={perm.id} className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${selectedIds.has(perm.id) ? 'border-indigo-200 bg-indigo-50/50 dark:border-indigo-800/50 dark:bg-indigo-900/20 shadow-sm' : 'border-transparent hover:bg-white dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700'} ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}>
+                            <div className="relative flex items-center justify-center mt-0.5">
+                              <input
+                                type="checkbox"
+                                checked={selectedIds.has(perm.id)}
+                                onChange={() => !readOnly && onToggle(perm.id)}
+                                readOnly={readOnly}
+                                className={`w-4 h-4 appearance-none rounded border transition-all ${readOnly ? 'cursor-default border-indigo-200 bg-indigo-50/50 checked:bg-indigo-100 checked:border-indigo-300 dark:border-indigo-900/50 dark:bg-indigo-900/20 dark:checked:bg-indigo-900/40 dark:checked:border-indigo-800' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
+                              />
+                              {selectedIds.has(perm.id) && (readOnly ? <Lock className="absolute text-indigo-400 dark:text-indigo-500 w-2.5 h-2.5 pointer-events-none" /> : <Check className="absolute text-white w-3 h-3 pointer-events-none" />)}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className={`text-sm leading-none font-medium ${perm.is_sensitive ? 'text-amber-600 dark:text-amber-500' : (selectedIds.has(perm.id) ? 'text-indigo-900 dark:text-indigo-100' : 'text-zinc-700 dark:text-zinc-300')} capitalize transition-colors`}>
+                                {perm.action.replace(/_/g, ' ')}
+                              </span>
+                              {perm.is_sensitive && (
+                                <span className="text-[10px] mt-1 text-amber-500 font-semibold uppercase tracking-wider">Sensitive</span>
+                              )}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             );
           })}
-        </div>
+        </AnimatePresence>
       </div>
     </div>
   );
 }
+
 
 // ── Role card ─────────────────────────────────────────────────────────────────
 
@@ -231,6 +302,18 @@ function RoleCard({
           <Users size={12} /> {role.user_count} users
         </span>
       </div>
+
+      {/* Hierarchy Level Badge */}
+      {(role as any).hierarchy_level && (() => {
+        const cfg = HIERARCHY_CONFIG[(role as any).hierarchy_level] ?? HIERARCHY_CONFIG[4];
+        return (
+          <div className="mt-2">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${cfg.bg} ${cfg.color} ${cfg.border} uppercase tracking-wider`}>
+              {cfg.label}
+            </span>
+          </div>
+        );
+      })()}
 
       {(role.branch_scope || role.data_scope) && (
         <div className="flex flex-wrap gap-1 mt-2">
@@ -398,7 +481,15 @@ function CompareModal({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function RolesPage() {
+export default function ProtectedRolesPage() {
+  return (
+    <RouteGuard requiredPermission="roles:manage">
+      <RolesPage />
+    </RouteGuard>
+  );
+}
+
+function RolesPage() {
   const qc = useQueryClient();
   const { data: rolesData, isLoading: rolesLoading } = useEnterpriseRoles();
   const { data: permsData, isLoading: permsLoading } = usePermissionsCatalogue();
@@ -409,8 +500,10 @@ export default function RolesPage() {
   const [showNewForm, setShowNewForm] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleColor, setNewRoleColor] = useState('#6366f1');
-  const [newBranchScope, setNewBranchScope] = useState('global');
-  const [newDataScope, setNewDataScope] = useState('global');
+  const [newBranchScope, setNewBranchScope] = useState('assigned_branch');
+  const [newDataScope, setNewDataScope] = useState('branch');
+  const [newHierarchyLevel, setNewHierarchyLevel] = useState(4); // default: Staff
+
   
   const [compareModalOpen, setCompareModalOpen] = useState(false);
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -472,19 +565,22 @@ export default function RolesPage() {
   const handleCreateRole = async () => {
     if (!newRoleName.trim()) return;
     await createRole.mutateAsync({
-      name: newRoleName.trim(),
-      color: newRoleColor,
-      branch_scope: newBranchScope,
-      data_scope: newDataScope,
+      name:             newRoleName.trim(),
+      color:            newRoleColor,
+      branch_scope:     newBranchScope,
+      data_scope:       newDataScope,
+      hierarchy_level:  newHierarchyLevel,
       is_system_default: false,
-      permission_ids: [...selectedPerms],
+      permission_ids:   [...selectedPerms],
     });
     toast.success('Role created');
     setNewRoleName('');
-    setNewBranchScope('global');
-    setNewDataScope('global');
+    setNewBranchScope('assigned_branch');
+    setNewDataScope('branch');
+    setNewHierarchyLevel(4);
     setShowNewForm(false);
   };
+
 
   const handleSeedDefaults = async () => {
     const res = await seedMut.mutateAsync();
@@ -607,11 +703,19 @@ export default function RolesPage() {
                 className="flex-1 min-w-[180px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
               />
               <select
+                value={newHierarchyLevel}
+                onChange={(e) => setNewHierarchyLevel(Number(e.target.value))}
+                className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
+              >
+                <option value={3}>L3 · Branch Owner</option>
+                <option value={4}>L4 · Branch Staff</option>
+              </select>
+              <select
                 value={newBranchScope}
                 onChange={(e) => setNewBranchScope(e.target.value)}
                 className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
               >
-                <option value="global">Global (All Branches)</option>
+                <option value="all_branches">All Branches</option>
                 <option value="assigned_branch">Assigned Branch Only</option>
               </select>
               <select
@@ -619,10 +723,11 @@ export default function RolesPage() {
                 onChange={(e) => setNewDataScope(e.target.value)}
                 className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
               >
-                <option value="global">Global Data</option>
-                <option value="branch">Branch Data</option>
+                <option value="tenant">Tenant (All Branches)</option>
+                <option value="branch">Branch Only</option>
                 <option value="own_records">Own Records Only</option>
               </select>
+
               <div className="flex items-center gap-2">
                 <label className="text-sm text-zinc-600 dark:text-zinc-400">Color:</label>
                 <input type="color" value={newRoleColor} onChange={(e) => setNewRoleColor(e.target.value)}
@@ -670,10 +775,23 @@ export default function RolesPage() {
           <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden flex flex-col h-full">
             <div className="flex flex-wrap items-center justify-between px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
               <div>
-                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                  {selectedRole ? `Permissions — ${selectedRole.name}` : 'Select a role to configure permissions'}
+                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 flex-wrap">
+                  {selectedRole ? (
+                    <>
+                      <span>Permissions — {selectedRole.name}</span>
+                      {(selectedRole as any).hierarchy_level && (() => {
+                        const cfg = HIERARCHY_CONFIG[(selectedRole as any).hierarchy_level] ?? HIERARCHY_CONFIG[4];
+                        return (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${cfg.bg} ${cfg.color} ${cfg.border} uppercase tracking-wider`}>
+                            {cfg.label}
+                          </span>
+                        );
+                      })()}
+                    </>
+                  ) : 'Select a role to configure permissions'}
                   {selectedRole?.is_system_default && <Lock size={16} className="text-indigo-500" />}
                 </h2>
+
                 {selectedRole && (
                   <p className="text-sm text-zinc-500 mt-0.5">
                     {selectedPerms.size} permissions selected
@@ -700,7 +818,7 @@ export default function RolesPage() {
                     </button>
                     <button
                       onClick={() => {
-                        if (selectedRole.is_system_default) {
+                        if (selectedRole?.is_system_default) {
                           setConfirmModalOpen(true);
                         } else {
                           handleSavePermissions();
@@ -733,7 +851,7 @@ export default function RolesPage() {
                   ))}
                 </div>
               ) : (
-                <VirtualizedPermissionMatrix
+                <AccordionPermissionMatrix
                   groups={permsData ?? []}
                   selectedIds={selectedPerms}
                   onToggle={handleTogglePermission}

@@ -1,30 +1,32 @@
 "use client";
 
-import { useChartAccounts, useDeleteAccount } from '@/features/accounts/services/accounts.api';
+import { useBankAccounts } from '@/features/accounts/services/accounts.api';
+import { useDeleteAccount } from '@/features/accounts/services/accounts.api'; // Keeping delete for now or use delete bank
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Building2, ExternalLink, Search, Landmark, Plus, Edit, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { BankModal } from '@/features/accounts/components/BankModal';
-import { Account } from '@/features/accounts/types/accounts';
+import { BankAccount } from '@/features/accounts/services/accounts.api';
 import { toast } from 'sonner';
 
 export default function BankBookPage() {
-  const { data: accounts, isLoading } = useChartAccounts();
+  const { data: bankAccountsData, isLoading } = useBankAccounts();
   const deleteMutation = useDeleteAccount();
   const [search, setSearch] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [bankToEdit, setBankToEdit] = useState<Account | null>(null);
+  const [bankToEdit, setBankToEdit] = useState<BankAccount | null>(null);
 
   const bankAccounts = useMemo(() => {
-    if (!accounts) return [];
-    return accounts.filter(a => {
-      const isBank = a.category === 'Asset' && (a.code.startsWith('101') || a.name.toLowerCase().includes('bank'));
-      const matchesSearch = a.name.toLowerCase().includes(search.toLowerCase()) || a.code.includes(search);
-      return isBank && matchesSearch;
+    if (!bankAccountsData) return [];
+    return bankAccountsData.filter(a => {
+      const searchStr = search.toLowerCase();
+      return a.bank_name.toLowerCase().includes(searchStr) || 
+             a.account_name.toLowerCase().includes(searchStr) ||
+             a.account_number.includes(searchStr);
     });
-  }, [accounts, search]);
+  }, [bankAccountsData, search]);
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this bank account? This action cannot be undone if there are no transactions.')) {
@@ -37,7 +39,7 @@ export default function BankBookPage() {
     }
   };
 
-  const handleEdit = (bank: Account) => {
+  const handleEdit = (bank: BankAccount) => {
     setBankToEdit(bank);
     setIsModalOpen(true);
   };
@@ -115,15 +117,18 @@ export default function BankBookPage() {
                           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 group-hover:bg-white group-hover:shadow-sm dark:bg-zinc-800 dark:text-zinc-400 dark:group-hover:bg-zinc-700">
                             <Building2 className="h-4 w-4" />
                           </div>
-                          <span className="font-medium text-zinc-900 dark:text-zinc-100">{account.name}</span>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-zinc-900 dark:text-zinc-100">{account.bank_name}</span>
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">{account.account_name}</span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-zinc-600 dark:text-zinc-400">
-                        {account.code}
+                        {account.account_number}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span className={`font-semibold ${account.current_balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
-                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'PKR' }).format(account.current_balance)}
+                        <span className={`font-semibold ${(account.current_balance || 0) < 0 ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'PKR' }).format(account.current_balance || 0)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right">

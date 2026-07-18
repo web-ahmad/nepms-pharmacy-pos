@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import ModuleGuard from '@/components/ModuleGuard';
-import { useDepartments } from '@/features/hr/services/hr.api';
+import { useDepartments, useDeleteDepartment } from '@/features/hr/services/hr.api';
 import DepartmentsGrid from '@/features/hr/components/DepartmentsGrid';
 import AddDepartmentModal from '@/features/hr/components/AddDepartmentModal';
 import { Plus, Building2 } from 'lucide-react';
@@ -12,6 +12,7 @@ import { api } from '@/services/api';
 
 export default function DepartmentsPage() {
   const { data, isLoading } = useDepartments();
+  const deleteMutation = useDeleteDepartment();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDept, setSelectedDept] = useState<any>(null);
   const queryClient = useQueryClient();
@@ -29,6 +30,17 @@ export default function DepartmentsPage() {
     } catch (err) {
       console.error(err);
       notify.error('Failed to change department status');
+    }
+  };
+
+  const handleDelete = async (dept: any) => {
+    if (window.confirm(`Are you sure you want to delete ${dept.name}? This action cannot be undone.`)) {
+      try {
+        await deleteMutation.mutateAsync(dept.id);
+        notify.success('Department deleted successfully');
+      } catch (err: any) {
+        notify.error('Failed to delete department. It may be in use.');
+      }
     }
   };
 
@@ -64,6 +76,7 @@ export default function DepartmentsPage() {
           isLoading={isLoading} 
           onEdit={handleEdit}
           onToggleStatus={handleToggleStatus}
+          onDelete={handleDelete}
         />
 
         {showAddModal && (

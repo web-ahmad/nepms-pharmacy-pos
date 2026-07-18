@@ -17,6 +17,18 @@ class SystemService:
     def mark_notification_read(self, tenant_id: str, notif_id: str):
         return self.repo.mark_notification_read(tenant_id, notif_id)
 
+    def mark_all_notifications_read(self, tenant_id: str, user_id: str = None):
+        return self.repo.mark_all_notifications_read(tenant_id, user_id)
+
+    def delete_notification(self, tenant_id: str, notif_id: str):
+        return self.repo.delete_notification(tenant_id, notif_id)
+
+    def clear_all_notifications(self, tenant_id: str, user_id: str = None):
+        return self.repo.clear_all_notifications(tenant_id, user_id)
+
+    def seed_mock_notifications(self, tenant_id: str, user_id: str):
+        return self.repo.seed_mock_notifications(tenant_id, user_id)
+
     def get_backups(self, tenant_id: str):
         return self.repo.get_backups(tenant_id)
 

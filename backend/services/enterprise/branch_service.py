@@ -129,7 +129,11 @@ class BranchService:
         pages = math.ceil(total / limit) if limit else 1
         responses = []
         for b in items:
-            cnt = branch_repo.count_staff(db, b.id)
+            # Get actual staff count by computing the same way as detail view
+            try:
+                cnt = len(self.list_staff(db, scope, b.id))
+            except Exception:
+                cnt = branch_repo.count_staff(db, b.id)
             responses.append(_to_response(b, cnt))
         return BranchListResponse(items=responses, total=total, page=page, limit=limit, pages=pages)
 
@@ -145,7 +149,10 @@ class BranchService:
         branch = branch_repo.get_by_id(db, branch_id, pharmacy_id)
         if not branch:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Branch not found")
-        cnt = branch_repo.count_staff(db, branch_id)
+        try:
+            cnt = len(self.list_staff(db, scope, branch_id))
+        except Exception:
+            cnt = branch_repo.count_staff(db, branch_id)
         return _to_response(branch, cnt)
 
     # ── Create ────────────────────────────────────────────────────────────────
@@ -209,7 +216,10 @@ class BranchService:
                     detail=f"Branch code '{data.code}' already in use.",
                 )
         branch = branch_repo.update_branch(db, branch, data)
-        cnt = branch_repo.count_staff(db, branch_id)
+        try:
+            cnt = len(self.list_staff(db, scope, branch_id))
+        except Exception:
+            cnt = branch_repo.count_staff(db, branch_id)
         return _to_response(branch, cnt)
 
     # ── Delete ────────────────────────────────────────────────────────────────
@@ -257,6 +267,7 @@ class BranchService:
         total_customers = 0
         total_prescriptions = 0
         inventory_value = 0.0
+        has_missing_costs = False
         low_stock_count = 0
         expiry_count = 0
 
@@ -303,33 +314,55 @@ class BranchService:
                     .scalar() or 0
                 )
                 # Customer count
+                from models.crm import Customer
+                from sqlalchemy import or_
                 if hasattr(Sale, "customer_id"):
                     total_customers = int(
-                        db.query(func.count(func.distinct(Sale.customer_id)))
-                        .filter(Sale.branch_id == data_bid, Sale.is_deleted == False, Sale.customer_id.isnot(None))
+                        db.query(func.count(func.distinct(Customer.id)))
+                        .outerjoin(Sale, (Customer.id == Sale.customer_id) & (Sale.branch_id == data_bid) & (Sale.is_deleted == False))
+                        .filter(or_(Sale.id.isnot(None), Customer.preferred_branch_id == branch.id))
                         .scalar() or 0
                     )
         except Exception:
             pass
 
         try:
-            from models.inventory import Batch
+            from models.inventory import Batch, Medicine
             from datetime import timedelta
             today = date.today()
 
             if hasattr(Batch, "branch_id"):
                 inventory_value = float(
                     db.query(func.coalesce(
-                        func.sum(Batch.purchase_price * Batch.current_quantity), 0
+                        func.sum(
+                            func.coalesce(
+                                func.nullif(Batch.cost_per_base_unit, 0),
+                                func.nullif(Batch.purchase_price, 0),
+                                func.nullif(Medicine.cost_per_base_unit, 0),
+                                0
+                            ) * func.coalesce(Batch.current_quantity, 0)
+                        ), 0
                     ))
+                    .join(Medicine, Batch.medicine_id == Medicine.id)
                     .filter(Batch.branch_id == data_bid, Batch.is_deleted == False)
                     .scalar() or 0
                 )
+                has_missing_costs = db.query(Batch.id).join(Medicine, Batch.medicine_id == Medicine.id).filter(
+                    Batch.branch_id == data_bid,
+                    Batch.is_deleted == False,
+                    Batch.current_quantity > 0,
+                    (func.coalesce(
+                        func.nullif(Batch.cost_per_base_unit, 0),
+                        func.nullif(Batch.purchase_price, 0),
+                        func.nullif(Medicine.cost_per_base_unit, 0),
+                        0
+                    ) <= 0)
+                ).first() is not None
                 low_stock_count = int(
                     db.query(func.count(Batch.id))
                     .filter(
                         Batch.branch_id == data_bid,
-                        Batch.current_quantity == 0,
+                        Batch.current_quantity <= 5,
                         Batch.is_deleted == False,
                     )
                     .scalar() or 0
@@ -465,6 +498,7 @@ class BranchService:
             total_customers=total_customers,
             total_prescriptions=total_prescriptions,
             inventory_value=inventory_value,
+            has_missing_costs=has_missing_costs,
             low_stock_count=low_stock_count,
             expiry_count=expiry_count,
             staff_count=staff_count,
@@ -518,31 +552,97 @@ class BranchService:
         branch_id: str,
     ) -> List[BranchStaffAssignmentResponse]:
         pharmacy_id = scope.pharmacy_id or ""
-        # Verify branch ownership
         branch = branch_repo.get_by_id(db, branch_id, pharmacy_id)
         if not branch:
             raise HTTPException(status_code=404, detail="Branch not found")
-        assignments = branch_repo.get_staff(db, branch_id, pharmacy_id)
+        
+        data_bid = getattr(branch, "legacy_branch_id", None) or branch_id
+        
+        from models.users import User, UserBranch, Role
+        from models.hr import Employee
+        
+        # 1. Get explicitly assigned users from user_branches (legacy)
+        user_branches = db.query(UserBranch).filter(UserBranch.branch_id == data_bid).all()
+        assigned_user_ids = [ub.user_id for ub in user_branches]
+        
+        # 2. Get global users (Pharmacy Owner or branch_scope == global)
+        global_users = db.query(User).join(Role, User.role_id == Role.id).filter(
+            User.tenant_id == pharmacy_id,
+            User.is_deleted == False,
+            (Role.name == "Pharmacy Owner") | (Role.branch_scope == "global")
+        ).all()
+        
+        # 3. Get enterprise assignments
+        ent_assignments = branch_repo.get_staff(db, branch_id, pharmacy_id)
+        
+        # 4. Get HR employees assigned to this branch
+        hr_employees = db.query(Employee).filter(
+            Employee.tenant_id == pharmacy_id,
+            (Employee.branch_id == branch_id) | (Employee.branch_id == data_bid)
+        ).all()
+        
+        all_user_ids = set(assigned_user_ids + [u.id for u in global_users] + [a.user_id for a in ent_assignments])
+        
+        # Fetch all these users
+        users = db.query(User).filter(User.id.in_(all_user_ids)).all()
+        user_map = {u.id: u for u in users}
+        
+        # Map enterprise assignments
+        ent_map = {a.user_id: a for a in ent_assignments}
+        
         results = []
-        for a in assignments:
+        for uid in all_user_ids:
+            u = user_map.get(uid)
+            if not u: continue
+            
+            ent_a = ent_map.get(uid)
+            role = ent_a.role if ent_a else ("Manager" if u in global_users else "Staff")
+            
             r = BranchStaffAssignmentResponse(
-                id=a.id,
-                branch_id=a.branch_id,
-                user_id=a.user_id,
-                role=a.role,
-                is_active=a.is_active,
-                assigned_at=a.assigned_at,
-                notes=a.notes,
+                id=ent_a.id if ent_a else f"virt_{uid}",
+                branch_id=branch_id,
+                user_id=uid,
+                role=role,
+                is_active=u.is_active,
+                assigned_at=ent_a.assigned_at if ent_a else branch.created_at,
+                notes=ent_a.notes if ent_a else ("Global Access" if u in global_users else "Legacy Assignment")
             )
-            if a.user:
-                r.user = {
-                    "id": a.user.id,
-                    "username": a.user.username,
-                    "full_name": a.user.full_name,
-                    "email": a.user.email,
-                    "is_active": a.user.is_active,
-                }
+            r.user = {
+                "id": u.id,
+                "username": u.username,
+                "full_name": u.full_name,
+                "email": u.email,
+                "is_active": u.is_active,
+            }
             results.append(r)
+
+        # Merge HR Employees who are not already linked via email or username
+        existing_emails = {u.email for u in users if u.email}
+        existing_usernames = {u.username for u in users if u.username}
+
+        for emp in hr_employees:
+            # Skip if we already added them via User model
+            if emp.email in existing_emails or emp.username in existing_usernames:
+                continue
+
+            r = BranchStaffAssignmentResponse(
+                id=f"emp_{emp.id}",
+                branch_id=branch_id,
+                user_id=emp.id,
+                role=emp.designation.name if emp.designation else "HR Employee",
+                is_active=emp.is_active,
+                assigned_at=emp.created_at,
+                notes="HR Module Employee"
+            )
+            r.user = {
+                "id": emp.id,
+                "username": emp.username or f"{emp.first_name}.{emp.last_name}".lower(),
+                "full_name": f"{emp.first_name} {emp.last_name}",
+                "email": emp.email,
+                "is_active": emp.is_active,
+            }
+            results.append(r)
+            
         return results
 
     def assign_staff(
@@ -656,24 +756,29 @@ class BranchService:
         
         from models.sales import Sale
         from models.crm import Customer
-        from sqlalchemy import func
+        from sqlalchemy import func, or_
         
-        # Customers who bought from this branch and their total spend
+        # Customers who bought from this branch OR are assigned to this branch
         query = (
-            db.query(Customer, func.sum(Sale.total_amount).label("total_spend"))
-            .join(Sale, Customer.id == Sale.customer_id)
-            .filter(Sale.branch_id == data_bid, Sale.is_deleted == False)
+            db.query(Customer, func.coalesce(func.sum(Sale.total_amount), 0).label("total_spend"))
+            .outerjoin(Sale, (Customer.id == Sale.customer_id) & (Sale.branch_id == data_bid) & (Sale.is_deleted == False))
+            .filter(or_(Sale.id.isnot(None), Customer.preferred_branch_id == branch.id))
             .group_by(Customer.id)
-            .order_by(func.sum(Sale.total_amount).desc())
+            .order_by(func.coalesce(func.sum(Sale.total_amount), 0).desc())
         )
-        total = query.count()
+        
+        # Calculate total distinct customers for pagination
+        total = db.query(func.count(func.distinct(Customer.id))).outerjoin(
+            Sale, (Customer.id == Sale.customer_id) & (Sale.branch_id == data_bid) & (Sale.is_deleted == False)
+        ).filter(or_(Sale.id.isnot(None), Customer.preferred_branch_id == branch.id)).scalar() or 0
+        
         results = query.offset((page - 1) * limit).limit(limit).all()
         
         items = []
         for c, spend in results:
             items.append({
                 "id": c.id,
-                "name": f"{c.first_name} {c.last_name}".strip() or "Unknown",
+                "name": c.full_name or "Unknown",
                 "phone": c.phone,
                 "total_spend": float(spend),
                 "loyalty_points": c.loyalty_points
@@ -684,7 +789,7 @@ class BranchService:
             "total": total,
             "page": page,
             "limit": limit,
-            "pages": (total + limit - 1) // limit
+            "pages": (total + limit - 1) // limit if limit > 0 else 1
         }
 
     def list_branch_activity(self, db: Session, scope: PharmacyScope, branch_id: str, page: int = 1, limit: int = 20) -> Dict[str, Any]:
@@ -692,12 +797,13 @@ class BranchService:
         branch = branch_repo.get_by_id(db, branch_id, pharmacy_id)
         if not branch:
             raise HTTPException(status_code=404, detail="Branch not found")
+        data_bid = getattr(branch, "legacy_branch_id", None) or branch_id
         
         try:
-            from models.audit import AuditLog
-            query = db.query(AuditLog).filter(
-                (AuditLog.branch_id == branch_id) | (AuditLog.resource_id == branch_id)
-            ).order_by(AuditLog.timestamp.desc())
+            from models.audit import AuditEvent
+            query = db.query(AuditEvent).filter(
+                AuditEvent.branch_id == data_bid
+            ).order_by(AuditEvent.created_at.desc())
             
             total = query.count()
             logs = query.offset((page - 1) * limit).limit(limit).all()
@@ -706,11 +812,11 @@ class BranchService:
             for log in logs:
                 items.append({
                     "id": log.id,
-                    "action": log.action,
-                    "resource_type": log.resource_type,
-                    "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-                    "user_id": log.user_id,
-                    "details": log.details
+                    "action": f"Event: {log.event_type}",
+                    "resource_type": "POS Transaction" if log.transaction_id else "General",
+                    "timestamp": log.created_at.isoformat() if log.created_at else None,
+                    "user_id": log.staff_id,
+                    "details": log.metadata_
                 })
         except Exception:
             items = []

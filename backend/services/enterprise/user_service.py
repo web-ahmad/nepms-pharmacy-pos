@@ -83,6 +83,11 @@ class UserService:
         if db.query(User).filter(User.email == data.email).first():
             raise HTTPException(status_code=400, detail="Email already registered.")
 
+        # 1.5 Get tenant_id from Pharmacy
+        from models.users import Pharmacy
+        pharmacy = db.query(Pharmacy).filter(Pharmacy.id == pharmacy_id).first()
+        t_id = pharmacy.tenant_id if pharmacy and pharmacy.tenant_id else pharmacy_id
+
         # 2. Create core auth user
         hashed = _hash_password(data.password)
         auth_user = User(
@@ -93,7 +98,7 @@ class UserService:
             phone=data.phone,
             is_active=True,
             is_super_admin=False,
-            tenant_id=None,
+            tenant_id=t_id,
             pharmacy_id=pharmacy_id,   # type: ignore[attr-defined]
         )
         db.add(auth_user)
@@ -136,6 +141,24 @@ class UserService:
         )
         db.add(eu)
         db.flush()
+
+        # Link Employee Record if employee_id provided
+        if data.employee_id:
+            from models.hr import Employee
+            from models.users import Pharmacy
+            
+            pharmacy = db.query(Pharmacy).filter(Pharmacy.id == pharmacy_id).first()
+            tenant_filter = pharmacy.tenant_id if pharmacy and pharmacy.tenant_id else pharmacy_id
+            
+            employee = db.query(Employee).filter(Employee.id == data.employee_id, Employee.tenant_id == tenant_filter).first()
+            if not employee:
+                e_obj = db.query(Employee).filter(Employee.id == data.employee_id).first()
+                e_tid = e_obj.tenant_id if e_obj else "NONE"
+                raise HTTPException(status_code=400, detail=f"Employee not found or belongs to another tenant. Debug: ID={data.employee_id}, e_tid={e_tid}, p_id={pharmacy_id}, t_filter={tenant_filter}")
+            if employee.user_id:
+                raise HTTPException(status_code=400, detail="This employee is already linked to another system user.")
+            employee.user_id = auth_user.id
+            db.flush()
 
         # 4. Default branch assignment
         if data.default_branch_id:

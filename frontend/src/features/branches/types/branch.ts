@@ -210,8 +210,12 @@ export interface BranchStats {
   total_customers: number;
   total_prescriptions: number;
   inventory_value: number;
+  has_missing_costs?: boolean;
   low_stock_count: number;
   expiry_count: number;
+  aov?: number;
+  trend_data?: any;
+  top_items?: any[];
   staff_count: number;
   active_staff: number;
   health_score: number;

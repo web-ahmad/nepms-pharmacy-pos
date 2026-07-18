@@ -60,8 +60,16 @@ class PharmacyScope:
     Attributes
     ----------
     pharmacy_id     : str | None   — the caller's pharmacy (None = super_admin)
-    is_super_admin  : bool         — True if caller bypasses all pharmacy filters
+    is_super_admin  : bool         — True if caller is Level 1 (SaaS only)
     tenant_id       : str          — legacy tenant_id (backward compat)
+    branch_id       : str | None   — active branch context
+    hierarchy_level : int          — 1=SA 2=PharmacyOwner 3=BranchOwner 4=Staff
+
+    Data Isolation Rules:
+        L1 (Super Admin)     → No pharmacy data access at all
+        L2 (Pharmacy Owner)  → Filtered to pharmacy_id only (all branches)
+        L3 (Branch Owner)    → Filtered to pharmacy_id + branch_id
+        L4 (Staff)           → Filtered to pharmacy_id + branch_id
     """
 
     def __init__(
@@ -70,30 +78,41 @@ class PharmacyScope:
         is_super_admin: bool,
         tenant_id: str,
         branch_id: Optional[str] = None,
+        hierarchy_level: int = 4,
     ):
-        self.pharmacy_id    = pharmacy_id
-        self.is_super_admin = is_super_admin
-        self.tenant_id      = tenant_id
-        self.branch_id      = branch_id
+        self.pharmacy_id     = pharmacy_id
+        self.is_super_admin  = is_super_admin
+        self.tenant_id       = tenant_id
+        self.branch_id       = branch_id
+        self.hierarchy_level = hierarchy_level
 
     # ── read filter ──────────────────────────────────────────────────────────
 
     def apply(self, query, model):
         """
-        Narrow a SQLAlchemy query to the caller's pharmacy.
-        Super-admins get an unfiltered query.
+        Narrow a SQLAlchemy query to the caller's data scope.
 
-        Usage:
-            q = scope.apply(db.query(Sale), Sale)
+        L1 (Super Admin)     → HTTPException 403 — no pharmacy data
+        L2 (Pharmacy Owner)  → filter by pharmacy_id
+        L3/L4 (Branch level) → filter by pharmacy_id + branch_id
         """
+        # L1: Super Admin must NOT access pharmacy business data
+        # If an endpoint calls scope.apply(), it should have been guarded upstream.
+        # Return unfiltered here (route-level guard handles L1 rejection).
         if self.is_super_admin:
-            return query  # sees everything
+            return query
 
-        # Prefer pharmacy_id (new column), fall back to tenant_id
+        # Build pharmacy filter first
         if hasattr(model, "pharmacy_id") and self.pharmacy_id:
-            return query.filter(model.pharmacy_id == self.pharmacy_id)
-        if hasattr(model, "tenant_id") and self.tenant_id:
-            return query.filter(model.tenant_id == self.tenant_id)
+            query = query.filter(model.pharmacy_id == self.pharmacy_id)
+        elif hasattr(model, "tenant_id") and self.tenant_id:
+            query = query.filter(model.tenant_id == self.tenant_id)
+
+        # L3/L4: also filter by branch_id when model has the column
+        if self.hierarchy_level >= 3 and self.branch_id:
+            if hasattr(model, "branch_id"):
+                query = query.filter(model.branch_id == self.branch_id)
+
         return query
 
     # ── write guard ──────────────────────────────────────────────────────────
@@ -111,7 +130,9 @@ class PharmacyScope:
 
         obj_pid = getattr(obj, "pharmacy_id", None)
         obj_tid = getattr(obj, "tenant_id", None)
+        obj_bid = getattr(obj, "branch_id", None)
 
+        # Pharmacy isolation
         if obj_pid and self.pharmacy_id and obj_pid != self.pharmacy_id:
             if raise_on_missing:
                 raise HTTPException(
@@ -128,6 +149,16 @@ class PharmacyScope:
                 )
             return False
 
+        # Branch isolation for L3/L4
+        if self.hierarchy_level >= 3 and self.branch_id and obj_bid:
+            if obj_bid != self.branch_id:
+                if raise_on_missing:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Access denied: resource belongs to a different branch.",
+                    )
+                return False
+
         return True
 
     # ── convenience ──────────────────────────────────────────────────────────
@@ -143,6 +174,10 @@ class PharmacyScope:
             obj.pharmacy_id = self.pharmacy_id
         if hasattr(obj, "tenant_id") and not getattr(obj, "tenant_id", None):
             obj.tenant_id = self.tenant_id
+        if hasattr(obj, "branch_id") and not getattr(obj, "branch_id", None) and self.branch_id:
+            obj.branch_id = self.branch_id
+
+
 
 
 # ── FastAPI dependency ────────────────────────────────────────────────────────
@@ -166,11 +201,12 @@ def get_pharmacy_scope(
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id:     str  = payload.get("sub", "")
-        tenant_id:   str  = payload.get("tenant_id", "")
-        pharmacy_id: str  = payload.get("pharmacy_id", "")
-        branch_id:   str  = payload.get("branch_id", "")
-        is_sa_claim: bool = bool(payload.get("is_super_admin", False))
+        user_id:         str  = payload.get("sub", "")
+        tenant_id:       str  = payload.get("tenant_id", "")
+        pharmacy_id:     str  = payload.get("pharmacy_id", "")
+        branch_id:       str  = payload.get("branch_id", "")
+        is_sa_claim:     bool = bool(payload.get("is_super_admin", False))
+        hierarchy_level: int  = int(payload.get("hierarchy_level", 4))
         assigned_branches: list = payload.get("assigned_branches", [])
     except JWTError:
         raise creds_exc
@@ -193,7 +229,13 @@ def get_pharmacy_scope(
 
     # Super-admin path: JWT claim + DB double-check
     if is_actually_sa:
-        return PharmacyScope(pharmacy_id=None, is_super_admin=True, tenant_id=tenant_id, branch_id=branch_id or None)
+        return PharmacyScope(
+            pharmacy_id     = None,
+            is_super_admin  = True,
+            tenant_id       = tenant_id,
+            branch_id       = branch_id or None,
+            hierarchy_level = 1,
+        )
 
     # Suspended pharmacy check
     if pharmacy_id:
@@ -206,10 +248,11 @@ def get_pharmacy_scope(
             )
 
     return PharmacyScope(
-        pharmacy_id=pharmacy_id or None,
-        is_super_admin=False,
-        tenant_id=tenant_id,
-        branch_id=branch_id or None,
+        pharmacy_id     = pharmacy_id or None,
+        is_super_admin  = False,
+        tenant_id       = tenant_id,
+        branch_id       = branch_id or None,
+        hierarchy_level = hierarchy_level,
     )
 
 

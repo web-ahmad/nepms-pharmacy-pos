@@ -1,8 +1,11 @@
 from fastapi import APIRouter
 from api.v1.endpoints import (
     auth, inventory, purchase, sales, crm, prescription, dashboard, reports, inventory_audit, analytics, accounts, hr,
-    settings, admin, notifications, system, cashier, print, master_data, medicine_master, hr_payroll_settings, audit,
+    settings, notifications, system, cashier, print, master_data, medicine_master, hr_payroll_settings, audit,
     super_admin, webhooks
+)
+from api.v1.endpoints.enterprise import (
+    banking, vouchers, closing
 )
 
 api_router = APIRouter()
@@ -28,7 +31,6 @@ api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"]
 
 # Phase 3.4
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
-api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(system.router, prefix="/system", tags=["system"])
 
@@ -64,3 +66,8 @@ api_router.include_router(enterprise_roles_router, prefix="/enterprise/roles", t
 # Enterprise — branch operations & configuration (Phase 3)
 from api.v1.endpoints.enterprise.branch_config import router as enterprise_branch_config_router
 api_router.include_router(enterprise_branch_config_router, prefix="/enterprise/branches", tags=["enterprise-branch-config"])
+
+# Enterprise Finance Endpoints (Phase 8)
+api_router.include_router(banking.router, prefix="/enterprise/banking", tags=["enterprise-banking"])
+api_router.include_router(vouchers.router, prefix="/enterprise/vouchers", tags=["enterprise-vouchers"])
+api_router.include_router(closing.router, prefix="/enterprise/closing", tags=["enterprise-closing"])

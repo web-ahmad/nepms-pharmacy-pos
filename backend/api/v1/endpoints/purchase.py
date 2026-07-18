@@ -81,10 +81,20 @@ def delete_supplier(
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
     
-    # Soft delete
-    supplier.is_deleted = True
-    db.commit()
-    return {"message": "Supplier deleted successfully"}
+    from models.purchase import PurchaseOrder
+    has_history = db.query(PurchaseOrder).filter(
+        PurchaseOrder.supplier_id == id,
+        PurchaseOrder.tenant_id == scope.tenant_id
+    ).first()
+    
+    if has_history:
+        supplier.is_deleted = True
+        db.commit()
+        return {"message": "Supplier soft-deleted because purchase history exists."}
+    else:
+        db.delete(supplier)
+        db.commit()
+        return {"message": "Supplier permanently deleted."}
 
 from schemas.purchase import SupplierMedicinePriceCreate, SupplierMedicinePriceResponse
 

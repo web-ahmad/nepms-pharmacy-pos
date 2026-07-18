@@ -51,11 +51,10 @@ router = APIRouter()
 # ── Shared helpers ─────────────────────────────────────────────────────────────
 
 def _pharmacy_id(scope: PharmacyScope) -> str:
-    if scope.pharmacy_id:
-        return scope.pharmacy_id
-    if scope.tenant_id:
-        return scope.tenant_id
-    raise HTTPException(status_code=400, detail="pharmacy_id required.")
+    pid = scope.pharmacy_id or scope.tenant_id
+    if not pid:
+        pid = "system"
+    return pid
 
 
 def _actor_ip(request: Request) -> str:

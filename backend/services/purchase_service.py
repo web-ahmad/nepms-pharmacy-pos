@@ -1,4 +1,4 @@
-﻿from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session
 from datetime import date
 import uuid
 from fastapi import HTTPException
@@ -1365,19 +1365,6 @@ class PurchaseService:
         # Calculate approximate total
         # In a real scenario we'd join items and medicines. Let's assume a generic check for now.
         # Alternatively, we just check if the user's role is in the matrix.
-        matrix = db.query(PurchaseApprovalMatrix).filter(
-            PurchaseApprovalMatrix.tenant_id == tenant_id,
-            PurchaseApprovalMatrix.role_name == user_role
-        ).first()
-        
-        if not matrix and user_role not in ["Owner", "Super Admin", "Branch Manager", "Pharmacy Owner"]:
-            raise HTTPException(status_code=403, detail="Role not authorized to approve")
-
-        req.status = status
-        req.remarks = f"{req.remarks or ''}\nApproval Remarks: {remarks}" if remarks else req.remarks
-        
-        db.commit()
-        db.refresh(req)
         
         PurchaseService.log_timeline(db, tenant_id, req.id, "PurchaseRequest", status, user_id, remarks)
         

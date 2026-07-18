@@ -16,6 +16,7 @@ class CustomerBase(BaseModel):
     allergies: Optional[str] = None
     credit_limit: float = 0.0
     is_active: Optional[bool] = True
+    preferred_branch_id: Optional[str] = None
 
 class CustomerCreate(CustomerBase):
     pass
@@ -23,6 +24,7 @@ class CustomerCreate(CustomerBase):
 class CustomerUpdate(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
+    preferred_branch_id: Optional[str] = None
     whatsapp: Optional[str] = None
     email: Optional[str] = None
     dob: Optional[date] = None

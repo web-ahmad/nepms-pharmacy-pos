@@ -51,6 +51,7 @@ class Employee(Base):
     designation_id = Column(String, ForeignKey("designations.id"))
     reporting_manager_id = Column(String, ForeignKey("employees.id"), nullable=True)
     shift_id = Column(String, ForeignKey("shifts.id"), nullable=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     
     join_date = Column(Date)
     employment_type = Column(String, nullable=True)

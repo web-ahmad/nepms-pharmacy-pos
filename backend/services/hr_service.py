@@ -37,14 +37,42 @@ class HRService:
         return self.repo.get_departments(tenant_id)
 
     def create_department(self, tenant_id: str, obj_in: DepartmentCreate):
+        from models.hr import Department
+        from fastapi import HTTPException
+        
+        existing = self.db.query(Department).filter(
+            Department.tenant_id == tenant_id,
+            Department.name.ilike(obj_in.name)
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail=f"Department with name '{obj_in.name}' already exists.")
+            
         return self.repo.create_department(tenant_id, obj_in)
 
     def update_department(self, tenant_id: str, dept_id: str, obj_in):
-        from schemas.hr import DepartmentUpdate
+        from models.hr import Department
+        from fastapi import HTTPException
+        
+        if hasattr(obj_in, 'name') and obj_in.name:
+            existing = self.db.query(Department).filter(
+                Department.tenant_id == tenant_id,
+                Department.name.ilike(obj_in.name),
+                Department.id != dept_id
+            ).first()
+            if existing:
+                raise HTTPException(status_code=400, detail=f"Department with name '{obj_in.name}' already exists.")
+                
         dept = self.repo.update_department(tenant_id, dept_id, obj_in)
         if not dept:
             raise HTTPException(404, "Department not found")
         return dept
+
+    def delete_department(self, tenant_id: str, dept_id: str):
+        from fastapi import HTTPException
+        success = self.repo.delete_department(tenant_id, dept_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Department not found")
+        return {"message": "Department deleted successfully"}
 
     def get_designations(self, tenant_id: str):
         return self.repo.get_designations(tenant_id)
@@ -68,9 +96,45 @@ class HRService:
         return emp
 
     def create_employee(self, tenant_id: str, user_id: str, obj_in: EmployeeCreate):
-        emp = self.repo.create_employee(tenant_id, obj_in)
+        new_user = None
+        if obj_in.system_access:
+            if not obj_in.email:
+                raise HTTPException(400, "Email is required to create a login account")
+            if not obj_in.password:
+                raise HTTPException(400, "Password is required to create a login account")
+            if not obj_in.role_id:
+                raise HTTPException(400, "Role assignment is required to create a login account")
+            
+            from models.users import User, UserBranch
+            from core.security import get_password_hash
+            
+            if self.db.query(User).filter(User.email == obj_in.email).first():
+                raise HTTPException(400, "Email already registered for a user account")
+                
+            new_user = User(
+                username=obj_in.username or obj_in.email,
+                email=obj_in.email,
+                hashed_password=get_password_hash(obj_in.password),
+                full_name=f"{obj_in.first_name} {obj_in.last_name}",
+                phone=obj_in.phone,
+                tenant_id=tenant_id,
+                role_id=obj_in.role_id,
+                is_active=True
+            )
+            self.db.add(new_user)
+            self.db.flush()
+            
+            if obj_in.branch_id:
+                user_branch = UserBranch(user_id=new_user.id, branch_id=obj_in.branch_id)
+                self.db.add(user_branch)
+                self.db.flush()
 
+        emp = self.repo.create_employee(tenant_id, obj_in)
         
+        if new_user:
+            emp.user_id = new_user.id
+            self.db.flush()
+
         self.db.commit()
         return emp
 

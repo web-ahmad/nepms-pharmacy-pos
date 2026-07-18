@@ -11,7 +11,7 @@ import SalesChart from '@/features/dashboard/components/SalesChart';
 import { format } from 'date-fns';
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
+  const { user, hasPermission } = useAuthStore();
   
   // Default to today
   const [dateRange, setDateRange] = useState<DateRange>({
@@ -41,24 +41,24 @@ export default function DashboardPage() {
         <DashboardFilter dateRange={dateRange} onChange={setDateRange} />
       </div>
 
-      {/* Conditionally Render Based on Role */}
+      {/* Conditionally Render Based on Role and Permissions */}
       
-      {/* Sales Overview (Everyone sees their version of it based on API RBAC) */}
-      {!isInventoryManager && (
+      {/* Sales Overview */}
+      {(!isInventoryManager && hasPermission('sales:view')) && (
         <section>
           <SalesOverview dateRange={dateRange} />
         </section>
       )}
 
       {/* Charts */}
-      {!isInventoryManager && !isCashier && (
+      {(!isInventoryManager && !isCashier && hasPermission('sales:view') && hasPermission('reports:view')) && (
         <section>
           <SalesChart dateRange={dateRange} />
         </section>
       )}
 
       {/* Inventory Overview */}
-      {(hasFullAccess || isInventoryManager) && (
+      {(hasPermission('inventory:view') || hasFullAccess || isInventoryManager) && (
         <section>
           <h3 className="mb-4 text-lg font-bold text-zinc-900 dark:text-zinc-50">Inventory Pulse</h3>
           <InventoryOverview />

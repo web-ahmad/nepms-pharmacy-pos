@@ -357,8 +357,30 @@ export function BranchFormWizard() {
     },
   });
 
-  const { register, handleSubmit, watch, formState: { errors } } = methods;
+  const { register, handleSubmit, watch, formState: { errors }, trigger } = methods;
   const values = watch();
+
+  const STEP_FIELDS: (keyof FormData)[][] = [
+    ['name', 'code', 'type', 'status', 'theme_color', 'notes'],
+    ['email', 'phone', 'alternate_phone'],
+    ['country', 'province', 'region', 'city', 'address', 'postal_code', 'latitude', 'longitude'],
+    ['manager_name', 'manager_email', 'manager_phone', 'manager_user_id', 'pharmacist_user_id'],
+    ['opening_date', 'timezone', 'currency', 'drug_license_number', 'drug_license_expiry', 'tax_number', 'invoice_prefix', 'receipt_footer'],
+    [],
+    [],
+  ];
+
+  const handleNext = async () => {
+    const fieldsToValidate = STEP_FIELDS[currentStep];
+    if (fieldsToValidate && fieldsToValidate.length > 0) {
+      const isValid = await trigger(fieldsToValidate);
+      if (!isValid) {
+        toast.error('Please fill all required fields correctly before proceeding.');
+        return;
+      }
+    }
+    setCurrentStep((s) => Math.min(STEPS.length - 1, s + 1));
+  };
 
   const onSubmit: SubmitHandler<FormData> = (data) => {
     const payload: BranchCreate = {
@@ -373,7 +395,13 @@ export function BranchFormWizard() {
         router.push(`/branches/${created.id}`);
       },
       onError: (err: unknown) => {
-        const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Failed to create branch.';
+        let msg = 'Failed to create branch.';
+        const data = (err as any)?.response?.data;
+        if (data) {
+          if (typeof data.detail === 'string') msg = data.detail;
+          else if (Array.isArray(data.detail)) msg = `${data.detail[0]?.loc?.join('.')}: ${data.detail[0]?.msg}`;
+          else if (data.message) msg = data.message;
+        }
         toast.error(msg);
       },
     });
@@ -453,7 +481,7 @@ export function BranchFormWizard() {
             {currentStep < STEPS.length - 1 ? (
               <button
                 type="button"
-                onClick={() => setCurrentStep((s) => Math.min(STEPS.length - 1, s + 1))}
+                onClick={handleNext}
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition"
               >
                 Next <ChevronRight size={16} />

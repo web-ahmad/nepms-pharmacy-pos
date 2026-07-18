@@ -31,9 +31,10 @@ router = APIRouter()
 
 
 def _resolve_pid(scope: PharmacyScope) -> str:
-    if scope.pharmacy_id:
-        return scope.pharmacy_id
-    raise HTTPException(status_code=400, detail="pharmacy_id required.")
+    pid = scope.pharmacy_id or scope.tenant_id
+    if not pid:
+        pid = "system"
+    return pid
 
 
 def _get_role_or_404(db: Session, role_id: str, pharmacy_id: str):

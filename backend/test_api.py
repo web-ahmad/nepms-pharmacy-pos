@@ -1,12 +1,23 @@
-import urllib.request
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-try:
-    url = "http://localhost:8000/api/v1/audit/logs?start_date=2026-06-20&end_date=2026-06-30&tab=General%20Activity"
-    req = urllib.request.Request(url, headers={"Authorization": "Bearer mock"})
-    response = urllib.request.urlopen(req)
-    print(response.read().decode('utf-8'))
-except Exception as e:
-    if hasattr(e, 'read'):
-        print(e.read().decode('utf-8'))
-    else:
-        print(e)
+from fastapi.testclient import TestClient
+from main import app
+
+client = TestClient(app)
+
+response = client.post("/api/v1/auth/login", data={"username": "superadmin@nepms.com", "password": "password123"})
+if response.status_code == 200:
+    token = response.json().get("access_token")
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    res = client.post("/api/v1/hr/departments", json={"name": "Test Dept", "is_active": True}, headers=headers)
+    print("Status:", res.status_code)
+    print("Response body:", res.text)
+    
+    res2 = client.post("/api/v1/hr/departments", json={"name": "Test Dept", "is_active": True}, headers=headers)
+    print("Status 2:", res2.status_code)
+    print("Response body 2:", res2.text)
+else:
+    print("Failed to login", response.text)

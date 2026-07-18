@@ -3,15 +3,15 @@ from sqlalchemy.orm import Session
 from typing import List
 from database import get_db
 from models.users import User
-from dependencies.auth import require_role
+from core.deps import requires_permission
 from schemas.system import BackupHistoryResponse, OCRQueueResponse, SystemHealthResponse
 from services.system_service import SystemService
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
-def require_system_admin(current_user: User = Depends(require_role("system.admin"))): return current_user
-def require_backup_manage(current_user: User = Depends(require_role("backup.manage"))): return current_user
+def require_system_admin(token_payload: dict = Depends(requires_permission("system_health:view"))): return token_payload
+def require_backup_manage(token_payload: dict = Depends(requires_permission("backup:manage"))): return token_payload
 
 @router.get("/health", response_model=SystemHealthResponse)
 def get_health(db: Session = Depends(get_db), current_user: User = Depends(require_system_admin)):

@@ -271,6 +271,7 @@ class BranchStatsResponse(BaseModel):
 
     # Inventory
     inventory_value:   Optional[float] = 0.0
+    has_missing_costs: Optional[bool] = False
     low_stock_count:   Optional[int] = 0
     expiry_count:      Optional[int] = 0
 

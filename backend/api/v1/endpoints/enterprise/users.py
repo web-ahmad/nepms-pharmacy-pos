@@ -49,9 +49,10 @@ router = APIRouter()
 
 
 def _resolve_pharmacy_id(scope: PharmacyScope) -> str:
-    if scope.pharmacy_id:
-        return scope.pharmacy_id
-    raise HTTPException(status_code=400, detail="pharmacy_id required in token for non-super-admin users.")
+    pid = scope.pharmacy_id or scope.tenant_id
+    if not pid:
+        pid = "system"
+    return pid
 
 
 def _get_eu_or_404(db: Session, eu_id: str, pharmacy_id: str):
@@ -133,6 +134,22 @@ def create_user(
 ):
     pid = _resolve_pharmacy_id(scope)
     created_by = token.get("sub")
+    hierarchy_level = token.get("hierarchy_level", 4)
+    token_branch = token.get("branch_id")
+    
+    # ── Hierarchy Enforcement (Level 3 Branch Owner) ──
+    if hierarchy_level == 3:
+        if data.default_branch_id != token_branch:
+            raise HTTPException(status_code=403, detail="Branch Owners can only create users in their own branch.")
+        if data.allowed_branches and any(b != token_branch for b in data.allowed_branches):
+            raise HTTPException(status_code=403, detail="Branch Owners cannot assign users to other branches.")
+            
+        # Ensure they are not creating an L1, L2, or L3 role
+        from models.users import Role
+        target_role = db.query(Role).filter(Role.id == data.enterprise_role_id).first()
+        if target_role and target_role.hierarchy_level <= 3:
+            raise HTTPException(status_code=403, detail="Branch Owners can only create L4 Branch Staff roles.")
+
     eu = user_service.create_user(db, data=data, pharmacy_id=pid, created_by_id=created_by)
     return _build_read(eu)
 
@@ -163,6 +180,28 @@ def update_user(
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
+    
+    hierarchy_level = token.get("hierarchy_level", 4)
+    token_branch = token.get("branch_id")
+    
+    # ── Hierarchy Enforcement (Level 3 Branch Owner) ──
+    if hierarchy_level == 3:
+        # Check if the target user belongs to their branch
+        user_branches = [b.branch_id for b in eu.branch_assignments if b.is_active]
+        if token_branch not in user_branches:
+            raise HTTPException(status_code=403, detail="You cannot modify users outside your branch.")
+            
+        if data.default_branch_id and data.default_branch_id != token_branch:
+            raise HTTPException(status_code=403, detail="Branch Owners cannot move users to another branch.")
+        if data.allowed_branches and any(b != token_branch for b in data.allowed_branches):
+            raise HTTPException(status_code=403, detail="Branch Owners cannot assign users to other branches.")
+            
+        if data.enterprise_role_id:
+            from models.users import Role
+            target_role = db.query(Role).filter(Role.id == data.enterprise_role_id).first()
+            if target_role and target_role.hierarchy_level <= 3:
+                raise HTTPException(status_code=403, detail="Branch Owners can only assign L4 Branch Staff roles.")
+
     eu = user_service.update_user(db, enterprise_user=eu, data=data, performed_by_id=token.get("sub"))
     return _build_read(eu)
 

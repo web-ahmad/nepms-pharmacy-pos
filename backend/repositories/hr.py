@@ -59,6 +59,18 @@ class HRRepository:
         db_obj.employee_count = len(db_obj.employees)
         return db_obj
 
+    def delete_department(self, tenant_id: str, dept_id: str):
+        db_obj = self.db.query(Department).filter(
+            Department.tenant_id == tenant_id,
+            Department.id == dept_id
+        ).first()
+        if not db_obj:
+            return False
+            
+        self.db.delete(db_obj)
+        self.db.commit()
+        return True
+
     # Designations
     def get_designations(self, tenant_id: str):
         designations = self.db.query(Designation).filter(Designation.tenant_id == tenant_id).all()
@@ -112,6 +124,10 @@ class HRRepository:
 
     def create_employee(self, tenant_id: str, obj_in: EmployeeCreate):
         dump = obj_in.model_dump()
+        dump.pop('system_access', None)
+        dump.pop('password', None)
+        dump.pop('role_id', None)
+        
         if not dump.get('employee_id'):
             count = self.db.query(Employee).filter(Employee.tenant_id == tenant_id).count()
             dump['employee_id'] = f"EMP-{1001 + count}"

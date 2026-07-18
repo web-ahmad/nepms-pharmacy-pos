@@ -104,6 +104,7 @@ export interface RoleListItem {
   user_type?: string;
   branch_scope?: string;
   data_scope?: string;
+  hierarchy_level?: number;
   sort_order?: number;
   permission_count: number;
   user_count: number;

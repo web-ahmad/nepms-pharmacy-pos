@@ -262,7 +262,8 @@ class BranchRepository(CRUDBase[PharmacyBranch, BranchCreate, BranchUpdate]):
     # ── Staff count helper ────────────────────────────────────────────────────
 
     def count_staff(self, db: Session, branch_id: str) -> int:
-        return (
+        from models.hr import Employee
+        legacy_staff = (
             db.query(func.count(BranchStaffAssignment.id))
             .filter(
                 BranchStaffAssignment.branch_id == branch_id,
@@ -272,6 +273,16 @@ class BranchRepository(CRUDBase[PharmacyBranch, BranchCreate, BranchUpdate]):
             .scalar()
             or 0
         )
+        hr_staff = (
+            db.query(func.count(Employee.id))
+            .filter(
+                Employee.branch_id == branch_id,
+                Employee.is_active == True,
+            )
+            .scalar()
+            or 0
+        )
+        return legacy_staff + hr_staff
 
     # ── Comparison data ───────────────────────────────────────────────────────
 

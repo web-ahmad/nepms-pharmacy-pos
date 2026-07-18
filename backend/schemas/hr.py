@@ -59,6 +59,7 @@ class DesignationResponse(BaseModel):
 
 # Employee
 class EmployeeBase(BaseModel):
+    branch_id: Optional[str] = None
     first_name: str
     last_name: str
     email: Optional[str] = None
@@ -85,7 +86,9 @@ class EmployeeBase(BaseModel):
     # NOTE: created_at is NOT included here — it is server-generated
 
 class EmployeeCreate(EmployeeBase):
-    pass
+    system_access: bool = False
+    password: Optional[str] = None
+    role_id: Optional[str] = None
 
 class EmployeeUpdate(BaseModel):
     first_name: Optional[str] = None

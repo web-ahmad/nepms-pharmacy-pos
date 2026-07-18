@@ -57,7 +57,7 @@ def require_accounts_approve(current_user: User = Depends(get_current_user)):
 @router.post("/seed")
 def seed_chart_of_accounts(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create),
+    current_user: dict = Depends(require_accounts_create),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
@@ -67,7 +67,7 @@ def seed_chart_of_accounts(
 @router.get("/chart", response_model=List[AccountResponse])
 def get_chart_of_accounts(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view),
+    current_user: dict = Depends(require_accounts_view),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
@@ -77,7 +77,7 @@ def get_chart_of_accounts(
 def create_account(
     account_in: AccountCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create),
+    current_user: dict = Depends(require_accounts_create),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
@@ -88,7 +88,7 @@ def update_account(
     account_id: str,
     account_in: AccountUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create),
+    current_user: dict = Depends(require_accounts_create),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
@@ -98,7 +98,7 @@ def update_account(
 def delete_account(
     account_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create),
+    current_user: dict = Depends(require_accounts_create),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
@@ -109,7 +109,7 @@ def delete_account(
 def create_journal_entry(
     journal_in: JournalEntryCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create)
+    current_user: dict = Depends(require_accounts_create)
 ,
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
@@ -117,13 +117,13 @@ def create_journal_entry(
     # Require separate approval if strictly enforcing separation of duties
     status = "Draft" if "accounts.approve" not in current_user.permissions and current_user.role != "Super Admin" else "Approved"
     
-    entry = service.create_journal_entry(scope.tenant_id, current_user.id, journal_in, status)
+    entry = service.create_journal_entry(scope.tenant_id, current_user.get("sub"), journal_in, status)
     return {"message": "Journal Entry Created", "id": entry.id, "status": entry.status}
 
 @router.get("/reports/trial-balance", response_model=TrialBalanceResponse)
 def get_trial_balance(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view)
+    current_user: dict = Depends(require_accounts_view)
 ,
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
@@ -133,7 +133,7 @@ def get_trial_balance(
 @router.get("/reports/profit-loss", response_model=ProfitLossResponse)
 def get_profit_and_loss(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view)
+    current_user: dict = Depends(require_accounts_view)
 ,
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
@@ -143,7 +143,7 @@ def get_profit_and_loss(
 @router.get("/reports/balance-sheet", response_model=BalanceSheetResponse)
 def get_balance_sheet(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view)
+    current_user: dict = Depends(require_accounts_view)
 ,
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
@@ -156,7 +156,7 @@ def get_ledger(
     start_date: str = None,
     end_date: str = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view)
+    current_user: dict = Depends(require_accounts_view)
 ,
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
@@ -166,7 +166,7 @@ def get_ledger(
 @router.get("/journals", response_model=List[JournalEntryResponse])
 def get_journal_entries(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view)
+    current_user: dict = Depends(require_accounts_view)
 ,
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
@@ -176,7 +176,7 @@ def get_journal_entries(
 @router.get("/dashboard-stats", response_model=DashboardStatsResponse)
 def get_dashboard_stats(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_view),
+    current_user: dict = Depends(require_accounts_view),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
@@ -186,7 +186,7 @@ def get_dashboard_stats(
 @router.post("/force-rebuild")
 def force_rebuild_accounting(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create),
+    current_user: dict = Depends(require_accounts_create),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     """
@@ -203,7 +203,7 @@ def force_rebuild_accounting(
     import time
 
     tenant_id = scope.tenant_id
-    user_id = current_user.id
+    user_id = current_user.get("sub")
 
     # ── Step 1: Ensure default COA exists ───────────────────────────────────
     service = AccountsService(db)
@@ -330,10 +330,10 @@ def force_rebuild_accounting(
 def close_year(
     year: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_accounts_create),
+    current_user: dict = Depends(require_accounts_create),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = ClosingService(db)
-    return service.perform_year_end_closing(scope.tenant_id, current_user.id, year, scope.branch_id)
+    return service.perform_year_end_closing(scope.tenant_id, current_user.get("sub"), year, scope.branch_id)
 
 
