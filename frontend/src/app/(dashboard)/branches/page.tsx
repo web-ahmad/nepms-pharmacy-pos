@@ -79,12 +79,7 @@ export default function BranchesPage() {
               <GitCompare size={14} /> Compare ({comparisonIds.length})
             </button>
           )}
-          <button
-            onClick={() => router.push('/branches/new')}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition"
-          >
-            <Plus size={14} /> New Branch
-          </button>
+
         </div>
       </motion.div>
 

@@ -50,16 +50,32 @@ def _get_role_or_404(db: Session, role_id: str, pharmacy_id: str):
 def list_permissions(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    token_payload: dict = Depends(requires_permission("users:view")),
 ):
     pid = _resolve_pid(scope)
     # Seed if not present
     role_repository.seed_permissions(db, pid)
     all_perms = role_repository.get_all_permissions(db, pid)
+    
+    user_perms = token_payload.get("permissions", [])
+    is_sa = token_payload.get("is_super_admin", False)
+    has_wildcard = "*" in user_perms
+
+    def _can_assign(code: str) -> bool:
+        if is_sa: return True
+        if code.startswith("system:"): return False
+        if has_wildcard: return True
+        if code in user_perms: return True
+        resource = code.split(':')[0]
+        if f"{resource}:manage" in user_perms: return True
+        return False
+
     # Deduplicate by code (safety net against any DB duplicates)
     seen_codes: set = set()
     grouped: dict = {}
     for p in all_perms:
+        if not _can_assign(p.code):
+            continue
         if p.code in seen_codes:
             continue
         seen_codes.add(p.code)
@@ -81,10 +97,14 @@ def list_roles(
     limit: int = Query(100, ge=1, le=500),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    token_payload: dict = Depends(requires_permission("users:view")),
 ):
     pid = _resolve_pid(scope)
-    items, total = role_repository.get_list(db, pid, skip=skip, limit=limit)
+    
+    hierarchy_level = token_payload.get("hierarchy_level", 4)
+    min_level = hierarchy_level if hierarchy_level >= 3 else None
+    
+    items, total = role_repository.get_list(db, pid, skip=skip, limit=limit, min_hierarchy_level=min_level)
     role_items = []
     for r in items:
         user_count = role_repository.get_user_count(db, r.id)
@@ -99,6 +119,7 @@ def list_roles(
             branch_scope=getattr(r, 'branch_scope', None),
             data_scope=getattr(r, 'data_scope', None),
             sort_order=r.sort_order,
+            hierarchy_level=r.hierarchy_level,
             permission_count=len(r.role_permissions),
             user_count=user_count,
             created_at=r.created_at,

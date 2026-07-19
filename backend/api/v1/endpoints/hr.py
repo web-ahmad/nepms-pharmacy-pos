@@ -30,12 +30,18 @@ from services.hr_service import HRService
 
 router = APIRouter(dependencies=[Depends(require_module("employees"))])
 
-def require_hr_view(token_payload: dict = Depends(requires_permission("hr:view"))): return token_payload
-def require_hr_create(token_payload: dict = Depends(requires_permission("hr:create"))): return token_payload
-def require_hr_update(token_payload: dict = Depends(requires_permission("hr:update"))): return token_payload
-def require_hr_approve(token_payload: dict = Depends(requires_permission("hr:approve"))): return token_payload
-def require_payroll_view(token_payload: dict = Depends(requires_permission("payroll:view"))): return token_payload
-def require_payroll_run(token_payload: dict = Depends(requires_permission("payroll:run"))): return token_payload
+class PayloadUser:
+    def __init__(self, payload: dict):
+        self.id = payload.get("sub")
+        self.tenant_id = payload.get("tenant_id")
+        self.payload = payload
+
+def require_hr_view(token_payload: dict = Depends(requires_permission("hr:view"))): return PayloadUser(token_payload)
+def require_hr_create(token_payload: dict = Depends(requires_permission("hr:create"))): return PayloadUser(token_payload)
+def require_hr_update(token_payload: dict = Depends(requires_permission("hr:update"))): return PayloadUser(token_payload)
+def require_hr_approve(token_payload: dict = Depends(requires_permission("hr:approve"))): return PayloadUser(token_payload)
+def require_payroll_view(token_payload: dict = Depends(requires_permission("payroll:view"))): return PayloadUser(token_payload)
+def require_payroll_run(token_payload: dict = Depends(requires_permission("payroll:run"))): return PayloadUser(token_payload)
 
 # Departments
 @router.get("/departments", response_model=List[DepartmentResponse])

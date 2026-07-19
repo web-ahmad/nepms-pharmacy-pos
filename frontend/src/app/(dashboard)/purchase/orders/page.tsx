@@ -6,8 +6,9 @@ import { useAuthStore } from '@/stores/auth-store';
 import { Plus } from 'lucide-react';
 
 export default function PurchaseOrdersPage() {
-  const { user } = useAuthStore();
-  const canCreate = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Branch Manager' || user?.role === 'Inventory Manager';
+  const { hasPermission } = useAuthStore();
+  // RBAC 4.0: Use permission-based check, never role.name strings
+  const canCreate = hasPermission('purchase_orders:create') || hasPermission('purchase_orders:manage');
 
   return (
     <div className="space-y-6">

@@ -89,6 +89,27 @@ export default function SuperAdminDashboard() {
     setPatchingId(null);
   };
 
+  const handleDelete = async (pharmacy: Pharmacy, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Are you sure you want to permanently delete ${pharmacy.name}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setPatchingId(pharmacy.id);
+    const res = await fetch(`/api/v1/super-admin/pharmacies/${pharmacy.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    
+    if (res.ok) {
+      setPharmacies(ps => ps.filter(p => p.id !== pharmacy.id));
+    } else {
+      const err = await res.json().catch(() => null);
+      alert(`Failed to delete pharmacy: ${err?.detail || res.statusText}`);
+    }
+    setPatchingId(null);
+  };
+
   // Derived stats
   const stats = {
     total:     pharmacies.length,
@@ -129,6 +150,7 @@ export default function SuperAdminDashboard() {
         loading={loading}
         onRefresh={fetchPharmacies}
         onToggleStatus={handleToggleStatus}
+        onDelete={handleDelete}
         patchingId={patchingId}
         onOpenCreate={() => setShowCreate(true)}
       />

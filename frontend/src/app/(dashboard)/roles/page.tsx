@@ -493,7 +493,7 @@ function RolesPage() {
   const qc = useQueryClient();
   const { data: rolesData, isLoading: rolesLoading } = useEnterpriseRoles();
   const { data: permsData, isLoading: permsLoading } = usePermissionsCatalogue();
-  const seedMut = useSeedEnterprise();
+
 
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [selectedPerms, setSelectedPerms] = useState<Set<string>>(new Set());
@@ -513,6 +513,7 @@ function RolesPage() {
 
   const createRole = useCreateRole();
   const setPerms   = useSetRolePermissions(selectedRoleId ?? '');
+  const seedEnterprise = useSeedEnterprise();
 
   const selectedRole = rolesData?.items.find((r) => r.id === selectedRoleId);
 
@@ -562,6 +563,16 @@ function RolesPage() {
     qc.invalidateQueries({ queryKey: roleKeys.lists() });
   };
 
+  const handleSeedEnterprise = async () => {
+    try {
+      await seedEnterprise.mutateAsync();
+      toast.success('Enterprise RBAC 3.0 seeded successfully');
+      qc.invalidateQueries({ queryKey: roleKeys.lists() });
+    } catch (err: any) {
+      toast.error(`Seed failed: ${err.message}`);
+    }
+  };
+
   const handleCreateRole = async () => {
     if (!newRoleName.trim()) return;
     await createRole.mutateAsync({
@@ -582,10 +593,7 @@ function RolesPage() {
   };
 
 
-  const handleSeedDefaults = async () => {
-    const res = await seedMut.mutateAsync();
-    toast.success(`Seeded: ${res.permissions_created} permissions, ${res.roles_created} roles`);
-  };
+
 
   const handleExportJSON = () => {
     if (!selectedRole || !permsData) return;
@@ -663,20 +671,23 @@ function RolesPage() {
 
         <div className="flex flex-wrap items-center gap-2">
           <input type="file" ref={fileInputRef} onChange={handleImportJSON} accept=".json" className="hidden" />
+
+          <button
+            onClick={handleSeedEnterprise}
+            disabled={seedEnterprise.isPending}
+            className="flex items-center gap-2 rounded-xl bg-violet-600/10 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 px-3.5 py-2 text-sm font-medium hover:bg-violet-600/20 transition-colors disabled:opacity-50"
+          >
+            {seedEnterprise.isPending ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+            Seed Enterprise RBAC 3.0
+          </button>
+
           <button
             onClick={() => { setCompareRole(null); setCompareModalOpen(true); }}
             className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 px-3.5 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
           >
             <Scale size={14} /> Compare
           </button>
-          <button
-            onClick={handleSeedDefaults}
-            disabled={seedMut.isPending}
-            className="flex items-center gap-2 rounded-xl bg-violet-600/10 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800/50 px-3.5 py-2 text-sm font-medium hover:bg-violet-600 hover:text-white dark:hover:bg-violet-600 transition-colors disabled:opacity-50"
-          >
-            {seedMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Seed Enterprise RBAC 3.0
-          </button>
+
           <button
             onClick={() => setShowNewForm((v) => !v)}
             className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-indigo-700 active:scale-95 transition-all"

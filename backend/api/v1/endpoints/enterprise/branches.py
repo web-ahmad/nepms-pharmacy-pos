@@ -6,6 +6,13 @@ FastAPI router for Enterprise Branch Management.
 All routes require an authenticated pharmacy user with `settings:manage` permission.
 Super-admins bypass the permission check (handled by PharmacyScope).
 
+Access Rules (RBAC 4.0)
+────────────────────────
+  L1 Super Admin:   can create, view, edit, delete any branch
+  L2 Pharmacy Owner: can view and edit branches; CANNOT create new branches
+  L3 Branch Owner:  can view and edit THEIR branch only; CANNOT create branches
+  L4 Staff:         no branch management access
+
 Endpoints
 ─────────
   GET    /enterprise/branches                    list (filtered, paginated)
@@ -27,7 +34,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
-from core.deps import requires_permission
+from core.deps import requires_permission, requires_hierarchy
 from schemas.enterprise.branch import (
     BranchCreate,
     BranchUpdate,
@@ -97,12 +104,16 @@ def compare_branches(
 
 # ── Create ────────────────────────────────────────────────────────────────────
 
-@router.post("", response_model=BranchResponse, status_code=201, summary="Create branch")
+@router.post("", response_model=BranchResponse, status_code=201, summary="Create branch (L1 Super Admin only)")
 def create_branch(
     data:  BranchCreate,
     db:    Session       = Depends(get_db),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     _:     dict          = Depends(_require_branch_access),
+    # ── RBAC 4.0: Only L1 Super Admin can CREATE new branches ─────────────────────────
+    # L2 Pharmacy Owner and L3 Branch Owner are explicitly blocked here.
+    # They can view and edit existing branches via PATCH/GET but cannot create.
+    __h:  dict          = Depends(requires_hierarchy(max_level=1)),
 ):
     return branch_service.create_branch(db, scope, data)
 

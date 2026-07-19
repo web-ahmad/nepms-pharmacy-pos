@@ -352,7 +352,9 @@ export default function CashierPortalPage() {
   const { data: lowStockData } = useLowStockAlerts({ skip: 0, limit: 1 });
   const lowStockCount = lowStockData?.total || 0;
 
-  const isSuperAdmin = user?.role === 'Super Admin';
+  // RBAC 4.0: Use hierarchy_level, never role.name strings
+  const isSuperAdmin = user?.hierarchy_level === 1;
+
   const userPermissions: string[] = user?.permissions || [];
 
   const visibleItems = useMemo(() => {

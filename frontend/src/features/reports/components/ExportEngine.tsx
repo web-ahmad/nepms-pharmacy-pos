@@ -12,10 +12,10 @@ interface ExportEngineProps {
 
 export default function ExportEngine({ endpoint, params, filename }: ExportEngineProps) {
   const [isExporting, setIsExporting] = useState<string | null>(null);
-  const { user } = useAuthStore();
-  
-  // Check RBAC
-  const canExport = user?.role === 'Super Admin' || user?.permissions?.includes('reports.export');
+  const { hasPermission } = useAuthStore();
+  // RBAC 4.0: Permission-based check. Note: colon-notation is the canonical format.
+  const canExport = hasPermission('reports:export') || hasPermission('reports:manage');
+
 
   if (!canExport) {
     return null;

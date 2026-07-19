@@ -113,6 +113,7 @@ class RoleListItem(BaseModel):
     sort_order:     int = 0
     permission_count: int = 0
     user_count:     int = 0
+    hierarchy_level: int = 4
     created_at:     datetime
 
     model_config = {"from_attributes": True}

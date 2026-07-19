@@ -370,19 +370,3 @@ class AutoPostingService:
         )
         return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)
 
-    def post_cogs(self, tenant_id: str, user_id: str, reference: str, amount: float, branch_id: str = None, source_module: str = None, source_id: str = None):
-        cogs_acc = self._get_account_id(tenant_id, "5000")
-        inv_acc = self._get_account_id(tenant_id, "1020")
-        
-        entry = JournalEntryCreate(
-            branch_id=branch_id,
-            source_module=source_module,
-            source_id=source_id,
-            reference=reference,
-            description="Auto Post: Cost of Goods Sold",
-            lines=[
-                JournalEntryLineCreate(account_id=cogs_acc, debit=amount, credit=0),
-                JournalEntryLineCreate(account_id=inv_acc, debit=0, credit=amount)
-            ]
-        )
-        return self.accounts_svc.create_journal_entry(tenant_id, user_id, entry)

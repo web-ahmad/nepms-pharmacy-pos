@@ -1803,3 +1803,42 @@ preferred_batch_id: None
 warehouse_id: None
 Found active batches count: 1
   Batch 1: BAT-28956 (qty: 99, reserved: 0, status: Active, expiry: 2029-07-17)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '4ce39765-fb39-4ee9-ab69-3872594ca504'
+branch_id: '3eece789-0dc0-435a-ad28-ff07efa1ae23'
+medicine_id: '5325f1f9-c2b7-4267-9afe-f9fdc297f0f6'
+quantity_required: 1
+user_id: 'a6ea5412-fa4b-4c8b-b399-ad1508dab374'
+reference_id: '9b7304be-8599-4c7f-82aa-333675280370'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: bat-53 (qty: 100, reserved: 0, status: Active, expiry: 2029-07-18)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '4ce39765-fb39-4ee9-ab69-3872594ca504'
+branch_id: '3eece789-0dc0-435a-ad28-ff07efa1ae23'
+medicine_id: '5325f1f9-c2b7-4267-9afe-f9fdc297f0f6'
+quantity_required: 2
+user_id: 'a6ea5412-fa4b-4c8b-b399-ad1508dab374'
+reference_id: '9508bdca-b99e-4f47-8606-c59a3cfeb40a'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: bat-53 (qty: 99, reserved: 0, status: Active, expiry: 2029-07-18)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '4ce39765-fb39-4ee9-ab69-3872594ca504'
+branch_id: 'a2167188-27dd-49f3-b1a2-1a0cc90114b0'
+medicine_id: '34633cba-59f9-49ec-bef0-2dcef808d007'
+quantity_required: 1
+user_id: '7e75e34a-9d05-411a-bff0-97e4b6e4ad54'
+reference_id: '74101450-aee5-4f13-bb62-d492f28032ec'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: SY-012545 (qty: 100, reserved: 0, status: Active, expiry: 2031-02-02)

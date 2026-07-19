@@ -504,6 +504,7 @@ class RoleRepository(CRUDBase[EnterpriseRole, RoleCreate, RoleUpdate]):
         skip: int = 0,
         limit: int = 200,
         exclude_system_roles: bool = True,
+        min_hierarchy_level: Optional[int] = None,
     ) -> Tuple[List[EnterpriseRole], int]:
         q = (
             db.query(EnterpriseRole)
@@ -515,6 +516,9 @@ class RoleRepository(CRUDBase[EnterpriseRole, RoleCreate, RoleUpdate]):
         )
         if exclude_system_roles:
             q = q.filter(EnterpriseRole.is_system_role == False)
+            
+        if min_hierarchy_level is not None:
+            q = q.filter(EnterpriseRole.hierarchy_level >= min_hierarchy_level)
 
         q = q.order_by(EnterpriseRole.sort_order.asc(), EnterpriseRole.name.asc())
         total = q.count()

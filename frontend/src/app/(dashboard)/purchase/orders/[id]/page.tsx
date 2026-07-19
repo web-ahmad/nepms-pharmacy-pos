@@ -16,8 +16,11 @@ export default function PurchaseOrderDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
-  const { user } = useAuthStore();
-  
+  const { hasPermission } = useAuthStore();
+  // RBAC 4.0: Use permission-based check, never role.name strings
+  const canApprove = hasPermission('purchase_orders:approve') || hasPermission('purchase_orders:manage');
+  const canReceive  = hasPermission('goods_receiving:create') || hasPermission('goods_receiving:manage');
+
   const [activeTab, setActiveTab] = useState<TabId>('details');
   const [showGRNForm, setShowGRNForm] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -30,9 +33,6 @@ export default function PurchaseOrderDetailPage() {
 
   const approveMutation = useApprovePO();
   const cancelMutation = useCancelPO();
-
-  const canApprove = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner';
-  const canReceive = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Branch Manager' || user?.role === 'Inventory Manager';
 
   if (isLoading) return <div className="p-8 text-center"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-600 mx-auto"></div></div>;
   if (!po) return <div className="p-8 text-center text-red-500">Purchase Order not found.</div>;

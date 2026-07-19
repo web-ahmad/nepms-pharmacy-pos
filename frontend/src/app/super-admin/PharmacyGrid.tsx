@@ -7,7 +7,7 @@ import {
   CheckCircle2, XCircle, Clock, Activity, Users, GitBranch,
   Eye, ToggleLeft, ToggleRight, MoreHorizontal, Edit,
   Globe, ExternalLink, AlertTriangle, X, ArrowLeft,
-  ChevronLeft, ChevronRight, Filter,
+  ChevronLeft, ChevronRight, Filter, Trash2,
 } from 'lucide-react';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -21,6 +21,7 @@ export interface Pharmacy {
   created_at: string;
   staff_count: number;
   branch_count: number;
+  branches?: { id: string; name: string; code: string; }[];
 }
 
 export interface PharmacyDetail extends Pharmacy {
@@ -442,11 +443,13 @@ function PharmacyCard({
   pharmacy,
   onView,
   onToggleStatus,
+  onDelete,
   patching,
 }: {
   pharmacy: Pharmacy;
   onView: (id: string) => void;
   onToggleStatus: (pharmacy: Pharmacy, e: React.MouseEvent) => void;
+  onDelete: (pharmacy: Pharmacy, e: React.MouseEvent) => void;
   patching: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -490,12 +493,22 @@ function PharmacyCard({
               <button
                 onClick={e => { setMenuOpen(false); onToggleStatus(pharmacy, e); }}
                 className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-left transition-colors"
-                style={{ color: pharmacy.subscription_status === 'suspended' ? 'var(--sa-success)' : 'var(--sa-danger)' }}
+                style={{ color: pharmacy.subscription_status === 'suspended' ? 'var(--sa-success)' : 'var(--sa-warning)' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--sa-surface-raised)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
               >
                 {pharmacy.subscription_status === 'suspended' ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
                 {pharmacy.subscription_status === 'suspended' ? 'Reactivate' : 'Suspend'}
+              </button>
+              <button
+                onClick={e => { setMenuOpen(false); onDelete(pharmacy, e); }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-left transition-colors"
+                style={{ color: 'var(--sa-danger)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--sa-danger-muted)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
               </button>
             </div>
           )}
@@ -508,7 +521,7 @@ function PharmacyCard({
       </div>
 
       {/* Stats row */}
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center gap-4 mb-2">
         <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--sa-text-muted)' }}>
           <Users className="w-3.5 h-3.5" />
           <span>{pharmacy.staff_count} staff</span>
@@ -518,6 +531,24 @@ function PharmacyCard({
           <span>{pharmacy.branch_count} branches</span>
         </div>
       </div>
+
+      {/* Branches Chain View */}
+      {pharmacy.branches && pharmacy.branches.length > 0 && (
+        <div className="mb-3 pl-1">
+          <div className="border-l-2 border-dashed border-zinc-300 dark:border-zinc-700 pl-3 py-1 space-y-2">
+            {pharmacy.branches.map(b => (
+              <div key={b.id} className="relative flex items-center group/branch">
+                {/* Horizontal dashed line */}
+                <div className="absolute -left-3 top-1/2 w-3 border-t-2 border-dashed border-zinc-300 dark:border-zinc-700" />
+                <div className="bg-zinc-100/50 dark:bg-zinc-800/50 rounded-lg px-2 py-1.5 flex flex-col w-full border border-zinc-200/50 dark:border-zinc-700/50 transition-colors group-hover/branch:border-zinc-300 dark:group-hover/branch:border-zinc-600">
+                  <p className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300 leading-tight truncate" title={b.name}>{b.name}</p>
+                  <p className="text-[9px] text-zinc-500 mt-0.5">{b.code}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Date row */}
       <p className="text-[10px] mb-4" style={{ color: 'var(--sa-text-faint)' }}>
@@ -536,6 +567,20 @@ function PharmacyCard({
         >
           <Eye className="w-3.5 h-3.5" />
           View
+        </button>
+
+        <button
+          className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors"
+          style={{ color: 'var(--sa-accent)', background: 'var(--sa-accent-muted)' }}
+          title="Create New Branch/Franchise"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.location.href = `/super-admin/pharmacies/${pharmacy.id}/branches/new`;
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--sa-accent)'; (e.currentTarget as HTMLElement).style.color = 'white'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--sa-accent-muted)'; (e.currentTarget as HTMLElement).style.color = 'var(--sa-accent)'; }}
+        >
+          <Plus className="w-3.5 h-3.5" />
         </button>
 
         <button
@@ -577,11 +622,13 @@ function PharmacyRow({
   pharmacy,
   onView,
   onToggleStatus,
+  onDelete,
   patching,
 }: {
   pharmacy: Pharmacy;
   onView: (id: string) => void;
   onToggleStatus: (pharmacy: Pharmacy, e: React.MouseEvent) => void;
+  onDelete: (pharmacy: Pharmacy, e: React.MouseEvent) => void;
   patching: boolean;
 }) {
   return (
@@ -595,9 +642,26 @@ function PharmacyRow({
     >
       <PharmacyAvatar name={pharmacy.name} status={pharmacy.subscription_status} />
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 py-1">
         <p className="text-sm font-semibold truncate" style={{ color: 'var(--sa-text)' }}>{pharmacy.name}</p>
         <p className="text-xs truncate" style={{ color: 'var(--sa-text-muted)' }}>{pharmacy.owner_contact || '—'}</p>
+
+        {/* Branches Chain inside row */}
+        {pharmacy.branches && pharmacy.branches.length > 0 && (
+          <div className="mt-2.5 pl-2">
+            <div className="border-l-2 border-dashed border-zinc-300 dark:border-zinc-700 pl-3 py-0.5 space-y-1.5">
+              {pharmacy.branches.map(b => (
+                <div key={b.id} className="relative flex items-center group/branch w-fit">
+                  <div className="absolute -left-3 top-1/2 w-3 border-t-2 border-dashed border-zinc-300 dark:border-zinc-700" />
+                  <div className="bg-zinc-100/50 dark:bg-zinc-800/50 rounded-lg px-2 py-1 flex items-center gap-2 border border-zinc-200/50 dark:border-zinc-700/50 transition-colors group-hover/branch:border-zinc-300 dark:group-hover/branch:border-zinc-600">
+                    <p className="text-[10px] font-medium text-zinc-700 dark:text-zinc-300">{b.name}</p>
+                    <p className="text-[9px] text-zinc-500">{b.code}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="hidden sm:block w-28 shrink-0">
@@ -653,6 +717,7 @@ interface PharmacyGridProps {
   loading: boolean;
   onRefresh: () => void;
   onToggleStatus: (pharmacy: Pharmacy, e: React.MouseEvent) => void;
+  onDelete: (pharmacy: Pharmacy, e: React.MouseEvent) => void;
   patchingId: string | null;
   onOpenCreate: () => void;
 }
@@ -662,6 +727,7 @@ export function PharmacyGrid({
   loading,
   onRefresh,
   onToggleStatus,
+  onDelete,
   patchingId,
   onOpenCreate,
 }: PharmacyGridProps) {
@@ -832,6 +898,7 @@ export function PharmacyGrid({
                 pharmacy={p}
                 onView={setSelectedId}
                 onToggleStatus={onToggleStatus}
+                onDelete={onDelete}
                 patching={patchingId === p.id}
               />
             </div>
@@ -855,6 +922,7 @@ export function PharmacyGrid({
               pharmacy={p}
               onView={setSelectedId}
               onToggleStatus={onToggleStatus}
+              onDelete={onDelete}
               patching={patchingId === p.id}
             />
           ))}

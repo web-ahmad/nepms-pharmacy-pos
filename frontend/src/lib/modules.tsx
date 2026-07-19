@@ -27,6 +27,7 @@ const ModuleContext = createContext<ModuleContextValue>({
 
 export function ModuleProvider({ children }: { children: ReactNode }) {
   const token = useAuthStore((s) => s.accessToken);
+  const user = useAuthStore((s) => s.user);
 
   const { data: modules = [], isLoading } = useQuery({
     queryKey: ['settings', 'modules'],
@@ -42,7 +43,7 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
     // Refresh every 60s so sidebar stays in sync across tabs
     refetchInterval: 60_000,
     staleTime: 30_000,
-    enabled: !!token,
+    enabled: !!token && user?.hierarchy_level !== 1,
   });
 
   const isModuleEnabled = useMemo(() => {

@@ -16,7 +16,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
 
-from core.deps import get_current_user, requires_permission
+from core.deps import get_current_user, requires_permission, get_token_payload
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from database import get_db
 from repositories.enterprise.branch_configuration import branch_config_repo
@@ -70,8 +70,12 @@ def get_settings_overview(
     branch_id: str,
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("branches:view")),
+    token_payload: dict = Depends(get_token_payload),
 ):
+    permissions = token_payload.get("permissions", [])
+    is_sa = token_payload.get("is_super_admin", False)
+    if not is_sa and "*" not in permissions and "branches:view" not in permissions and scope.branch_id != branch_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this branch")
     pid = _pharmacy_id(scope)
     return branch_config_service.get_overview(db, branch_id, pid)
 

@@ -129,6 +129,7 @@ export interface RoleCreate {
   user_type?: string;
   branch_scope?: string;
   data_scope?: string;
+  hierarchy_level?: number;
   max_users?: number;
   sort_order?: number;
   permission_ids?: string[];

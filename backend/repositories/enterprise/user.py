@@ -135,11 +135,26 @@ class EnterpriseUserRepository(CRUDBase[EnterpriseUser, EnterpriseUserCreate, En
 
     # ── Dashboard summary ─────────────────────────────────────────────────────
 
-    def get_dashboard_summary(self, db: Session, pharmacy_id: str) -> Dict[str, Any]:
+    def get_dashboard_summary(self, db: Session, pharmacy_id: str, branch_id: Optional[str] = None) -> Dict[str, Any]:
         base = db.query(EnterpriseUser).filter(
             EnterpriseUser.pharmacy_id == pharmacy_id,
             EnterpriseUser.is_deleted == False,
         )
+        if branch_id:
+            base = base.filter(
+                EnterpriseUser.branch_assignments.any(
+                    and_(BranchUserAssignment.branch_id == branch_id, BranchUserAssignment.is_active == True)
+                )
+            )
+
+        def apply_branch(q):
+            if branch_id:
+                return q.filter(
+                    EnterpriseUser.branch_assignments.any(
+                        and_(BranchUserAssignment.branch_id == branch_id, BranchUserAssignment.is_active == True)
+                    )
+                )
+            return q
         total           = base.count()
         active          = base.filter(EnterpriseUser.status == EnterpriseUserStatus.ACTIVE.value).count()
         inactive        = base.filter(EnterpriseUser.status == EnterpriseUserStatus.INACTIVE.value).count()
@@ -160,8 +175,8 @@ class EnterpriseUserRepository(CRUDBase[EnterpriseUser, EnterpriseUserCreate, En
                 UserSession.is_active == True,
                 UserSession.last_activity_at >= fifteen_min_ago,
             )
-            .scalar() or 0
         )
+        online = apply_branch(online).scalar() or 0
 
         # Active sessions
         active_sessions = (
@@ -171,8 +186,8 @@ class EnterpriseUserRepository(CRUDBase[EnterpriseUser, EnterpriseUserCreate, En
                 EnterpriseUser.pharmacy_id == pharmacy_id,
                 UserSession.is_active == True,
             )
-            .scalar() or 0
         )
+        active_sessions = apply_branch(active_sessions).scalar() or 0
 
         # Devices
         trusted_devices = (
@@ -184,8 +199,8 @@ class EnterpriseUserRepository(CRUDBase[EnterpriseUser, EnterpriseUserCreate, En
                 UserTrustedDevice.is_blocked == False,
                 UserTrustedDevice.is_deleted == False,
             )
-            .scalar() or 0
         )
+        trusted_devices = apply_branch(trusted_devices).scalar() or 0
         blocked_devices = (
             db.query(func.count(UserTrustedDevice.id))
             .join(EnterpriseUser, UserTrustedDevice.enterprise_user_id == EnterpriseUser.id)
@@ -194,8 +209,8 @@ class EnterpriseUserRepository(CRUDBase[EnterpriseUser, EnterpriseUserCreate, En
                 UserTrustedDevice.is_blocked == True,
                 UserTrustedDevice.is_deleted == False,
             )
-            .scalar() or 0
         )
+        blocked_devices = apply_branch(blocked_devices).scalar() or 0
 
         # Failed logins today
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -207,8 +222,8 @@ class EnterpriseUserRepository(CRUDBase[EnterpriseUser, EnterpriseUserCreate, En
                 UserLoginHistory.success == False,
                 UserLoginHistory.created_at >= today_start,
             )
-            .scalar() or 0
         )
+        failed_today = apply_branch(failed_today).scalar() or 0
 
         # Pending approvals
         pending_approvals = (
@@ -219,8 +234,8 @@ class EnterpriseUserRepository(CRUDBase[EnterpriseUser, EnterpriseUserCreate, En
                 UserApprovalRequest.status == "pending",
                 UserApprovalRequest.is_deleted == False,
             )
-            .scalar() or 0
         )
+        pending_approvals = apply_branch(pending_approvals).scalar() or 0
 
         # By type distribution
         by_type_rows = (

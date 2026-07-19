@@ -26,8 +26,19 @@ from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter(dependencies=[Depends(require_module("journals"))])
 
+def _is_accounting_admin(user: User) -> bool:
+    if getattr(user, 'is_super_admin', False):
+        return True
+    if user.role and getattr(user.role, 'name', '') in ["Super Admin", "Admin", "Pharmacy Owner", "Owner", "Branch Owner", "General Manager"]:
+        return True
+    eu = getattr(user, "enterprise_user", None)
+    if eu and getattr(eu, "enterprise_role", None) and getattr(eu.enterprise_role, 'name', '') in ["Super Admin", "Admin", "Pharmacy Owner", "Owner", "Branch Owner", "General Manager"]:
+        return True
+    return False
+
+
 def require_accounts_view(current_user: User = Depends(get_current_user)):
-    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin", "Pharmacy Owner", "Owner"]):
+    if _is_accounting_admin(current_user):
         return current_user
     if "*" in current_user.permissions:
         return current_user
@@ -36,7 +47,7 @@ def require_accounts_view(current_user: User = Depends(get_current_user)):
     return current_user
 
 def require_accounts_create(current_user: User = Depends(get_current_user)):
-    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin", "Pharmacy Owner", "Owner"]):
+    if _is_accounting_admin(current_user):
         return current_user
     if "*" in current_user.permissions:
         return current_user
@@ -45,7 +56,7 @@ def require_accounts_create(current_user: User = Depends(get_current_user)):
     return current_user
 
 def require_accounts_approve(current_user: User = Depends(get_current_user)):
-    if current_user.is_super_admin or (current_user.role and current_user.role.name in ["Super Admin", "Admin", "Pharmacy Owner", "Owner"]):
+    if _is_accounting_admin(current_user):
         return current_user
     if "*" in current_user.permissions:
         return current_user
@@ -71,7 +82,7 @@ def get_chart_of_accounts(
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
-    return service.get_chart_of_accounts(scope.tenant_id)
+    return service.get_chart_of_accounts(scope.tenant_id, branch_id=scope.branch_id)
 
 @router.post("/chart", response_model=AccountResponse)
 def create_account(
@@ -115,9 +126,9 @@ def create_journal_entry(
 ):
     service = AccountsService(db)
     # Require separate approval if strictly enforcing separation of duties
-    status = "Draft" if "accounts.approve" not in current_user.permissions and current_user.role != "Super Admin" else "Approved"
-    
-    entry = service.create_journal_entry(scope.tenant_id, current_user.get("sub"), journal_in, status)
+    status = "Draft" if "accounts.approve" not in current_user.permissions and getattr(current_user.role, "name", "") != "Super Admin" else "Approved"
+
+    entry = service.create_journal_entry(scope.tenant_id, current_user.id, journal_in, status)
     return {"message": "Journal Entry Created", "id": entry.id, "status": entry.status}
 
 @router.get("/reports/trial-balance", response_model=TrialBalanceResponse)
@@ -128,7 +139,7 @@ def get_trial_balance(
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
-    return service.get_trial_balance(scope.tenant_id)
+    return service.get_trial_balance(scope.tenant_id, branch_id=scope.branch_id)
 
 @router.get("/reports/profit-loss", response_model=ProfitLossResponse)
 def get_profit_and_loss(
@@ -138,7 +149,7 @@ def get_profit_and_loss(
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
-    return service.get_profit_and_loss(scope.tenant_id)
+    return service.get_profit_and_loss(scope.tenant_id, branch_id=scope.branch_id)
 
 @router.get("/reports/balance-sheet", response_model=BalanceSheetResponse)
 def get_balance_sheet(
@@ -148,7 +159,7 @@ def get_balance_sheet(
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
-    return service.get_balance_sheet(scope.tenant_id)
+    return service.get_balance_sheet(scope.tenant_id, branch_id=scope.branch_id)
 
 @router.get("/ledger", response_model=LedgerResponse)
 def get_ledger(
@@ -161,7 +172,7 @@ def get_ledger(
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
-    return service.get_ledger(scope.tenant_id, account_id, start_date, end_date)
+    return service.get_ledger(scope.tenant_id, account_id, start_date, end_date, branch_id=scope.branch_id)
 
 @router.get("/journals", response_model=List[JournalEntryResponse])
 def get_journal_entries(
@@ -171,7 +182,7 @@ def get_journal_entries(
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = AccountsService(db)
-    return service.get_journal_entries(scope.tenant_id)
+    return service.get_journal_entries(scope.tenant_id, branch_id=scope.branch_id)
 
 @router.get("/dashboard-stats", response_model=DashboardStatsResponse)
 def get_dashboard_stats(
@@ -203,7 +214,7 @@ def force_rebuild_accounting(
     import time
 
     tenant_id = scope.tenant_id
-    user_id = current_user.get("sub")
+    user_id = current_user.id
 
     # ── Step 1: Ensure default COA exists ───────────────────────────────────
     service = AccountsService(db)
@@ -334,6 +345,6 @@ def close_year(
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = ClosingService(db)
-    return service.perform_year_end_closing(scope.tenant_id, current_user.get("sub"), year, scope.branch_id)
+    return service.perform_year_end_closing(scope.tenant_id, current_user.id, year, scope.branch_id)
 
 

@@ -5,17 +5,19 @@ import { BarChart3, TrendingUp, Package, Users, Activity, FileText } from 'lucid
 import { useAuthStore } from '@/stores/auth-store';
 
 export default function ReportsHubPage() {
-  const { user } = useAuthStore();
+  const { hasPermission } = useAuthStore();
   const reports = [
-    { name: 'Sales Reports', href: '/reports/sales', icon: TrendingUp, desc: 'Daily, weekly, custom sales trends, and breakdown by medicine or category.', permission: 'reports.sales' },
-    { name: 'Purchase Reports', href: '/reports/purchases', icon: BarChart3, desc: 'Supplier performance, outstanding payables, and historical purchase summaries.', permission: 'reports.purchases' },
-    { name: 'Inventory Reports', href: '/reports/inventory', icon: Package, desc: 'Real-time stock valuation, low stock alerts, and expiry tracking.', permission: 'reports.inventory' },
-    { name: 'Customer Reports', href: '/reports/customers', icon: Users, desc: 'Loyalty point liabilities, outstanding balances, and customer ledger summaries.', permission: 'reports.customers' },
-    { name: 'Prescription Reports', href: '/reports/prescriptions', icon: Activity, desc: 'Prescription volume by doctor, active vs expired counts.', permission: 'reports.sales' },
-    { name: 'Financial Reports', href: '/reports/financial', icon: FileText, desc: 'Profit and Loss statements, revenue trends, and gross margin analysis.', permission: 'reports.financial' },
+    { name: 'Sales Reports',         href: '/reports/sales',         icon: TrendingUp, desc: 'Daily, weekly, custom sales trends, and breakdown by medicine or category.', permission: 'reports:view' },
+    { name: 'Purchase Reports',      href: '/reports/purchases',     icon: BarChart3,  desc: 'Supplier performance, outstanding payables, and historical purchase summaries.', permission: 'reports:view' },
+    { name: 'Inventory Reports',     href: '/reports/inventory',     icon: Package,    desc: 'Real-time stock valuation, low stock alerts, and expiry tracking.', permission: 'reports:view' },
+    { name: 'Customer Reports',      href: '/reports/customers',     icon: Users,      desc: 'Loyalty point liabilities, outstanding balances, and customer ledger summaries.', permission: 'reports:view' },
+    { name: 'Prescription Reports',  href: '/reports/prescriptions', icon: Activity,   desc: 'Prescription volume by doctor, active vs expired counts.', permission: 'reports:view' },
+    { name: 'Financial Reports',     href: '/reports/financial',     icon: FileText,   desc: 'Profit and Loss statements, revenue trends, and gross margin analysis.', permission: 'reports:view' },
   ];
 
-  const allowedReports = reports.filter(r => !r.permission || (user?.permissions || []).includes(r.permission) || (user?.role === 'super_admin' || user?.role === 'admin'));
+  // RBAC 4.0: Use hasPermission (colon-notation), never role.name strings
+  const allowedReports = reports.filter(r => !r.permission || hasPermission(r.permission));
+
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

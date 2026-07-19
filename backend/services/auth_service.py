@@ -45,7 +45,9 @@ class AuthService:
         )
 
         # ── Resolve role & hierarchy_level ─────────────────────────────────────
-        # Always use EnterpriseRole.hierarchy_level — NEVER compare role names.
+        # RULE: ALWAYS read hierarchy_level from EnterpriseRole.hierarchy_level.
+        # NEVER compare role names (e.g. role_name == "Owner") — this is fragile
+        # and breaks any custom-named role. The DB field is the source of truth.
         role_name           = "Staff"
         role_id             = None
         hierarchy_level     = 1 if is_sa else 4
@@ -63,24 +65,37 @@ class AuthService:
             er                  = eu.enterprise_role
             role_name           = er.name
             role_id             = er.id
-            if role_name in ["Owner", "Pharmacy Owner", "Admin"]:
-                hierarchy_level = 2
+            # ✅ Use the DB field directly — no role name string matching
+            hierarchy_level     = er.hierarchy_level  # 1=SuperAdmin 2=Owner 3=BranchOwner 4=Staff
+            # L2 Pharmacy Owner: all branches scope
+            # L3 Branch Owner: assigned branch scope (same permissions, data_scope limits)
+            if hierarchy_level == 2:
+                branch_scope    = "all_branches"
+                data_scope      = "tenant"
+            elif hierarchy_level == 3:
+                branch_scope    = "assigned_branch"
+                data_scope      = "branch"
             else:
-                hierarchy_level = er.hierarchy_level  # 2=PharmacyOwner 3=BranchOwner 4=Staff
-            branch_scope        = er.branch_scope or "assigned_branch"
-            data_scope          = er.data_scope  or "branch"
+                branch_scope    = er.branch_scope or "assigned_branch"
+                data_scope      = er.data_scope   or "branch"
             permissions_version = er.updated_at.isoformat() if er.updated_at else None
 
         elif user.role:
-            # Legacy fallback — safe default until full migration
+            # Legacy fallback — derive level from role.hierarchy_level if it exists
             role_name       = user.role.name
             role_id         = user.role.id
-            if role_name in ["Owner", "Pharmacy Owner", "Admin"]:
-                hierarchy_level = 2
+            # Use hierarchy_level column if present; default to 4 (Staff)
+            legacy_level    = getattr(user.role, "hierarchy_level", None)
+            hierarchy_level = legacy_level if legacy_level in (1, 2, 3, 4) else 4
+            if hierarchy_level == 2:
+                branch_scope    = "all_branches"
+                data_scope      = "tenant"
+            elif hierarchy_level == 3:
+                branch_scope    = "assigned_branch"
+                data_scope      = "branch"
             else:
-                hierarchy_level = 4  # treat unknown legacy roles as Staff
-            branch_scope    = user.role.branch_scope or "assigned_branch"
-            data_scope      = user.role.data_scope  or "branch"
+                branch_scope    = user.role.branch_scope or "assigned_branch"
+                data_scope      = user.role.data_scope   or "branch"
 
         # ── Resolve branch_id & assigned_branches ──────────────────────────────
         assigned_branches = []
@@ -132,20 +147,29 @@ class AuthService:
             Pharmacy.is_active == True,
         ).first()
         pharmacy_id = pharmacy.id if pharmacy else ""
+        pharmacy_name = pharmacy.name if pharmacy else "Main Pharmacy"
 
         # ── Compute effective permissions ──────────────────────────────────────
-        # Super Admin (L1): SaaS system:* only — no pharmacy data access
-        # Pharmacy Owner (L2): wildcard "*" within their tenant
-        # Branch Owner (L3) + Staff (L4): explicit permission codes from role
+        # L1 Super Admin:    system:* permissions only — NEVER pharmacy data
+        # L2 Pharmacy Owner: wildcard "*" in JWT (all operations, tenant scope)
+        # L3 Branch Owner:   explicit permission codes from role (same as L2 set),
+        #                    but data_scope='branch' in JWT enforces isolation at query layer
+        # L4 Branch Staff:   granular codes only, assigned by L2/L3
         if is_sa:
             permissions = [
-                "system:license", "system:subscription", "system:billing",
+                "system:view", "system:license", "system:subscription", "system:billing",
                 "system:updates", "system:monitoring", "system:impersonate",
             ]
         elif hierarchy_level == 2:
-            # Pharmacy Owner gets full access to their own pharmacy
+            # Pharmacy Owner: full wildcard access within their tenant
             permissions = ["*"]
+        elif hierarchy_level == 3 and eu:
+            # Branch Owner: full operational permission codes (isolation via data_scope=branch)
+            permissions = user_service.compute_effective_permissions(
+                db, enterprise_user=eu, branch_id=branch_id
+            )
         elif eu:
+            # L4 Staff: granular permissions only
             permissions = user_service.compute_effective_permissions(
                 db, enterprise_user=eu, branch_id=branch_id
             )
@@ -181,6 +205,7 @@ class AuthService:
             "permissions_version": permissions_version,
             "is_super_admin":      is_sa,
             "assigned_branches":   assigned_branches,
+            "pharmacy_name":       pharmacy_name,
         }
 
         return Token(

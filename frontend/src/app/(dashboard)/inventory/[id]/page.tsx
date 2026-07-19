@@ -19,8 +19,10 @@ type TabId = 'overview' | 'batches' | 'distribution' | 'movements' | 'reservatio
 export default function MedicineDetailPage() {
   const params = useParams();
   const id = params.id as string;
-  const { user } = useAuthStore();
-  
+  const { hasPermission } = useAuthStore();
+  // RBAC 4.0: Use permission-based check, never role.name strings
+  const canAdjustStock = hasPermission('inventory_adjustments:create') || hasPermission('inventory:manage');
+
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
 
@@ -31,7 +33,6 @@ export default function MedicineDetailPage() {
       if (tab && ['overview', 'batches', 'movements', 'audit'].includes(tab)) {
         setActiveTab(tab);
       }
-      
       const adjust = searchParams.get('adjust');
       if (adjust === 'true') {
         setIsAdjustmentModalOpen(true);
@@ -42,7 +43,6 @@ export default function MedicineDetailPage() {
   const { data: medicine, isLoading } = useMedicineDetails(id);
   const { data: batches } = useBatches(id);
 
-  const canAdjustStock = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Inventory Manager' || user?.role === 'Branch Manager';
 
   if (isLoading) {
     return <div className="p-8 text-center"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-blue-600 mx-auto"></div></div>;

@@ -340,10 +340,16 @@ function StepReview({ values }: { values: Partial<FormData> }) {
 
 // ── Main Wizard Component ─────────────────────────────────────────────────────
 
-export function BranchFormWizard() {
+export function BranchFormWizard({
+  pharmacyId,
+  onSuccessRedirect,
+}: {
+  pharmacyId?: string;
+  onSuccessRedirect?: (createdId: string) => void;
+} = {}) {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
-  const { mutate: createBranch, isPending } = useCreateBranch();
+  const { mutate: createBranch, isPending } = useCreateBranch(pharmacyId);
 
   const methods = useForm<FormData>({
     resolver: zodResolver(branchSchema) as any,
@@ -392,7 +398,11 @@ export function BranchFormWizard() {
     createBranch(payload, {
       onSuccess: (created) => {
         toast.success(`Branch "${created.name}" created successfully!`);
-        router.push(`/branches/${created.id}`);
+        if (onSuccessRedirect) {
+          onSuccessRedirect(created.id);
+        } else {
+          router.push(`/branches/${created.id}`);
+        }
       },
       onError: (err: unknown) => {
         let msg = 'Failed to create branch.';

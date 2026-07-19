@@ -35,7 +35,9 @@ export default function PayrollDetailsPage() {
   const [showOverrideDialog, setShowOverrideDialog] = useState(false);
   const [remarks, setRemarks] = useState("");
   const { user } = useAuthStore();
-  const isOwner = user?.role === 'Super Admin' || user?.role === 'Admin';
+  // RBAC 4.0: L1 (Super Admin) and L2 (Pharmacy Owner) are privileged managers
+  const isOwner = (user?.hierarchy_level ?? 4) <= 2;
+
 
   const isLoading = isRunLoading || isEmpLoading;
 

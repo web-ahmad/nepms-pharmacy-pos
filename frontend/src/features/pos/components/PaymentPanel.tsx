@@ -33,7 +33,7 @@ export default function PaymentPanel({
     taxAmount
   } = usePOSStore();
   
-  const { user } = useAuthStore();
+  const { hasPermission } = useAuthStore();
   const checkoutMutation = useCheckout();
   const [errorMsg, setErrorMsg] = useState('');
   
@@ -41,7 +41,9 @@ export default function PaymentPanel({
   const { data: customers } = useCustomers(customerSearch);
   const selectedCustomerData = customers?.find(c => c.id === selectedCustomer);
 
-  const hasDiscountPermission = user?.permissions?.includes('pos.apply_discount') || user?.role === 'Super Admin';
+  // RBAC 4.0: Permission-based check, never role.name. Colon-notation is canonical.
+  const hasDiscountPermission = hasPermission('pos:manage') || hasPermission('pos:approve');
+
 
   const { data: workflowData } = useWorkflowMode();
   const isDualCounter = workflowData?.mode === 'DUAL_COUNTER';

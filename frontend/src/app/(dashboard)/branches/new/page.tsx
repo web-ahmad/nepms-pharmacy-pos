@@ -1,13 +1,32 @@
 'use client';
 // app/(dashboard)/branches/new/page.tsx — Create Branch Page
 
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
 import { BranchFormWizard } from '@/features/branches/components/BranchFormWizard';
+import { useAuthStore } from '@/stores/auth-store';
 
 export default function NewBranchPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    // RBAC 4.0: Only L1 Super Admin can create branches.
+    // L2 (Pharmacy Owner) and L3 (Branch Owner) are redirected.
+    if (user !== null) {
+      if ((user?.hierarchy_level ?? 4) > 1) {
+        router.replace('/branches');
+      } else {
+        setAuthChecked(true);
+      }
+    }
+  }, [user, router]);
+
+  // Show nothing while we check auth (prevents flash for unauthorized users)
+  if (!authChecked) return null;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">

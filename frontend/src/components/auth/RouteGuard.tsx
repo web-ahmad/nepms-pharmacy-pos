@@ -11,7 +11,7 @@ interface RouteGuardProps {
 }
 
 export function RouteGuard({ children, requiredPermission }: RouteGuardProps) {
-  const { isHydrated, hasPermission, isSuperAdmin } = useAuthStore();
+  const { hasPermission, isSuperAdmin } = useAuthStore();
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
 
@@ -19,7 +19,7 @@ export function RouteGuard({ children, requiredPermission }: RouteGuardProps) {
     setIsClient(true);
   }, []);
 
-  if (!isClient || !isHydrated) {
+  if (!isClient) {
     return (
       <div className="flex h-[calc(100vh-100px)] w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

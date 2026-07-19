@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 
 import { useCreateUser } from '../services/user.api';
 import { useEnterpriseRoles } from '../services/role.api';
+import { useAuthStore } from '@/stores/auth-store';
 import { useEmployees } from '@/features/hr/services/hr.api';
 import type { EnterpriseUserCreate } from '../types/user';
 import { USER_TYPE_LABELS } from '../types/user';
@@ -142,6 +143,25 @@ function Step1({ register, errors, setValue, watch, employees }: { register: any
 }
 
 function Step2({ register, errors, roles }: { register: any; errors: any; roles: any[] }) {
+  const { user } = useAuthStore();
+  const hierarchyLevel = user?.hierarchy_level ?? 4;
+
+  const filteredUserTypes = Object.entries(USER_TYPE_LABELS).filter(([key]) => {
+    if (hierarchyLevel >= 3) {
+      return !['super_admin', 'pharmacy_owner', 'general_manager', 'branch_owner'].includes(key);
+    }
+    if (hierarchyLevel === 2) {
+      return key !== 'super_admin';
+    }
+    return true;
+  });
+
+  const filteredRoles = roles.filter(r => {
+    if (hierarchyLevel >= 3) return r.hierarchy_level > 3;
+    if (hierarchyLevel === 2) return r.hierarchy_level >= 2;
+    return true;
+  });
+
   return (
     <div className="space-y-5">
       <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Role & Access</h3>
@@ -152,7 +172,7 @@ function Step2({ register, errors, roles }: { register: any; errors: any; roles:
           <select {...register('user_type')}
             className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all">
             <option value="">Select type</option>
-            {(Object.entries(USER_TYPE_LABELS) as [string, string][]).map(([v, l]) => (
+            {filteredUserTypes.map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
           </select>
@@ -163,7 +183,7 @@ function Step2({ register, errors, roles }: { register: any; errors: any; roles:
           <select {...register('enterprise_role_id')}
             className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2.5 text-sm text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all">
             <option value="">No role assigned</option>
-            {roles.map((r) => (
+            {filteredRoles.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
@@ -262,7 +282,7 @@ export function CreateUserWizard({ open, onClose }: Props) {
   const unlinkedEmployees = useMemo(() => allEmployees?.filter(e => !e.user_id) ?? [], [allEmployees]);
 
   const methods = useForm<FormValues>({ resolver: zodResolver(schema) as any });
-  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = methods;
+  const { register, handleSubmit, watch, setValue, trigger, formState: { errors, isSubmitting } } = methods;
 
   const onSubmit = async (values: FormValues) => {
     const payload: EnterpriseUserCreate = {
@@ -293,7 +313,18 @@ export function CreateUserWizard({ open, onClose }: Props) {
     }
   };
 
-  const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
+  const next = async () => {
+    let isValid = false;
+    if (step === 0) {
+      isValid = await trigger(['username', 'email', 'password', 'full_name', 'phone', 'employee_id']);
+    } else if (step === 1) {
+      isValid = await trigger(['user_type', 'enterprise_role_id', 'max_concurrent_sessions', 'allowed_ips']);
+    }
+    
+    if (isValid) {
+      setStep((s) => Math.min(s + 1, STEPS.length - 1));
+    }
+  };
   const prev = () => setStep((s) => Math.max(s - 1, 0));
 
   const handleDone = () => {

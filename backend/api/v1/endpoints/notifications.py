@@ -10,8 +10,15 @@ from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
+class PayloadUser:
+    def __init__(self, payload: dict):
+        self.id = payload.get("sub")
+        self.tenant_id = payload.get("tenant_id")
+        self.branch_id = payload.get("branch_id")
+        self.payload = payload
+
 # Notifications are usually readable by anyone for their own, or system.admin for all
-def require_auth(token_payload: dict = Depends(requires_permission(""))): return token_payload
+def require_auth(token_payload: dict = Depends(requires_permission(""))): return PayloadUser(token_payload)
 
 @router.get("", response_model=List[NotificationResponse])
 def get_notifications(

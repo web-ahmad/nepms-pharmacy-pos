@@ -142,9 +142,10 @@ def get_inventory_overview(db: Session, tenant_id: str, branch_id: str = None) -
 
     total_medicines = med_query.count()
     
+    from sqlalchemy import case
     valuation_result = db.query(
-        func.sum(Batch.current_quantity * Batch.purchase_price).label("stock_val"),
-        func.sum(Batch.reserved_quantity * Batch.purchase_price).label("reserved_val")
+        func.sum(Batch.current_quantity * case((Batch.purchase_price > 0, Batch.purchase_price), else_=Medicine.cost_per_base_unit)).label("stock_val"),
+        func.sum(Batch.reserved_quantity * case((Batch.purchase_price > 0, Batch.purchase_price), else_=Medicine.cost_per_base_unit)).label("reserved_val")
     ).select_from(Batch).join(Medicine).filter(
         Medicine.tenant_id == tenant_id,
         Batch.status == 'Active'
@@ -169,7 +170,7 @@ def get_inventory_overview(db: Session, tenant_id: str, branch_id: str = None) -
     near_expiry_threshold = now + timedelta(days=90) # 3 months
 
     # Expired valuation
-    exp_val_query = db.query(func.sum(Batch.current_quantity * Batch.purchase_price)).select_from(Batch).join(Medicine).filter(
+    exp_val_query = db.query(func.sum(Batch.current_quantity * case((Batch.purchase_price > 0, Batch.purchase_price), else_=Medicine.cost_per_base_unit))).select_from(Batch).join(Medicine).filter(
         Medicine.tenant_id == tenant_id,
         Batch.expiry_date < now.date(),
         Batch.current_quantity > 0
@@ -196,7 +197,10 @@ def get_inventory_overview(db: Session, tenant_id: str, branch_id: str = None) -
     if branch_id:
         meds_with_stock = meds_with_stock.filter(Batch.branch_id == branch_id)
     
-    dead_stock_count = db.query(Medicine).filter(Medicine.tenant_id == tenant_id, ~Medicine.id.in_(meds_with_stock)).count()
+    dead_stock_query = db.query(Medicine).filter(Medicine.tenant_id == tenant_id, ~Medicine.id.in_(meds_with_stock))
+    if branch_id:
+        dead_stock_query = dead_stock_query.filter(Medicine.batches.any(and_(Batch.branch_id == branch_id, Batch.is_deleted == False)))
+    dead_stock_count = dead_stock_query.count()
 
     return InventoryOverviewSchema(
         total_medicines=total_medicines,
@@ -236,13 +240,16 @@ def get_expiry_alerts(db: Session, tenant_id: str, branch_id: str = None) -> lis
     return results
 
 def get_low_stock_alerts(db: Session, tenant_id: str, branch_id: str = None) -> list[LowStockAlertSchema]:
-    # Sum current quantities for medicines
-    # SQLite doesn't have easy group_by with full relations in ORM sometimes, but let's do it cleanly
-    meds = db.query(Medicine).filter(Medicine.tenant_id == tenant_id).all()
+    # Only consider medicines that are actually carried in the branch
+    med_query = db.query(Medicine).filter(Medicine.tenant_id == tenant_id, Medicine.is_deleted == False)
+    if branch_id:
+        med_query = med_query.filter(Medicine.batches.any(and_(Batch.branch_id == branch_id, Batch.is_deleted == False)))
+        
+    meds = med_query.all()
     
     results = []
     for med in meds:
-        batch_query = db.query(func.sum(Batch.current_quantity)).filter(Batch.medicine_id == med.id)
+        batch_query = db.query(func.sum(Batch.current_quantity)).filter(Batch.medicine_id == med.id, Batch.is_deleted == False)
         if branch_id:
             batch_query = batch_query.filter(Batch.branch_id == branch_id)
             

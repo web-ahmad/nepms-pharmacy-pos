@@ -171,11 +171,12 @@ export function useBranchComparison() {
 
 // ── Create ────────────────────────────────────────────────────────────────────
 
-export function useCreateBranch() {
+export function useCreateBranch(pharmacyId?: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: BranchCreate) => {
-      const res = await api.post<Branch>(BASE, data);
+      const url = pharmacyId ? `/api/v1/super-admin/pharmacies/${pharmacyId}/branches` : BASE;
+      const res = await api.post<Branch>(url, data);
       return res.data;
     },
     onSuccess: () => {

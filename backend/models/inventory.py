@@ -110,7 +110,13 @@ class Medicine(BaseModel):
 
     @property
     def stock_value(self) -> float:
-        return self.total_quantity * (self.cost_per_base_unit or 0.0)
+        """Compute stock value from active batches using purchase_price (preferred) or cost_per_base_unit."""
+        total = sum(
+            (batch.current_quantity or 0) * (batch.purchase_price or self.cost_per_base_unit or 0.0)
+            for batch in self.batches
+            if batch.status == "Active" and not getattr(batch, 'is_deleted', False)
+        )
+        return total
 
     @property
     def reorder_level(self) -> int:

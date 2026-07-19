@@ -33,7 +33,9 @@ export function BranchSwitcher() {
     return (
       <div className="hidden md:flex items-center mr-3 px-3 py-1.5 rounded-lg bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50">
         <Building2 className="w-4 h-4 text-zinc-400 mr-2" />
-        <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">No Branch</span>
+        <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
+          {user?.pharmacy_name || "No Branch"}
+        </span>
       </div>
     );
   }

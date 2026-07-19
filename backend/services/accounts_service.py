@@ -18,8 +18,8 @@ class AccountsService:
         self.db = db
         self.repo = AccountsRepository(db)
 
-    def get_chart_of_accounts(self, tenant_id: str):
-        return self.repo.get_accounts(tenant_id)
+    def get_chart_of_accounts(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_accounts(tenant_id, branch_id=branch_id)
 
     def create_account(self, tenant_id: str, obj_in: AccountCreate):
         existing = self.repo.get_account_by_code(tenant_id, obj_in.code)
@@ -105,8 +105,8 @@ class AccountsService:
 
         return self.repo.create_journal_entry(tenant_id, user_id, obj_in, status)
 
-    def get_trial_balance(self, tenant_id: str) -> TrialBalanceResponse:
-        accounts = self.repo.get_trial_balance(tenant_id)
+    def get_trial_balance(self, tenant_id: str, branch_id: str = None) -> TrialBalanceResponse:
+        accounts = self.repo.get_trial_balance(tenant_id, branch_id=branch_id)
         
         parsed_rows = []
         total_debit = 0.0
@@ -150,11 +150,11 @@ class AccountsService:
             total_credit=round(total_credit, 2)
         )
 
-    def get_profit_and_loss(self, tenant_id: str) -> ProfitLossResponse:
-        return ProfitLossResponse(**self.repo.get_profit_and_loss(tenant_id))
+    def get_profit_and_loss(self, tenant_id: str, branch_id: str = None) -> ProfitLossResponse:
+        return ProfitLossResponse(**self.repo.get_profit_and_loss(tenant_id, branch_id=branch_id))
 
-    def get_balance_sheet(self, tenant_id: str) -> BalanceSheetResponse:
-        data = self.repo.get_balance_sheet(tenant_id)
+    def get_balance_sheet(self, tenant_id: str, branch_id: str = None) -> BalanceSheetResponse:
+        data = self.repo.get_balance_sheet(tenant_id, branch_id=branch_id)
         
         # Verify Accounting Equation: Assets = Liabilities + Equity
         # Due to float rounding, round to 2 decimals
@@ -166,8 +166,8 @@ class AccountsService:
              
         return BalanceSheetResponse(**data)
 
-    def get_ledger(self, tenant_id: str, account_id: str = None, start_date: str = None, end_date: str = None):
-        rows = self.repo.get_ledger(tenant_id, account_id, start_date, end_date)
+    def get_ledger(self, tenant_id: str, account_id: str = None, start_date: str = None, end_date: str = None, branch_id: str = None):
+        rows = self.repo.get_ledger(tenant_id, account_id, start_date, end_date, branch_id=branch_id)
         
         parsed_rows = []
         running_bal = 0.0
@@ -220,8 +220,8 @@ class AccountsService:
             "closing_balance": running_bal
         }
         
-    def get_journal_entries(self, tenant_id: str):
-        return self.repo.get_journal_entries(tenant_id)
+    def get_journal_entries(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_journal_entries(tenant_id, branch_id=branch_id)
 
     def get_dashboard_stats(self, tenant_id: str, branch_id: str = None):
         total_revenue = 0.0

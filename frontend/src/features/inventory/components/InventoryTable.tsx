@@ -41,7 +41,7 @@ export default function InventoryTable() {
   const [tempFilters, setTempFilters] = useState<{category?: string, status?: string, expiry?: string}>({});
   const deleteMutation = useDeleteMedicine();
   const bulkDeleteMutation = useBulkDeleteMedicines();
-  const { user, branchId } = useAuthStore();
+  const { user, branchId, hasPermission } = useAuthStore();
 
   const { data: branchSettings } = useQuery({
     queryKey: ['branchSettings', branchId],
@@ -50,9 +50,9 @@ export default function InventoryTable() {
   });
   const warehouses = branchSettings?.warehouses || [];
 
-  const canCreate = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Inventory Manager';
+  const canCreate = hasPermission('inventory:manage');
   const canEdit = canCreate;
-  const canAdjust = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Inventory Manager' || user?.role === 'Branch Manager';
+  const canAdjust = hasPermission('inventory:manage');
 
   const { data, isLoading } = useMedicines(searchTerm, page, 20, filters);
 

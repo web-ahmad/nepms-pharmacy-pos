@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
 import { Medicine, Batch, StockMovement, StockAdjustmentPayload } from '../types/inventory';
+import { useAuthStore } from '@/stores/auth-store';
 
 export const useMedicines = (search?: string, page = 1, limit = 20, filters?: { category?: string, status?: string, expiry?: string, warehouse_id?: string }) => {
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['medicines', search, page, limit, filters],
+    queryKey: ['medicines', branchId, search, page, limit, filters],
     queryFn: async () => {
       const skip = (page - 1) * limit;
       let url = `/api/v1/inventory/medicines?skip=${skip}&limit=${limit}`;
@@ -23,9 +25,13 @@ export const useMedicines = (search?: string, page = 1, limit = 20, filters?: { 
         items: (Array.isArray(res.data) ? res.data : []) as Medicine[],
         total: Array.isArray(res.data) ? res.data.length : 0
       };
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    enabled: !!branchId,
   });
 };
+
 
 export const useMedicineDetails = (id: string) => {
   return useQuery({

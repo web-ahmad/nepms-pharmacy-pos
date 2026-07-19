@@ -15,10 +15,9 @@ import {
 } from 'lucide-react';
 
 export default function AuditDashboardPage() {
-  const { branchId, user } = useAuthStore();
+  const { branchId, user, hasPermission } = useAuthStore();
 
-  const role = user?.role?.toLowerCase() || '';
-  if (role !== 'owner' && role !== 'admin' && role !== 'super admin') {
+  if (!hasPermission('audit:view')) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
         <div className="relative mb-6">

@@ -12,16 +12,19 @@ import { format } from 'date-fns';
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuthStore();
-  
+  // RBAC 4.0: Use hierarchy_level + permissions, never role.name strings
+  // isCashier / isInventoryManager: derived from permission grants, not role names
+  const isCashier          = !hasPermission('sales:manage') && hasPermission('pos:view');
+  const isInventoryManager = hasPermission('inventory:manage') && !hasPermission('sales:manage');
+  // L1 (SaaS), L2 (Pharmacy Owner), L3 (Branch Owner) = full operational access
+  const hasFullAccess      = (user?.hierarchy_level ?? 4) <= 3;
+
+
   // Default to today
   const [dateRange, setDateRange] = useState<DateRange>({
     from_date: format(new Date(), 'yyyy-MM-dd'),
     to_date: format(new Date(), 'yyyy-MM-dd')
   });
-
-  const isCashier = user?.role === 'Cashier';
-  const isInventoryManager = user?.role === 'Inventory Manager';
-  const hasFullAccess = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Branch Manager';
 
   return (
     <div className="flex h-full flex-col space-y-6 pb-8">

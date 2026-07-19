@@ -41,6 +41,7 @@ export interface AuthUser {
   permissions_version?: string;
   is_super_admin?: boolean;
   assigned_branches?: { id: string; name: string }[];
+  pharmacy_name?: string;
 }
 
 interface AuthState {
@@ -143,7 +144,14 @@ export const useAuthStore = create<AuthState>()(
           return code.startsWith('system:');
         }
         if (user.permissions.includes('*')) return true;
-        return user.permissions.includes(code);
+        if (user.permissions.includes(code)) return true;
+        
+        // If they have :manage for the resource, allow :create/:view/:update/:delete
+        const [resource] = code.split(':');
+        if (resource && user.permissions.includes(`${resource}:manage`)) {
+            return true;
+        }
+        return false;
       },
 
       hasAnyPermission: (...codes: string[]) => {

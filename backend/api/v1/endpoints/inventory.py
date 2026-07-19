@@ -18,6 +18,11 @@ from models.inventory import Medicine, Batch, StockMovement, StockAdjustment, Ca
 from models.packaging import PackagingLevel
 from dependencies.module_guard import require_module
 
+from services.accounts_service import AccountsService
+from repositories.accounts import AccountsRepository
+from schemas.accounts import JournalEntryCreate, JournalEntryLineCreate
+from datetime import datetime
+
 router = APIRouter(dependencies=[Depends(require_module("inventory"))])
 
 
@@ -62,8 +67,6 @@ def list_or_search_medicines(
         query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == scope.branch_id, Batch.is_deleted == False))
     else:
         query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.is_deleted == False))
-        
-    query = query.options(contains_eager(Medicine.batches))
 
     if search_term:
         query = query.filter(or_(
@@ -115,12 +118,15 @@ def list_or_search_medicines(
             query = query.filter(batch_stats.c.min_exp >= date.today(), batch_stats.c.min_exp <= date.today() + timedelta(days=30))
 
     total = query.count()
+    query = query.options(contains_eager(Medicine.batches))
     items = query.order_by(Medicine.created_at.desc()).offset(skip).limit(limit).all()
 
     # Data Masking
     role = token_payload.get("role", "")
     permissions = token_payload.get("permissions", [])
-    can_view_profit = role == "Owner" or "*" in permissions or "profit:view" in permissions
+    is_sa = token_payload.get("is_super_admin", False)
+    allowed_roles = ["Owner", "Pharmacy Owner", "Branch Owner", "Super Admin", "General Manager", "Admin", "Inventory Manager"]
+    can_view_profit = is_sa or role in allowed_roles or "*" in permissions or "reports:view" in permissions
     
     resp_items = []
     for item in items:
@@ -221,6 +227,7 @@ def create_medicine(
                 supplier_id=initial_batch.supplier_id,
                 purchase_invoice_id=initial_batch.purchase_invoice_id,
                 mrp=initial_batch.mrp,
+                purchase_price=initial_batch.purchase_price,
                 initial_quantity=initial_batch.current_stock,
                 current_quantity=initial_batch.current_stock,
                 cost_per_base_unit=med.cost_per_base_unit,
@@ -246,9 +253,10 @@ def create_medicine(
                 bin_id=initial_batch.bin_id
             )
             db.add(movement)
+            db.flush()
             
-            # Auto Post Opening Stock to Accounting Ledger
-            cost = med.cost_per_base_unit or 0.0
+            # --- Accounting Integration ---
+            cost = initial_batch.purchase_price if initial_batch.purchase_price and initial_batch.purchase_price > 0 else (med.cost_per_base_unit or 0.0)
             total_value = initial_batch.current_stock * cost
             if total_value > 0:
                 from services.auto_posting_service import AutoPostingService
@@ -259,11 +267,13 @@ def create_medicine(
                         user_id=current_user.id,
                         reference=f"OPENING-MED-{med.id[:8]}",
                         amount=total_value,
-                        description=f"Opening Stock for {med.name}"
+                        description=f"Opening Stock for {med.name}",
+                        branch_id=scope.branch_id,
+                        source_module="Inventory",
+                        source_id=batch.id
                     )
-                except ValueError as e:
-                    db.rollback()
-                    raise HTTPException(status_code=400, detail=str(e))
+                except Exception as e:
+                    print(f"Failed to post opening stock journal entry: {e}")
             
         db.commit()
         db.refresh(med)
@@ -288,9 +298,10 @@ def get_medicine(
     resp = MedicineResponse.model_validate(medicine)
     role = token_payload.get("role", "")
     permissions = token_payload.get("permissions", [])
-    can_view_profit = role == "Owner" or "*" in permissions or "profit:view" in permissions
+    is_sa = token_payload.get("is_super_admin", False)
+    allowed_roles = ["Owner", "Pharmacy Owner", "Branch Owner", "Super Admin", "General Manager", "Admin", "Inventory Manager"]
+    can_view_profit = is_sa or role in allowed_roles or "*" in permissions or "reports:view" in permissions
     if not can_view_profit:
-        resp.purchase_price = 0.0
         resp.stock_value = 0.0
         
     return resp
@@ -631,6 +642,16 @@ def list_medicine_batches(
         Batch.is_deleted == False
     ).all()
     return batches
+
+@router.get("/reservations")
+def get_reservations(
+    medicine_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    token_payload: dict = Depends(get_token_payload)
+):
+    # Phase 4 placeholder
+    return []
 
 
 @router.get("/medicines/{id}/movements", response_model=List[StockMovementResponse])

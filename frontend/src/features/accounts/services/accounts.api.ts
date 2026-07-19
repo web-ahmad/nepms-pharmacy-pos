@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth-store';
 import { 
   Account, 
   JournalEntry, 
@@ -11,12 +12,15 @@ import {
 
 // Chart of Accounts
 export const useChartAccounts = () => {
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['accounts', 'chart'],
+    queryKey: ['accounts', 'chart', branchId],
     queryFn: async () => {
       const res = await api.get('/api/v1/accounts/chart');
       return res.data as Account[];
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -109,8 +113,9 @@ export const useLedger = (params: { account_id?: string; start_date?: string; en
 };
 
 export const useTrialBalance = (params: { start_date?: string; end_date?: string } = {}) => {
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['accounts', 'trial-balance', params],
+    queryKey: ['accounts', 'trial-balance', branchId, params],
     queryFn: async () => {
       const query = new URLSearchParams();
       if (params.start_date) query.append('start_date', params.start_date);
@@ -118,27 +123,35 @@ export const useTrialBalance = (params: { start_date?: string; end_date?: string
       
       const res = await api.get(`/api/v1/accounts/reports/trial-balance?${query.toString()}`);
       return res.data as TrialBalanceResponse;
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
 export const useProfitLoss = () => {
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['accounts', 'profit-loss'],
+    queryKey: ['accounts', 'profit-loss', branchId],
     queryFn: async () => {
       const res = await api.get('/api/v1/accounts/reports/profit-loss');
       return res.data as ProfitLossResponse;
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
 export const useBalanceSheet = () => {
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['accounts', 'balance-sheet'],
+    queryKey: ['accounts', 'balance-sheet', branchId],
     queryFn: async () => {
       const res = await api.get('/api/v1/accounts/reports/balance-sheet');
       return res.data as BalanceSheetResponse;
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -182,12 +195,15 @@ export const useCreateBankAccount = () => {
 };
 
 export const useDashboardStats = () => {
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['accounts', 'dashboard-stats'],
+    queryKey: ['accounts', 'dashboard-stats', branchId],
     queryFn: async () => {
-      const res = await api.get('/api/v1/accounts/reports/dashboard-stats');
+      const res = await api.get('/api/v1/accounts/dashboard-stats');
       return res.data as import('../types/accounts').DashboardStatsResponse;
-    }
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 

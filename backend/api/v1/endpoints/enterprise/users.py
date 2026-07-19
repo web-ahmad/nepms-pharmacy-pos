@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from core.deps import get_current_user, requires_permission
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from database import get_db
+from models.enterprise.user import EnterpriseRole  # RBAC 4.0: elevation guard
 from repositories.enterprise.user import enterprise_user_repository
 from services.enterprise.user_service import user_service
 from schemas.enterprise.user import (
@@ -68,10 +69,15 @@ def _get_eu_or_404(db: Session, eu_id: str, pharmacy_id: str):
 def get_user_dashboard(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    token: dict = Depends(requires_permission("users:view")),
 ):
     pid = _resolve_pharmacy_id(scope)
-    summary = enterprise_user_repository.get_dashboard_summary(db, pid)
+    hierarchy_level = token.get("hierarchy_level", 4)
+    token_branch = token.get("branch_id")
+    
+    branch_id = token_branch if hierarchy_level >= 3 else None
+    
+    summary = enterprise_user_repository.get_dashboard_summary(db, pid, branch_id=branch_id)
     return UserDashboardSummary(**summary)
 
 
@@ -90,9 +96,16 @@ def list_users(
     limit:      int           = Query(20, ge=1, le=100),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    token: dict = Depends(requires_permission("users:view")),
 ):
     pid = _resolve_pharmacy_id(scope)
+    hierarchy_level = token.get("hierarchy_level", 4)
+    token_branch = token.get("branch_id")
+
+    # Force branch isolation for L3 (Branch Owner) and L4 (Staff)
+    if hierarchy_level >= 3:
+        branch_id = token_branch
+
     items, total = enterprise_user_repository.get_filtered(
         db, pid,
         search=search, status=status, user_type=user_type,
@@ -136,19 +149,44 @@ def create_user(
     created_by = token.get("sub")
     hierarchy_level = token.get("hierarchy_level", 4)
     token_branch = token.get("branch_id")
-    
-    # ── Hierarchy Enforcement (Level 3 Branch Owner) ──
+
+    # ── RBAC 4.0: Role Elevation Guards ──────────────────────────────────────────────
+    # Rule: A user can NEVER create another user with equal or higher privilege.
+    # L1=SuperAdmin(highest) ... L4=Staff(lowest)
+    if data.enterprise_role_id:
+        # Use EnterpriseRole (correct model), NOT the legacy Role model
+        target_role = db.query(EnterpriseRole).filter(
+            EnterpriseRole.id == data.enterprise_role_id,
+            EnterpriseRole.is_deleted == False,
+        ).first()
+        if target_role:
+            target_level = target_role.hierarchy_level
+            # L2 cannot create L1 or L2 users (no privilege escalation to same level)
+            if hierarchy_level == 2 and target_level < 2:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Pharmacy Owners cannot create Super Admin users."
+                )
+            # L3 can only create L4 Staff
+            if hierarchy_level == 3 and target_level <= 3:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Branch Owners can only create Level 4 (Branch Staff) users. "
+                           f"The selected role has hierarchy level {target_level}."
+                )
+
+    # ── L3 Branch Owner: strict branch isolation ───────────────────────────────────
     if hierarchy_level == 3:
-        if data.default_branch_id != token_branch:
-            raise HTTPException(status_code=403, detail="Branch Owners can only create users in their own branch.")
+        if data.default_branch_id and data.default_branch_id != token_branch:
+            raise HTTPException(
+                status_code=403,
+                detail="Branch Owners can only create users in their own branch."
+            )
         if data.allowed_branches and any(b != token_branch for b in data.allowed_branches):
-            raise HTTPException(status_code=403, detail="Branch Owners cannot assign users to other branches.")
-            
-        # Ensure they are not creating an L1, L2, or L3 role
-        from models.users import Role
-        target_role = db.query(Role).filter(Role.id == data.enterprise_role_id).first()
-        if target_role and target_role.hierarchy_level <= 3:
-            raise HTTPException(status_code=403, detail="Branch Owners can only create L4 Branch Staff roles.")
+            raise HTTPException(
+                status_code=403,
+                detail="Branch Owners cannot assign users to other branches."
+            )
 
     eu = user_service.create_user(db, data=data, pharmacy_id=pid, created_by_id=created_by)
     return _build_read(eu)
@@ -180,27 +218,51 @@ def update_user(
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
-    
+
     hierarchy_level = token.get("hierarchy_level", 4)
     token_branch = token.get("branch_id")
-    
-    # ── Hierarchy Enforcement (Level 3 Branch Owner) ──
+
+    # ── RBAC 4.0: Role Elevation Guard on Update ────────────────────────────────────
+    if data.enterprise_role_id:
+        target_role = db.query(EnterpriseRole).filter(
+            EnterpriseRole.id == data.enterprise_role_id,
+            EnterpriseRole.is_deleted == False,
+        ).first()
+        if target_role:
+            target_level = target_role.hierarchy_level
+            if hierarchy_level == 2 and target_level < 2:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Pharmacy Owners cannot elevate users to Super Admin."
+                )
+            if hierarchy_level == 3 and target_level <= 3:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Branch Owners can only assign Level 4 (Branch Staff) roles. "
+                           f"The selected role has hierarchy level {target_level}."
+                )
+
+    # ── L3 Branch Owner: strict branch isolation ───────────────────────────────────
     if hierarchy_level == 3:
-        # Check if the target user belongs to their branch
-        user_branches = [b.branch_id for b in eu.branch_assignments if b.is_active]
-        if token_branch not in user_branches:
-            raise HTTPException(status_code=403, detail="You cannot modify users outside your branch.")
-            
+        # Verify target user is in the L3 user's branch
+        user_branch_ids = [
+            ba.branch_id for ba in eu.branch_assignments if ba.is_active
+        ]
+        if token_branch not in user_branch_ids:
+            raise HTTPException(
+                status_code=403,
+                detail="You cannot modify users outside your own branch."
+            )
         if data.default_branch_id and data.default_branch_id != token_branch:
-            raise HTTPException(status_code=403, detail="Branch Owners cannot move users to another branch.")
+            raise HTTPException(
+                status_code=403,
+                detail="Branch Owners cannot move users to another branch."
+            )
         if data.allowed_branches and any(b != token_branch for b in data.allowed_branches):
-            raise HTTPException(status_code=403, detail="Branch Owners cannot assign users to other branches.")
-            
-        if data.enterprise_role_id:
-            from models.users import Role
-            target_role = db.query(Role).filter(Role.id == data.enterprise_role_id).first()
-            if target_role and target_role.hierarchy_level <= 3:
-                raise HTTPException(status_code=403, detail="Branch Owners can only assign L4 Branch Staff roles.")
+            raise HTTPException(
+                status_code=403,
+                detail="Branch Owners cannot assign users to other branches."
+            )
 
     eu = user_service.update_user(db, enterprise_user=eu, data=data, performed_by_id=token.get("sub"))
     return _build_read(eu)

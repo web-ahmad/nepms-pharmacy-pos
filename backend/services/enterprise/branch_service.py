@@ -174,6 +174,7 @@ class BranchService:
         
         # --- AUTO-LINK POS DATA START ---
         from models.users import Branch as LegacyBranch
+        from sqlalchemy.exc import IntegrityError
         
         legacy_id = branch.id
         legacy_branch = LegacyBranch(
@@ -181,11 +182,18 @@ class BranchService:
             name=branch.name,
             code=branch.code,
             is_main=(branch.type in ["main_branch", "head_office"]),
+            tenant_id=scope.tenant_id,
             pharmacy_id=pharmacy_id,
-            tenant_id=scope.tenant_id
         )
         db.add(legacy_branch)
-        db.flush()
+        try:
+            db.flush()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"The branch code '{branch.code}' is already registered in the legacy POS system across the enterprise. Please choose a different unique code."
+            )
         
         branch.legacy_branch_id = legacy_id
         db.add(branch)

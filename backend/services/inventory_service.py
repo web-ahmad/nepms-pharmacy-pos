@@ -231,10 +231,7 @@ class InventoryService:
         
         # Filter for low stock (total_stock <= min_stock_level)
         query = query.filter(
-            or_(
-                stock_subquery.c.total_stock <= Medicine.min_stock_level,
-                stock_subquery.c.total_stock == None
-            ),
+            stock_subquery.c.total_stock <= Medicine.min_stock_level,
             Medicine.min_stock_level > 0
         )
         

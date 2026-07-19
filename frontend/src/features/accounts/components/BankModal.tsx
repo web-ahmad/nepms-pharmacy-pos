@@ -3,13 +3,13 @@ import { useForm } from 'react-hook-form';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Building2, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
-import { useCreateAccount, useUpdateAccount } from '../services/accounts.api';
+import { useCreateAccount, useUpdateAccount, BankAccount } from '../services/accounts.api';
 import { Account } from '../types/accounts';
 
 interface BankModalProps {
   isOpen: boolean;
   onClose: () => void;
-  bankToEdit?: Account | null;
+  bankToEdit?: Account | BankAccount | null;
 }
 
 interface BankForm {
@@ -26,8 +26,8 @@ export function BankModal({ isOpen, onClose, bankToEdit }: BankModalProps) {
   useEffect(() => {
     if (bankToEdit) {
       reset({
-        name: bankToEdit.name,
-        code: bankToEdit.code
+        name: 'bank_name' in bankToEdit ? bankToEdit.bank_name : bankToEdit.name,
+        code: 'account_number' in bankToEdit ? bankToEdit.account_number : bankToEdit.code
       });
     } else {
       reset({ name: '', code: '' });

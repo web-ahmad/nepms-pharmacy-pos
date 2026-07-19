@@ -125,10 +125,10 @@ def _pharmacy_stats(pharmacy: Pharmacy, db: Session) -> dict:
         User.is_deleted == False,
     ).scalar() or 0
 
-    branch_count = db.query(func.count(Branch.id)).filter(
+    branches = db.query(Branch).filter(
         Branch.pharmacy_id == pharmacy.id,
         Branch.is_deleted == False,
-    ).scalar() or 0
+    ).all()
 
     return {
         "id": pharmacy.id,
@@ -138,7 +138,8 @@ def _pharmacy_stats(pharmacy: Pharmacy, db: Session) -> dict:
         "is_active": pharmacy.is_active,
         "created_at": pharmacy.created_at.isoformat() if pharmacy.created_at else None,
         "staff_count": staff_count,
-        "branch_count": branch_count,
+        "branch_count": len(branches),
+        "branches": [{"id": b.id, "name": b.name, "code": b.code} for b in branches],
     }
 
 
@@ -201,21 +202,11 @@ def create_pharmacy(
     )
     db.add(pharmacy)
     db.flush()
+    # Branch creation is skipped per user request. Branches will be created separately as franchises/branches.
 
-    # 3. Create Main Branch
-    branch = Branch(
-        id=str(uuid.uuid4()),
-        name="Main Branch",
-        code=f"BR-{pharmacy.id[:6].upper()}",
-        is_main=True,
-        pharmacy_id=pharmacy.id,
-        tenant_id=tenant.id,
-    )
-    db.add(branch)
-    db.flush()
 
     # 4. Create base auth user
-    auth_user = BaseUser(
+    auth_user = User(
         id=str(uuid.uuid4()),
         username=body.admin_username,
         email=f"{body.admin_username}@pharmacy.local",
@@ -223,24 +214,26 @@ def create_pharmacy(
         full_name="Pharmacy Admin",
         is_active=True,
         tenant_id=tenant.id,
-        pharmacy_id=pharmacy.id,
     )
     db.add(auth_user)
     db.flush()
 
     # 5. Create EnterpriseUser mapping
-    role = db.query(Role).filter(Role.name == "Pharmacy Owner").first()
+    from models.enterprise.user import EnterpriseRole, EnterpriseUser
+    role = db.query(EnterpriseRole).filter(EnterpriseRole.name == "Pharmacy Owner").first()
     if not role:
-        role = Role(
+        role = EnterpriseRole(
             id=str(uuid.uuid4()),
             name="Pharmacy Owner",
             description="Owner of the Pharmacy",
-            is_system_default=True
+            is_system_default=True,
+            hierarchy_level=2,
+            branch_scope="all_branches",
+            data_scope="tenant"
         )
         db.add(role)
         db.flush()
-        
-    enterprise_user = User(
+    enterprise_user = EnterpriseUser(
         id=str(uuid.uuid4()),
         user_id=auth_user.id,
         enterprise_role_id=role.id,
@@ -249,20 +242,6 @@ def create_pharmacy(
     db.add(enterprise_user)
     db.flush()
 
-    # Link base user to branch (backward compat)
-    ub = UserBranch(user_id=auth_user.id, branch_id=branch.id)
-    db.add(ub)
-    
-    # Also link enterprise user to branch
-    from models.enterprise.user import BranchUserAssignment
-    bua = BranchUserAssignment(
-        id=str(uuid.uuid4()),
-        enterprise_user_id=enterprise_user.id,
-        branch_id=branch.id,
-        is_primary=True
-    )
-    db.add(bua)
-    
     db.commit()
     db.refresh(pharmacy)
 
@@ -309,15 +288,14 @@ def get_pharmacy_detail(
     return stats
 
 
-class BranchCreateRequest(BaseModel):
-    name: str
-    code: str
-    is_main: bool = False
+from schemas.enterprise.branch import BranchCreate
+from services.enterprise.branch_service import BranchService
+from core.pharmacy_scope import PharmacyScope
 
 @router.post("/pharmacies/{pharmacy_id}/branches", status_code=status.HTTP_201_CREATED)
 def create_branch_for_pharmacy(
     pharmacy_id: str,
-    body: BranchCreateRequest,
+    body: BranchCreate,
     db: Session = Depends(_get_db),
     _: str = Depends(require_super_admin),
 ):
@@ -330,18 +308,24 @@ def create_branch_for_pharmacy(
     if not pharmacy:
         raise HTTPException(status_code=404, detail="Pharmacy not found")
         
-    branch = Branch(
-        id=str(uuid.uuid4()),
-        name=body.name,
-        code=body.code,
-        is_main=body.is_main,
+    scope = PharmacyScope(
         pharmacy_id=pharmacy.id,
+        is_super_admin=True,
+        tenant_id=pharmacy.tenant_id,
+        branch_id="",
+        hierarchy_level=1
     )
-    db.add(branch)
-    db.commit()
-    db.refresh(branch)
     
-    return {"id": branch.id, "name": branch.name, "code": branch.code, "is_main": branch.is_main}
+    try:
+        branch_res = BranchService().create_branch(db, scope, body)
+        return branch_res
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ── PATCH /super-admin/pharmacies/:id ────────────────────────────────────────
 
@@ -435,3 +419,38 @@ def record_manual_payment(
         return {"msg": "Payment recorded successfully", "transaction_id": txn.id}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/pharmacies/{pharmacy_id}", status_code=status.HTTP_200_OK)
+def delete_pharmacy(
+    pharmacy_id: str,
+    db: Session = Depends(_get_db),
+    _: str = Depends(require_super_admin),
+):
+    """Soft delete a pharmacy and its tenant."""
+    pharmacy = db.query(Pharmacy).filter(Pharmacy.id == pharmacy_id).first()
+    if not pharmacy:
+        raise HTTPException(status_code=404, detail="Pharmacy not found")
+        
+    pharmacy.is_deleted = True
+    pharmacy.is_active = False
+    pharmacy.subscription_status = "suspended"
+    
+    from models.users import Tenant, User, Branch
+    if pharmacy.tenant_id:
+        tenant = db.query(Tenant).filter(Tenant.id == pharmacy.tenant_id).first()
+        if tenant:
+            tenant.is_active = False
+            
+            # Cascade soft-delete to prevent any further access and free up username/email
+            users = db.query(User).filter(User.tenant_id == tenant.id).all()
+            for u in users:
+                u.is_active = False
+                u.is_deleted = True
+                u.username = f"{u.username}-deleted-{str(uuid.uuid4())[:8]}"
+                u.email = f"{u.email}-deleted-{str(uuid.uuid4())[:8]}"
+            db.query(Branch).filter(Branch.tenant_id == tenant.id).update({
+                "is_deleted": True
+            })
+            
+    db.commit()
+    return {"message": "Pharmacy deleted successfully"}

@@ -10,15 +10,16 @@ import { Plus, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function SuppliersPage() {
-  const { user } = useAuthStore();
+  const { hasPermission } = useAuthStore();
+  // RBAC 4.0: Use permission-based check, never role.name strings
+  const canEdit = hasPermission('suppliers:update') || hasPermission('suppliers:manage');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const router = useRouter();
 
-  const canEdit = user?.role === 'Super Admin' || user?.role === 'Pharmacy Owner' || user?.role === 'Owner' || user?.role === 'Branch Manager';
-
   // Fetch details if editing or viewing
+
   const activeId = editingId || viewingId;
   const { data: activeSupplier } = useSupplierDetails(activeId || 'new');
 

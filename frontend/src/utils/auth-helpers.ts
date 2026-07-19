@@ -26,8 +26,13 @@ export async function validateAdminAccess() {
       return { authorized: false, error: 'Forbidden', status: 403 }
     }
 
+    // LEGACY NOTE: This function uses Supabase to check staff_roles table.
+    // In RBAC 4.0, access should be controlled via hierarchy_level from the
+    // JWT token (hierarchy_level <= 2 means admin access). This Supabase check
+    // remains for server-side API routes that predate the JWT migration.
     const role = roleData.role?.toLowerCase() || '';
-    if (role !== 'owner' && role !== 'admin' && role !== 'super admin') {
+    // hierarchy_level <= 2: L1 (Super Admin) and L2 (Pharmacy Owner/Admin)
+    if (role !== 'owner' && role !== 'admin' && role !== 'super admin' && role !== 'pharmacy owner' && role !== 'branch owner') {
       return { authorized: false, error: 'Forbidden: Requires admin privileges', status: 403 }
     }
 
