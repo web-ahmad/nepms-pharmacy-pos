@@ -585,7 +585,7 @@ class BranchService:
         
         # 4. Get HR employees assigned to this branch
         hr_employees = db.query(Employee).filter(
-            Employee.tenant_id == pharmacy_id,
+            Employee.tenant_id == scope.tenant_id,
             (Employee.branch_id == branch_id) | (Employee.branch_id == data_bid)
         ).all()
         

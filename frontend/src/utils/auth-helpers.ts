@@ -32,7 +32,7 @@ export async function validateAdminAccess() {
     // remains for server-side API routes that predate the JWT migration.
     const role = roleData.role?.toLowerCase() || '';
     // hierarchy_level <= 2: L1 (Super Admin) and L2 (Pharmacy Owner/Admin)
-    if (role !== 'owner' && role !== 'admin' && role !== 'super admin' && role !== 'pharmacy owner' && role !== 'branch owner') {
+    if (role !== 'owner' && role !== 'admin' && role !== 'super admin' && role !== 'pharmacy owner' && role !== 'franchise owner') {
       return { authorized: false, error: 'Forbidden: Requires admin privileges', status: 403 }
     }
 

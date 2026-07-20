@@ -40,7 +40,7 @@ export interface AuthUser {
   permissions: string[];
   permissions_version?: string;
   is_super_admin?: boolean;
-  assigned_branches?: { id: string; name: string }[];
+  assigned_branches?: { id: string; name: string; type?: string; code?: string; is_main?: boolean }[];
   pharmacy_name?: string;
 }
 
@@ -53,7 +53,7 @@ interface AuthState {
 
   // ── Setters ──────────────────────────────────────────────────────────────
   setAuth: (token: string, user: AuthUser, tenantId: string, branchId: string) => void;
-  setBranch: (branchId: string) => void;
+  setBranch: (branchId: string | null) => void;
   logout: () => void;
 
   // ── Permission helpers ────────────────────────────────────────────────────

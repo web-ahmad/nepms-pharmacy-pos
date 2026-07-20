@@ -72,6 +72,7 @@ class RoleBase(BaseModel):
     sort_order:         int = 0
     branch_scope:       Optional[str] = "assigned_branch"  # global|tenant|all_branches|assigned_branch|assigned_counter|selected_branches
     data_scope:         Optional[str] = "branch"           # global|tenant|branch|own_records
+    hierarchy_level:    Optional[int] = None
 
 class RoleCreate(RoleBase):
     permission_ids: Optional[List[str]] = None

@@ -1,15 +1,14 @@
 'use client';
 // app/(dashboard)/branches/[id]/page.tsx — Branch Detail Page
 
-import { use } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { useBranch } from '@/features/branches/services/branch.api';
 import { BranchDetailView } from '@/features/branches/components/BranchDetailView';
 
-export default function BranchDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function BranchDetailPage() {
+  const { id } = useParams() as { id: string };
   const searchParams = useSearchParams();
   const router = useRouter();
   const defaultTab = searchParams.get('tab') || 'overview';

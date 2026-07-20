@@ -210,7 +210,7 @@ SYSTEM_ROLES = [
         "permissions":      ["*"],
     },
     {
-        "name":             "Branch Owner",
+        "name":             "Franchise Owner",
         "description":      "Full access to own branch. Cannot see other branches.",
         "hierarchy_level":  3,
         "is_system_role":   False,
@@ -315,6 +315,22 @@ SYSTEM_ROLES = [
         ],
     },
     {
+        "name":             "Salesman",
+        "description":      "Handles customers and sales operations.",
+        "hierarchy_level":  4,
+        "is_system_role":   False,
+        "is_system_default": True,
+        "is_global_role":   False,
+        "branch_scope":     "assigned_branch",
+        "data_scope":       "own_records",
+        "color":            "#f43f5e",
+        "icon":             "UserSquare2",
+        "permissions":      [
+            "sales:view","sales:create","sales:print","sales:discount",
+            "customers:view","customers:create","customers:edit",
+        ],
+    },
+    {
         "name":             "Store Keeper",
         "description":      "Manages stock, inventory, and purchases.",
         "hierarchy_level":  4,
@@ -393,13 +409,14 @@ SYSTEM_ROLES = [
 # SEED FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def seed_permissions(db):
+def seed_permissions(db, tenant_id: str):
     """Upsert all permission codes. Returns a dict of {code: permission_obj}."""
     print("[seed_rbac] Seeding permissions...")
     perm_map = {}
     for code, label, module in ALL_PERMISSIONS:
         existing = db.query(EnterprisePermission).filter(
-            EnterprisePermission.code == code
+            EnterprisePermission.code == code,
+            EnterprisePermission.pharmacy_id == tenant_id
         ).first()
         action = code.split(":")[1] if ":" in code else code
         if existing:
@@ -408,7 +425,7 @@ def seed_permissions(db):
             existing.action = action
             perm_map[code]  = existing
         else:
-            p = EnterprisePermission(code=code, label=label, module=module, action=action)
+            p = EnterprisePermission(code=code, label=label, module=module, action=action, pharmacy_id=tenant_id)
             db.add(p)
             db.flush()
             perm_map[code] = p
@@ -437,12 +454,15 @@ def seed_system_roles(db, tenant_id: str, perm_map: dict):
             role.is_system_role  = role_def["is_system_role"]
             role.is_system_default = role_def["is_system_default"]
             role.is_global_role  = role_def.get("is_global_role", False)
+            role.is_deleted      = False  # Restore if soft-deleted
+            role.pharmacy_id     = tenant_id # Fix missing pharmacy_id
             print(f"  [update] {role.name} (L{role.hierarchy_level})")
         else:
             role = EnterpriseRole(
                 name             = role_def["name"],
                 description      = role_def["description"],
                 tenant_id        = tenant_id,
+                pharmacy_id      = tenant_id, # Fix missing pharmacy_id
                 hierarchy_level  = role_def["hierarchy_level"],
                 branch_scope     = role_def["branch_scope"],
                 data_scope       = role_def["data_scope"],
@@ -478,11 +498,11 @@ def seed_all_tenants():
     db = SessionLocal()
     try:
         from models.users import Tenant
-        tenants = db.query(Tenant).filter(Tenant.is_active == True).all()
-        perm_map = seed_permissions(db)
+        tenants = db.query(Tenant).all()
         db.commit()
 
         for tenant in tenants:
+            perm_map = seed_permissions(db, tenant.id)
             seed_system_roles(db, tenant.id, perm_map)
 
         print("[seed_rbac] ALL DONE.")

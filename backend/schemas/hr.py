@@ -327,8 +327,15 @@ class HRAnalyticsResponse(BaseModel):
     total_employees: int
     active_employees: int
     attendance_percent: float
+    present_today: int
+    late_today: int
+    absent_today: int
+    on_leave_today: int
     pending_leaves: int
     monthly_payroll_cost: float
+    open_tasks: int
+    training_progress: float
+    pending_reviews: int
 
 
 # Advance Salary

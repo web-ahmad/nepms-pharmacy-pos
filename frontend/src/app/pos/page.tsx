@@ -43,8 +43,10 @@ function LiveClock() {
 
 export default function POSFullScreen() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, user, branchId } = useAuthStore();
   const { cartItems, setPaymentMethod, clearCart } = usePOSStore();
+  
+  const currentBranchName = user?.assigned_branches?.find(b => b.id === branchId)?.name || 'Branch Not Selected';
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const checkoutButtonRef = useRef<HTMLButtonElement>(null);
@@ -181,7 +183,7 @@ export default function POSFullScreen() {
           <div className="hidden lg:flex items-center gap-3 ml-8 pl-8 border-l border-outline-variant/30">
              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-outline-variant/50 shadow-sm transition-all hover:border-primary/30 hover:shadow-md cursor-pointer">
                <Building2 size={16} className="text-primary/70" />
-               <span className="text-sm font-semibold">Main Branch</span>
+               <span className="text-sm font-semibold">{currentBranchName}</span>
              </div>
              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-outline-variant/50 shadow-sm transition-all hover:border-primary/30 hover:shadow-md cursor-pointer">
                <Store size={16} className="text-primary/70" />
@@ -223,45 +225,62 @@ export default function POSFullScreen() {
       </motion.header>
 
       {/* Main Grid */}
-      <main className="flex-1 flex overflow-hidden p-3 gap-3 z-0">
-        {/* Left: Search */}
-        <motion.aside 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.1 }}
-          className="w-[30%] min-w-[340px] bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
-        >
-          <MedicineSearch searchInputRef={searchInputRef} />
-        </motion.aside>
-
-        {/* Center: Cart */}
-        <motion.section 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="flex-1 bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
-        >
-          <CartPanel onHoldSale={handleHoldSale} />
-        </motion.section>
-
-        {/* Right: Checkout */}
-        <motion.aside 
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-          className="w-[28%] min-w-[380px] flex flex-col gap-3 overflow-hidden"
-        >
-          <div className="flex-1 bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl overflow-hidden shadow-lg shadow-black/5">
-            <PaymentPanel 
-              checkoutButtonRef={checkoutButtonRef} 
-              onSuccess={(data) => {
-                setInvoiceData(data);
-                setShowInvoice(true);
-              }} 
-            />
+      {!branchId ? (
+        <div className="flex-1 flex items-center justify-center bg-surface/50 backdrop-blur-sm z-50">
+          <div className="bg-surface p-8 rounded-2xl shadow-xl flex flex-col items-center max-w-md text-center border border-outline-variant">
+            <Store className="w-16 h-16 text-primary/50 mb-4" />
+            <h2 className="text-2xl font-bold text-on-surface mb-2">Branch Required</h2>
+            <p className="text-on-surface-variant mb-6">
+              You are currently viewing Combined Data. The Point of Sale must be operated within a specific branch. Please return to the dashboard and select a branch.
+            </p>
+            <button 
+              onClick={() => router.push('/')} 
+              className="px-6 py-2.5 bg-primary text-white rounded-lg shadow-md hover:bg-primary/90 font-medium transition-colors"
+            >
+              Return to Dashboard
+            </button>
           </div>
-        </motion.aside>
-      </main>
+        </div>
+      ) : (
+        <main className="flex-1 flex overflow-hidden p-3 gap-3 z-0">
+          {/* Left: Search */}
+          <motion.aside 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="w-[30%] min-w-[340px] bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
+          >
+            <MedicineSearch searchInputRef={searchInputRef} />
+          </motion.aside>
+
+          {/* Center: Cart */}
+          <motion.section 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="flex-1 bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
+          >
+            <CartPanel onHoldSale={handleHoldSale} />
+          </motion.section>
+
+          {/* Right: Checkout */}
+          <motion.aside 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+            className="w-[32%] min-w-[360px] max-w-[420px] bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
+          >
+            <PaymentPanel 
+              checkoutButtonRef={checkoutButtonRef}
+              onSuccess={(invoice) => {
+                setInvoiceData(invoice);
+                setShowInvoice(true);
+                clearCart();
+              }}
+            />
+          </motion.aside>
+        </main>
+      )}
       
       {/* Footer Status Bar */}
       <footer className="h-8 shrink-0 bg-surface-container text-[11px] text-on-surface-variant px-gutter flex items-center justify-between border-t border-outline-variant">

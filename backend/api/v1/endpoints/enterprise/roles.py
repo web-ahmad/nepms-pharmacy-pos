@@ -59,9 +59,33 @@ def list_permissions(
     
     user_perms = token_payload.get("permissions", [])
     is_sa = token_payload.get("is_super_admin", False)
+    hierarchy_level = token_payload.get("hierarchy_level", 4)
     has_wildcard = "*" in user_perms
 
+    SAAS_PREFIXES = (
+        "tenant:", "subscription:", "billing:", "saas_settings:", 
+        "feature_flags:", "system_health:", "system_logs:", 
+        "backups:", "superadmin_audit:", "superadmin:", "system:",
+        "super_admin:"
+    )
+
     def _can_assign(code: str) -> bool:
+        if hierarchy_level > 1:
+            if code.startswith(SAAS_PREFIXES):
+                return False
+            
+            # Level 3+ (Branch Roles) cannot see the branches module AT ALL
+            if hierarchy_level >= 3 and (code.startswith("branches:") or code.startswith("branch_settings:")):
+                return False
+            
+            # Level 3+ cannot assign branches to users
+            if hierarchy_level >= 3 and code == "users:assign_branch":
+                return False
+                
+            # Level 2 (Pharmacy Owner) can ONLY see branches:view
+            if hierarchy_level == 2 and code.startswith("branches:") and code != "branches:view":
+                return False
+            
         if is_sa: return True
         if code.startswith("system:"): return False
         if has_wildcard: return True
@@ -307,6 +331,7 @@ def _build_role_read(db: Session, role) -> RoleRead:
         user_type=role.user_type,
         max_users=role.max_users,
         sort_order=role.sort_order,
+        hierarchy_level=role.hierarchy_level,
         branch_scope=getattr(role, 'branch_scope', None),
         data_scope=getattr(role, 'data_scope', None),
         pharmacy_id=role.pharmacy_id,

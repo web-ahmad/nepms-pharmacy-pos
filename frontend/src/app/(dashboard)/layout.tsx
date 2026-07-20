@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { TopNavigation } from '@/components/layout/TopNavigation';
+import { PharmacyChatbot } from '@/components/chat/PharmacyChatbot';
 
 export default function DashboardLayout({
   children,
@@ -59,6 +60,7 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+      <PharmacyChatbot />
     </div>
   );
 }

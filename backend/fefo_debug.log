@@ -1842,3 +1842,55 @@ preferred_batch_id: None
 warehouse_id: None
 Found active batches count: 1
   Batch 1: SY-012545 (qty: 100, reserved: 0, status: Active, expiry: 2031-02-02)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'f5855720-87c5-4f9b-8b31-0f1cde884541'
+branch_id: '3159a208-1f0b-47f1-aada-14f088bfd97a'
+medicine_id: '4101ec5b-2369-4fde-91c6-a043bee8d708'
+quantity_required: 1
+user_id: '2f783885-25c3-4744-87ac-0a8334937b2f'
+reference_id: 'e035de6d-b057-4ad5-a588-53e0523923d6'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: CP01 (qty: 50, reserved: 0, status: Active, expiry: 2027-05-20)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'f5855720-87c5-4f9b-8b31-0f1cde884541'
+branch_id: '3159a208-1f0b-47f1-aada-14f088bfd97a'
+medicine_id: '4101ec5b-2369-4fde-91c6-a043bee8d708'
+quantity_required: 1
+user_id: '2f783885-25c3-4744-87ac-0a8334937b2f'
+reference_id: '5917de9e-8236-44c1-b97b-01aae5d3fa07'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: CP01 (qty: 50, reserved: 0, status: Active, expiry: 2027-05-20)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'f5855720-87c5-4f9b-8b31-0f1cde884541'
+branch_id: '3159a208-1f0b-47f1-aada-14f088bfd97a'
+medicine_id: 'a6d5aca7-892a-4e40-97d1-8d7419b12eaa'
+quantity_required: 1
+user_id: '55ad0ebc-6692-4c4e-b60a-5997c5f246a9'
+reference_id: '2a71f953-0fa0-4fdd-a878-4a0f924f605a'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: B-50 (qty: 100, reserved: 0, status: Active, expiry: 2029-01-09)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'f5855720-87c5-4f9b-8b31-0f1cde884541'
+branch_id: '92a0881e-8ec3-41ad-a7c4-87b40462c7dc'
+medicine_id: '9c8e64c5-a1f6-4d5a-b1cf-67cf4d157948'
+quantity_required: 2
+user_id: '55ad0ebc-6692-4c4e-b60a-5997c5f246a9'
+reference_id: 'c58dcd88-3b99-4ec7-a414-be380185bf20'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: B-100 (qty: 100, reserved: 0, status: Active, expiry: 2029-07-19)

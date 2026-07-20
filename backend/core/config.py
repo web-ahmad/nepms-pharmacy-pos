@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     # URL of this FastAPI backend (used by the Node Baileys service)
     BACKEND_URL: str = "http://localhost:8000"
 
-    
+    # AI / Generative APIs
+    GEMINI_API_KEY: Optional[str] = None    
     class Config:
         env_file = ".env"
 

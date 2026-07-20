@@ -8,6 +8,7 @@ class Department(Base):
     __tablename__ = "departments"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
+    branch_id = Column(String, ForeignKey("branches.id"), nullable=True)
     name = Column(String)
     description = Column(String, nullable=True)
     head_id = Column(String, ForeignKey("employees.id"), nullable=True)
@@ -20,6 +21,7 @@ class Designation(Base):
     __tablename__ = "designations"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
+    branch_id = Column(String, ForeignKey("branches.id"), nullable=True)
     name = Column(String)
     department_id = Column(String, ForeignKey("departments.id"), nullable=True)
     description = Column(String, nullable=True)
@@ -91,6 +93,7 @@ class Shift(Base):
     __tablename__ = "shifts"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
+    branch_id = Column(String, ForeignKey("branches.id"), nullable=True)
     name = Column(String)
     start_time = Column(String) # HH:MM
     end_time = Column(String) # HH:MM

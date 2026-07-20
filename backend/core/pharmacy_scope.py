@@ -219,7 +219,12 @@ def get_pharmacy_scope(
     # Allow frontend to override the active branch context via header
     header_branch_id = request.headers.get("x-branch-id")
     if header_branch_id:
-        if is_actually_sa or header_branch_id in assigned_branches:
+        if header_branch_id == "all":
+            if is_actually_sa or hierarchy_level <= 2:
+                branch_id = None
+            # If a lower-level user sends 'all' due to UI race conditions, ignore it 
+            # and let it fall back to their default branch_id from the JWT payload.
+        elif is_actually_sa or header_branch_id in assigned_branches:
             branch_id = header_branch_id
         else:
             raise HTTPException(

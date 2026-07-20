@@ -105,7 +105,8 @@ const selectClass =
 
 // ── Step components ───────────────────────────────────────────────────────────
 
-function StepBasicInfo({ register, errors }: { register: UseFormRegister<FormData>; errors: Record<string, { message?: string }> }) {
+function StepBasicInfo({ register, errors, watch, setValue }: { register: UseFormRegister<FormData>; errors: Record<string, { message?: string }>; watch: any; setValue: any }) {
+  const themeColor = watch('theme_color');
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div className="sm:col-span-2">
@@ -140,8 +141,12 @@ function StepBasicInfo({ register, errors }: { register: UseFormRegister<FormDat
       </Field>
       <Field label="Theme Color">
         <div className="flex items-center gap-3">
-          <input {...register('theme_color')} type="color" defaultValue="#6366f1"
-            className="w-12 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer p-1" />
+          <input 
+            type="color" 
+            value={themeColor || '#6366f1'} 
+            onChange={(e) => setValue('theme_color', e.target.value, { shouldDirty: true, shouldTouch: true })}
+            className="w-12 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer p-1" 
+          />
           <input {...register('theme_color')} placeholder="#6366f1" className={`${inputClass} flex-1`} />
         </div>
       </Field>
@@ -363,7 +368,7 @@ export function BranchFormWizard({
     },
   });
 
-  const { register, handleSubmit, watch, formState: { errors }, trigger } = methods;
+  const { register, handleSubmit, watch, setValue, formState: { errors }, trigger } = methods;
   const values = watch();
 
   const STEP_FIELDS: (keyof FormData)[][] = [
@@ -418,7 +423,7 @@ export function BranchFormWizard({
   }
 
   const stepContents = [
-    <StepBasicInfo key={0}  register={register} errors={errors as Record<string, { message?: string }>} />,
+    <StepBasicInfo key={0}  register={register} errors={errors as Record<string, { message?: string }>} watch={watch} setValue={setValue} />,
     <StepContact   key={1}  register={register} errors={errors as Record<string, { message?: string }>} />,
     <StepAddress   key={2}  register={register} />,
     <StepManager   key={3}  register={register} errors={errors as Record<string, { message?: string }>} />,

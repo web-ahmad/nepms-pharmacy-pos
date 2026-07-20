@@ -115,7 +115,7 @@ class requires_permission:
     def __init__(self, permission_code: str):
         self.permission_code = permission_code
 
-    def __call__(self, token: str = Depends(oauth2_scheme)) -> dict:
+    def __call__(self, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> dict:
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -126,9 +126,9 @@ class requires_permission:
         except JWTError:
             raise credentials_exception
 
-        permissions:     list = payload.get("permissions", [])
         is_sa:           bool = bool(payload.get("is_super_admin", False))
         hierarchy_level: int  = payload.get("hierarchy_level", 4)
+        permissions:     list = payload.get("permissions", [])
 
         # L1 Super Admin: pass only system:* permissions
         if is_sa:
@@ -142,6 +142,20 @@ class requires_permission:
         # L2 Pharmacy Owner with wildcard
         if "*" in permissions:
             return payload
+
+        # For L3 and L4 (granual permissions), the token's 'permissions' array might be empty or truncated
+        # to avoid 431 Request Header Too Large errors. We must fetch the actual permissions from DB.
+        if hierarchy_level >= 3:
+            from models.enterprise.user import EnterpriseUser
+            from services.enterprise.user_service import user_service
+            user_id = payload.get("sub")
+            branch_id = payload.get("branch_id")
+            eu = db.query(EnterpriseUser).filter(EnterpriseUser.user_id == user_id, EnterpriseUser.is_deleted == False).first()
+            if not eu:
+                raise credentials_exception
+            
+            # Fetch and overwrite permissions
+            permissions = user_service.compute_effective_permissions(db, enterprise_user=eu, branch_id=branch_id)
 
         # Explicit permission check
         if self.permission_code not in permissions:

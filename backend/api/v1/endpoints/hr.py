@@ -7,6 +7,7 @@ from datetime import date
 from database import get_db
 from models.users import User
 from core.deps import requires_permission
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from dependencies.module_guard import require_module
 from schemas.hr import (
     DepartmentCreate, DepartmentResponse,
@@ -43,22 +44,34 @@ def require_hr_approve(token_payload: dict = Depends(requires_permission("hr:app
 def require_payroll_view(token_payload: dict = Depends(requires_permission("payroll:view"))): return PayloadUser(token_payload)
 def require_payroll_run(token_payload: dict = Depends(requires_permission("payroll:run"))): return PayloadUser(token_payload)
 
+def get_effective_branch_id(db: Session, tenant_id: str, scope: PharmacyScope):
+    effective_branch_id = scope.branch_id
+    if not effective_branch_id:
+        from models.users import Branch
+        main_branch = db.query(Branch).filter(Branch.tenant_id == tenant_id, Branch.is_main == True).first()
+        if main_branch:
+            effective_branch_id = main_branch.id
+    return effective_branch_id
+
+
 # Departments
 @router.get("/departments", response_model=List[DepartmentResponse])
-def get_departments(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+def get_departments(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
     try:
-        return HRService(db).get_departments(current_user.tenant_id)
+        effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+        return HRService(db).get_departments(current_user.tenant_id, effective_branch_id)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_departments failed: {str(e)}")
 
 @router.post("/departments", response_model=DepartmentResponse)
-def create_department(obj_in: DepartmentCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+def create_department(obj_in: DepartmentCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create), scope: PharmacyScope = Depends(get_pharmacy_scope)):
     try:
+        effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
         # Sanitize empty strings to None for FK fields
         if getattr(obj_in, 'head_id', None) == "":
             obj_in.head_id = None
-        return HRService(db).create_department(current_user.tenant_id, obj_in)
+        return HRService(db).create_department(current_user.tenant_id, obj_in, effective_branch_id)
     except HTTPException as he:
         raise he
     except Exception as e:
@@ -67,7 +80,7 @@ def create_department(obj_in: DepartmentCreate, db: Session = Depends(get_db), c
         raise HTTPException(status_code=400, detail=f"Failed to create department: {str(e)}")
 
 from schemas.hr import DepartmentUpdate
-from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
+
 @router.put("/departments/{id}", response_model=DepartmentResponse)
 def update_department(id: str, obj_in: DepartmentUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
     try:
@@ -94,16 +107,18 @@ def delete_department(id: str, db: Session = Depends(get_db), current_user: User
 
 # Designations
 @router.get("/designations", response_model=List[DesignationResponse])
-def get_designations(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+def get_designations(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
     try:
-        return HRService(db).get_designations(current_user.tenant_id)
+        effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+        return HRService(db).get_designations(current_user.tenant_id, effective_branch_id)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_designations failed: {str(e)}")
 
 @router.post("/designations", response_model=DesignationResponse)
-def create_designation(obj_in: DesignationCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
-    return HRService(db).create_designation(current_user.tenant_id, obj_in)
+def create_designation(obj_in: DesignationCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).create_designation(current_user.tenant_id, obj_in, effective_branch_id)
 
 @router.put("/designations/{id}", response_model=DesignationResponse)
 def update_designation(id: str, obj_in: DesignationUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
@@ -111,9 +126,10 @@ def update_designation(id: str, obj_in: DesignationUpdate, db: Session = Depends
 
 # Employees
 @router.get("/employees", response_model=List[EmployeeResponse])
-def get_employees(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+def get_employees(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
     try:
-        return HRService(db).get_employees(current_user.tenant_id)
+        effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+        return HRService(db).get_employees(current_user.tenant_id, effective_branch_id)
     except Exception as e:
         print("--- CRITICAL BACKEND ERROR ---")
         print(str(e))
@@ -125,8 +141,9 @@ def get_employee(id: str, db: Session = Depends(get_db), current_user: User = De
     return HRService(db).get_employee(current_user.tenant_id, id)
 
 @router.post("/employees", response_model=EmployeeResponse)
-def create_employee(obj_in: EmployeeCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+def create_employee(obj_in: EmployeeCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create), scope: PharmacyScope = Depends(get_pharmacy_scope)):
     try:
+        effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
         # Clean up empty strings for relational fields to avoid DB foreign key errors
         if getattr(obj_in, 'department_id', None) == "":
             obj_in.department_id = None
@@ -135,7 +152,7 @@ def create_employee(obj_in: EmployeeCreate, db: Session = Depends(get_db), curre
         if getattr(obj_in, 'shift_id', None) == "":
             obj_in.shift_id = None
             
-        return HRService(db).create_employee(current_user.tenant_id, current_user.id, obj_in)
+        return HRService(db).create_employee(current_user.tenant_id, current_user.id, obj_in, effective_branch_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -180,12 +197,14 @@ def get_attendance(
     month: Optional[int] = Query(None, description="Filter by month (1-12)"),
     year: Optional[int] = Query(None, description="Filter by year"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_hr_view)
+    current_user: User = Depends(require_hr_view),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from datetime import date as date_cls
     target = date if date else date_cls.today()
     try:
-        return HRService(db).get_attendance_logs(current_user.tenant_id, target, employee_id, month, year)
+        effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+        return HRService(db).get_attendance_logs(current_user.tenant_id, target, employee_id, month, year, effective_branch_id)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_attendance failed: {str(e)}")
@@ -314,16 +333,18 @@ def reject_leave(id: str, db: Session = Depends(get_db), current_user: User = De
 
 # Shifts
 @router.get("/shifts", response_model=List[ShiftResponse])
-def get_shifts(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+def get_shifts(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
     try:
-        return HRService(db).get_shifts(current_user.tenant_id)
+        effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+        return HRService(db).get_shifts(current_user.tenant_id, effective_branch_id)
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"get_shifts failed: {str(e)}")
 
 @router.post("/shifts", response_model=ShiftResponse)
-def create_shift(obj_in: ShiftCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
-    return HRService(db).create_shift(current_user.tenant_id, obj_in)
+def create_shift(obj_in: ShiftCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).create_shift(current_user.tenant_id, obj_in, effective_branch_id)
 
 @router.put("/shifts/{id}", response_model=ShiftResponse)
 def update_shift(id: str, obj_in: ShiftUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
@@ -488,8 +509,9 @@ def approve_advance(id: str, db: Session = Depends(get_db), current_user: User =
 
 # Analytics
 @router.get("/analytics", response_model=HRAnalyticsResponse)
-def get_hr_analytics(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_analytics(current_user.tenant_id)
+def get_hr_analytics(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).get_analytics(current_user.tenant_id, effective_branch_id)
 
 # =====================================================================
 # Enterprise Phase 10: Missing Endpoints

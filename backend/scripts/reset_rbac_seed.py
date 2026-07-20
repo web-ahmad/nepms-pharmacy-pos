@@ -354,8 +354,27 @@ def _build_permission_seed() -> List[Dict]:
 
 # Build permission lists eagerly (module lists are top-level constants so
 # the comprehensions below run at import time — no lazy evaluation issues).
-_SAAS_CODES   = _saas_permission_codes()
-_TENANT_CODES = _tenant_permission_codes()
+_SAAS_CODES   = list(set(_saas_permission_codes()))
+_TENANT_CODES = list(set(_tenant_permission_codes()))
+
+L2_PERMISSIONS = _TENANT_CODES.copy()
+# Explicitly strip SaaS/system level permissions that shouldn't leak to tenant admins
+if "tenant:create" in L2_PERMISSIONS:
+    L2_PERMISSIONS.remove("tenant:create")
+
+# Restrict branches module to strictly 'view' only
+L2_PERMISSIONS = [
+    code for code in L2_PERMISSIONS 
+    if not (code.startswith("branches:") and code != "branches:view")
+]
+
+# Level 3 inherits exactly what Level 2 has, BUT with zero access to branches
+L3_PERMISSIONS = [
+    code for code in L2_PERMISSIONS
+    if not code.startswith("branches:")
+    and not code.startswith("branch_settings:")
+    and code != "users:assign_branch"
+]
 
 CANONICAL_ROLES: List[Dict] = [
     # ─────────────────────────────────────────────────────────────────────────
@@ -381,7 +400,7 @@ CANONICAL_ROLES: List[Dict] = [
             "Cannot view actual pharmacy business data (data_scope=saas_only)."
         ),
         # L1 gets BOTH domains
-        "permission_codes":  list(dict.fromkeys(_SAAS_CODES + _TENANT_CODES)),
+        "permission_codes":  list(set(_SAAS_CODES + _TENANT_CODES)),
     },
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -406,17 +425,17 @@ CANONICAL_ROLES: List[Dict] = [
             "Cannot create new branches or access SaaS management features."
         ),
         # L2 gets ONLY tenant operational codes — zero SaaS codes
-        "permission_codes":  _TENANT_CODES,
+        "permission_codes":  L2_PERMISSIONS,
     },
 
     # ─────────────────────────────────────────────────────────────────────────
-    # L3 — Branch Owner
+    # L3 — Franchise Owner
     # Gets: EXACT SAME TENANT_PERMISSIONS as L2
     # Isolation is handled by data_scope=branch in the JWT, NOT by removing
     # permissions. Removing permissions would break the inheritance model.
     # ─────────────────────────────────────────────────────────────────────────
     {
-        "name":              "Branch Owner",
+        "name":              "Franchise Owner",
         "hierarchy_level":   3,
         "branch_scope":      "assigned_branch",
         "data_scope":        "branch",
@@ -427,11 +446,11 @@ CANONICAL_ROLES: List[Dict] = [
         "is_system_role":    False,
         "description":       (
             "Franchise/branch owner. Identical operational permissions to "
-            "Pharmacy Owner but strictly isolated to their own branch "
+            "Pharmacy Owner, but completely isolated to their specific assigned branch."
             "(enforced via data_scope=branch at query time)."
         ),
-        # L3 gets SAME codes as L2 — data_scope handles the isolation
-        "permission_codes":  _TENANT_CODES,
+        # L3 gets SAME codes as L2 minus branches:create
+        "permission_codes":  L3_PERMISSIONS,
     },
 
     # ─────────────────────────────────────────────────────────────────────────

@@ -18,13 +18,14 @@ import {
 } from '@/features/users/services/role.api';
 import type { Role, RoleListItem, PermissionGrouped, Permission } from '@/features/users/types/user';
 import { api } from '@/services/api';
+import { getModuleCategory } from '@/features/roles/utils/permission-categories';
 
 // ── Hierarchy level label + color map ────────────────────────────────────────
 const HIERARCHY_CONFIG: Record<number, { label: string; color: string; bg: string; border: string }> = {
-  1: { label: 'L1 · SaaS Admin',    color: 'text-red-600 dark:text-red-400',    bg: 'bg-red-50 dark:bg-red-500/10',    border: 'border-red-200 dark:border-red-500/20' },
-  2: { label: 'L2 · Pharmacy Owner', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-500/10', border: 'border-violet-200 dark:border-violet-500/20' },
-  3: { label: 'L3 · Branch Owner',  color: 'text-sky-600 dark:text-sky-400',    bg: 'bg-sky-50 dark:bg-sky-500/10',    border: 'border-sky-200 dark:border-sky-500/20' },
-  4: { label: 'L4 · Branch Staff',  color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/20' },
+  1: { label: 'L1 · SAAS ADMIN',    color: 'text-red-600 dark:text-red-400',    bg: 'bg-red-50 dark:bg-red-500/10',    border: 'border-red-200 dark:border-red-500/20' },
+  2: { label: 'L2 · TENANT ADMIN', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-500/10', border: 'border-violet-200 dark:border-violet-500/20' },
+  3: { label: 'L3 · FRANCHISE ADMIN',  color: 'text-sky-600 dark:text-sky-400',    bg: 'bg-sky-50 dark:bg-sky-500/10',    border: 'border-sky-200 dark:border-sky-500/20' },
+  4: { label: 'L4 · BRANCH STAFF',  color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/20' },
 };
 
 
@@ -47,6 +48,7 @@ function AccordionPermissionMatrix({
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+  const [showOnlyAssigned, setShowOnlyAssigned] = useState(true); // Default to hiding extra permissions
 
   const dedupedGroups = useMemo(() => {
     return groups.map(g => {
@@ -60,24 +62,49 @@ function AccordionPermissionMatrix({
   const flatPermissions = useMemo(() => dedupedGroups.flatMap(g => g.permissions), [dedupedGroups]);
 
   const filteredGroups = useMemo(() => {
+    let result = dedupedGroups;
+
+    if (showOnlyAssigned) {
+      result = result.map(g => ({
+        ...g,
+        permissions: g.permissions.filter(p => selectedIds.has(p.id))
+      })).filter(g => g.permissions.length > 0);
+    }
+
     const lowerQuery = searchQuery.toLowerCase();
-    if (!lowerQuery) return dedupedGroups;
-    return dedupedGroups.map(g => ({
+    if (!lowerQuery) return result;
+    return result.map(g => ({
       ...g,
       permissions: g.permissions.filter(p => p.action.toLowerCase().includes(lowerQuery) || p.module.toLowerCase().includes(lowerQuery))
     })).filter(g => g.permissions.length > 0);
-  }, [dedupedGroups, searchQuery]);
+  }, [dedupedGroups, searchQuery, showOnlyAssigned, selectedIds]);
 
-  const toggleAccordion = (module: string) => {
+  const categoryGroups = useMemo(() => {
+    const categories = new Map<string, { category: string; subModules: PermissionGrouped[] }>();
+    
+    filteredGroups.forEach(g => {
+      const catName = getModuleCategory(g.module);
+      if (!categories.has(catName)) {
+        categories.set(catName, { category: catName, subModules: [] });
+      }
+      categories.get(catName)!.subModules.push(g);
+    });
+
+    return Array.from(categories.values()).sort((a, b) => a.category.localeCompare(b.category));
+  }, [filteredGroups]);
+
+  const filteredFlatPermissions = useMemo(() => filteredGroups.flatMap(g => g.permissions), [filteredGroups]);
+
+  const toggleAccordion = (category: string) => {
     setExpandedModules(prev => {
       const next = new Set(prev);
-      if (next.has(module)) next.delete(module);
-      else next.add(module);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
       return next;
     });
   };
 
-  const expandAll = () => setExpandedModules(new Set(filteredGroups.map(g => g.module)));
+  const expandAll = () => setExpandedModules(new Set(categoryGroups.map(c => c.category)));
   const collapseAll = () => setExpandedModules(new Set());
 
   return (
@@ -87,17 +114,30 @@ function AccordionPermissionMatrix({
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={() => !readOnly && onSelectAll(selectedIds.size !== flatPermissions.length, flatPermissions)}
+            onClick={() => !readOnly && onSelectAll(selectedIds.size !== filteredFlatPermissions.length, filteredFlatPermissions)}
             className={`flex items-center gap-2 text-sm font-medium transition-colors ${readOnly ? 'text-zinc-400 cursor-default' : 'text-zinc-700 dark:text-zinc-300 hover:text-indigo-600'}`}
           >
-            {selectedIds.size === flatPermissions.length && flatPermissions.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
-            {selectedIds.size === flatPermissions.length && flatPermissions.length > 0 ? 'Deselect All' : 'Select All'}
+            {selectedIds.size === filteredFlatPermissions.length && filteredFlatPermissions.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+            {selectedIds.size === filteredFlatPermissions.length && filteredFlatPermissions.length > 0 ? 'Deselect All' : 'Select All'}
           </button>
           <div className="h-4 w-px bg-zinc-300 dark:bg-zinc-700"></div>
           <button type="button" onClick={expandAll} className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-indigo-600">Expand All</button>
           <button type="button" onClick={collapseAll} className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-indigo-600">Collapse All</button>
+          <div className="h-4 w-px bg-zinc-300 dark:bg-zinc-700"></div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <div className="relative inline-block w-8 h-4 rounded-full bg-zinc-200 dark:bg-zinc-700 transition-colors duration-300 ease-in-out">
+              <input 
+                type="checkbox" 
+                className="opacity-0 w-0 h-0" 
+                checked={!showOnlyAssigned} 
+                onChange={() => setShowOnlyAssigned(!showOnlyAssigned)} 
+              />
+              <div className={`absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full shadow-sm transition-transform duration-300 ease-in-out ${!showOnlyAssigned ? 'translate-x-4 bg-indigo-500' : ''}`}></div>
+            </div>
+            <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Show Unassigned</span>
+          </label>
           <span className="text-sm font-medium text-zinc-500 dark:text-zinc-500 ml-2">
-            {selectedIds.size} / {flatPermissions.length} selected
+            {selectedIds.size} / {filteredFlatPermissions.length} selected
             {readOnly && <span className="ml-2 text-indigo-600 dark:text-indigo-400 font-semibold">• System Locked</span>}
           </span>
         </div>
@@ -119,13 +159,14 @@ function AccordionPermissionMatrix({
       {/* Accordion List */}
       <div className="flex-1 overflow-auto custom-scrollbar p-5 space-y-4" style={{ maxHeight: '650px' }}>
         <AnimatePresence>
-          {filteredGroups.map((group) => {
-            const isAllSelected = group.permissions.every(p => selectedIds.has(p.id));
-            const isSomeSelected = group.permissions.some(p => selectedIds.has(p.id)) && !isAllSelected;
-            const isExpanded = expandedModules.has(group.module) || searchQuery.length > 0;
+          {categoryGroups.map((catGroup) => {
+            const allCatPerms = catGroup.subModules.flatMap(s => s.permissions);
+            const isAllSelected = allCatPerms.every(p => selectedIds.has(p.id));
+            const isSomeSelected = allCatPerms.some(p => selectedIds.has(p.id)) && !isAllSelected;
+            const isExpanded = expandedModules.has(catGroup.category) || searchQuery.length > 0;
 
-            // CRUD shortcuts logic
-            const getActionPerms = (actionKw: string) => group.permissions.filter(p => p.action.toLowerCase().includes(actionKw));
+            // CRUD shortcuts logic for category
+            const getActionPerms = (actionKw: string) => allCatPerms.filter(p => p.action.toLowerCase().includes(actionKw));
             const createPerms = getActionPerms('create');
             const readPerms = getActionPerms('view').concat(getActionPerms('read'), getActionPerms('list'));
             const updatePerms = getActionPerms('update').concat(getActionPerms('edit'), getActionPerms('manage'));
@@ -133,7 +174,7 @@ function AccordionPermissionMatrix({
 
             return (
               <motion.div
-                key={group.module}
+                key={catGroup.category}
                 layout
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -142,13 +183,13 @@ function AccordionPermissionMatrix({
               >
                 {/* Header */}
                 <div 
-                  className="px-5 py-4 flex items-center justify-between cursor-pointer select-none group"
-                  onClick={() => toggleAccordion(group.module)}
+                  className="flex items-center justify-between p-4 md:p-5 cursor-pointer select-none group"
+                  onClick={() => toggleAccordion(catGroup.category)}
                 >
                   <div className="flex items-center gap-4">
                     <div 
                       className="relative flex items-center justify-center w-5 h-5 flex-shrink-0"
-                      onClick={(e) => { e.stopPropagation(); !readOnly && onToggleModule(group.module, group.permissions); }}
+                      onClick={(e) => { e.stopPropagation(); !readOnly && onToggleModule(catGroup.category, allCatPerms); }}
                     >
                       <input
                         type="checkbox"
@@ -162,15 +203,15 @@ function AccordionPermissionMatrix({
                       {isSomeSelected && readOnly && <div className="absolute bg-indigo-400 w-2.5 h-0.5 rounded-full pointer-events-none" />}
                     </div>
                     <span className="font-semibold capitalize text-lg text-zinc-900 dark:text-zinc-100 tracking-tight group-hover:text-indigo-600 transition-colors">
-                      {group.module.replace(/_/g, ' ')}
+                      {catGroup.category}
                     </span>
                     <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
-                      {group.permissions.filter(p => selectedIds.has(p.id)).length} / {group.permissions.length}
+                      {allCatPerms.filter(p => selectedIds.has(p.id)).length} / {allCatPerms.length}
                     </span>
                   </div>
                   
                   <div className="flex items-center gap-4">
-                    {/* Quick CRUD toggle shortcuts for the module header */}
+                    {/* Quick CRUD toggle shortcuts for the category header */}
                     {!readOnly && (
                       <div className="hidden md:flex items-center gap-3 mr-4" onClick={(e) => e.stopPropagation()}>
                         {[
@@ -185,10 +226,7 @@ function AccordionPermissionMatrix({
                             <button
                               key={shortcut.label}
                               onClick={() => {
-                                if (allHas) shortcut.perms.forEach(p => onToggle(p.id)); // Actually we should toggle module, but we only have individual toggles here. So we iterate.
-                                // Instead of mutating directly, we should call a specific function. We'll simulate it:
-                                // To be safe, we just use onToggleModule with the subset!
-                                onToggleModule(`subset_${group.module}_${shortcut.label}`, shortcut.perms);
+                                onToggleModule(`subset_${catGroup.category}_${shortcut.label}`, shortcut.perms);
                               }}
                               title={`Toggle ${shortcut.label} permissions`}
                               className={`w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold transition-colors ${allHas ? 'ring-2 ring-offset-1 ring-indigo-500 dark:ring-offset-zinc-900 ' + shortcut.color : 'text-zinc-400 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700'}`}
@@ -205,7 +243,7 @@ function AccordionPermissionMatrix({
                   </div>
                 </div>
 
-                {/* Body */}
+                {/* Body - Submodules Grid */}
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div
@@ -214,29 +252,67 @@ function AccordionPermissionMatrix({
                       exit={{ height: 0, opacity: 0 }}
                       className="border-t border-zinc-100 dark:border-zinc-800"
                     >
-                      <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 bg-zinc-50/50 dark:bg-zinc-900/30">
-                        {group.permissions.map(perm => (
-                          <label key={perm.id} className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${selectedIds.has(perm.id) ? 'border-indigo-200 bg-indigo-50/50 dark:border-indigo-800/50 dark:bg-indigo-900/20 shadow-sm' : 'border-transparent hover:bg-white dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700'} ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}>
-                            <div className="relative flex items-center justify-center mt-0.5">
-                              <input
-                                type="checkbox"
-                                checked={selectedIds.has(perm.id)}
-                                onChange={() => !readOnly && onToggle(perm.id)}
-                                readOnly={readOnly}
-                                className={`w-4 h-4 appearance-none rounded border transition-all ${readOnly ? 'cursor-default border-indigo-200 bg-indigo-50/50 checked:bg-indigo-100 checked:border-indigo-300 dark:border-indigo-900/50 dark:bg-indigo-900/20 dark:checked:bg-indigo-900/40 dark:checked:border-indigo-800' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
-                              />
-                              {selectedIds.has(perm.id) && (readOnly ? <Lock className="absolute text-indigo-400 dark:text-indigo-500 w-2.5 h-2.5 pointer-events-none" /> : <Check className="absolute text-white w-3 h-3 pointer-events-none" />)}
+                      <div className="p-5 flex flex-col gap-6 bg-zinc-50/50 dark:bg-zinc-900/30">
+                        {catGroup.subModules.map(subGroup => {
+                          const subPerms = subGroup.permissions;
+                          const isSubAllSelected = subPerms.every(p => selectedIds.has(p.id));
+                          const isSubSomeSelected = subPerms.some(p => selectedIds.has(p.id)) && !isSubAllSelected;
+
+                          return (
+                            <div key={subGroup.module} className="flex flex-col gap-3">
+                              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700/50 pb-2">
+                                <div className="flex items-center gap-3">
+                                  <div 
+                                    className="relative flex items-center justify-center w-4 h-4 flex-shrink-0 cursor-pointer"
+                                    onClick={(e) => { e.stopPropagation(); !readOnly && onToggleModule(subGroup.module, subPerms); }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSubAllSelected}
+                                      ref={input => { if (input) input.indeterminate = isSubSomeSelected; }}
+                                      readOnly
+                                      className={`peer w-4 h-4 appearance-none rounded border ${readOnly ? 'cursor-default border-indigo-300 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/30' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:bg-indigo-600 indeterminate:border-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
+                                    />
+                                    {isSubAllSelected && (readOnly ? <Lock className="absolute text-indigo-400 w-2.5 h-2.5 pointer-events-none" /> : <Check className="absolute text-white w-2.5 h-2.5 pointer-events-none" />)}
+                                    {isSubSomeSelected && !readOnly && <div className="absolute bg-white w-2 h-0.5 rounded-full pointer-events-none" />}
+                                    {isSubSomeSelected && readOnly && <div className="absolute bg-indigo-400 w-2 h-0.5 rounded-full pointer-events-none" />}
+                                  </div>
+                                  <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 capitalize">
+                                    {subGroup.module.replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-zinc-400 font-medium">
+                                  {subPerms.filter(p => selectedIds.has(p.id)).length} / {subPerms.length}
+                                </span>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+                                {subPerms.map(perm => (
+                                  <label key={perm.id} className={`flex items-start gap-3 p-2.5 rounded-xl border transition-all ${selectedIds.has(perm.id) ? 'border-indigo-200 bg-indigo-50/50 dark:border-indigo-800/50 dark:bg-indigo-900/20 shadow-sm' : 'border-transparent hover:bg-white dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700'} ${readOnly ? 'cursor-default' : 'cursor-pointer'}`}>
+                                    <div className="relative flex items-center justify-center mt-0.5">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedIds.has(perm.id)}
+                                        onChange={() => !readOnly && onToggle(perm.id)}
+                                        readOnly={readOnly}
+                                        className={`w-4 h-4 appearance-none rounded border transition-all ${readOnly ? 'cursor-default border-indigo-200 bg-indigo-50/50 checked:bg-indigo-100 checked:border-indigo-300 dark:border-indigo-900/50 dark:bg-indigo-900/20 dark:checked:bg-indigo-900/40 dark:checked:border-indigo-800' : 'cursor-pointer border-zinc-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 dark:border-zinc-600 dark:bg-zinc-800'}`}
+                                      />
+                                      {selectedIds.has(perm.id) && (readOnly ? <Lock className="absolute text-indigo-400 dark:text-indigo-500 w-2.5 h-2.5 pointer-events-none" /> : <Check className="absolute text-white w-3 h-3 pointer-events-none" />)}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className={`text-sm leading-none font-medium ${perm.is_sensitive ? 'text-amber-600 dark:text-amber-500' : (selectedIds.has(perm.id) ? 'text-indigo-900 dark:text-indigo-100' : 'text-zinc-700 dark:text-zinc-300')} capitalize transition-colors`}>
+                                        {perm.action.replace(/_/g, ' ')}
+                                      </span>
+                                      {perm.is_sensitive && (
+                                        <span className="text-[10px] mt-1 text-amber-500 font-semibold uppercase tracking-wider">Sensitive</span>
+                                      )}
+                                    </div>
+                                  </label>
+                                ))}
+                              </div>
                             </div>
-                            <div className="flex flex-col">
-                              <span className={`text-sm leading-none font-medium ${perm.is_sensitive ? 'text-amber-600 dark:text-amber-500' : (selectedIds.has(perm.id) ? 'text-indigo-900 dark:text-indigo-100' : 'text-zinc-700 dark:text-zinc-300')} capitalize transition-colors`}>
-                                {perm.action.replace(/_/g, ' ')}
-                              </span>
-                              {perm.is_sensitive && (
-                                <span className="text-[10px] mt-1 text-amber-500 font-semibold uppercase tracking-wider">Sensitive</span>
-                              )}
-                            </div>
-                          </label>
-                        ))}
+                          );
+                        })}
                       </div>
                     </motion.div>
                   )}
@@ -304,8 +380,9 @@ function RoleCard({
       </div>
 
       {/* Hierarchy Level Badge */}
-      {(role as any).hierarchy_level && (() => {
-        const cfg = HIERARCHY_CONFIG[(role as any).hierarchy_level] ?? HIERARCHY_CONFIG[4];
+      {(() => {
+        const level = role.hierarchy_level || 4;
+        const cfg = HIERARCHY_CONFIG[level] ?? HIERARCHY_CONFIG[4];
         return (
           <div className="mt-2">
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${cfg.bg} ${cfg.color} ${cfg.border} uppercase tracking-wider`}>
@@ -718,8 +795,8 @@ function RolesPage() {
                 onChange={(e) => setNewHierarchyLevel(Number(e.target.value))}
                 className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500"
               >
-                <option value={3}>L3 · Branch Owner</option>
-                <option value={4}>L4 · Branch Staff</option>
+                <option value={3}>L3 · BRANCH ADMIN</option>
+                <option value={4}>L4 · BRANCH STAFF</option>
               </select>
               <select
                 value={newBranchScope}
@@ -863,7 +940,21 @@ function RolesPage() {
                 </div>
               ) : (
                 <AccordionPermissionMatrix
-                  groups={permsData ?? []}
+                  groups={(permsData ?? [])
+                    .map(g => {
+                      const hLevel = (selectedRole as any)?.hierarchy_level ?? 0;
+                      if (hLevel >= 3 && g.module === 'users') {
+                        return { ...g, permissions: g.permissions.filter(p => p.code !== 'users:assign_branch') };
+                      }
+                      return g;
+                    })
+                    .filter(g => {
+                      const hLevel = (selectedRole as any)?.hierarchy_level ?? 0;
+                      if (hLevel >= 3 && (g.module === 'branches' || g.module === 'branch_settings')) {
+                        return false;
+                      }
+                      return g.permissions.length > 0;
+                    })}
                   selectedIds={selectedPerms}
                   onToggle={handleTogglePermission}
                   onToggleModule={handleToggleModule}

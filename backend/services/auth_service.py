@@ -101,13 +101,20 @@ class AuthService:
         assigned_branches = []
         branch_id = ""
 
-        if is_sa:
-            # Super Admin: list all branches for impersonation UI, no real scope
+        if is_sa or hierarchy_level == 2:
+            # Super Admin and Owner: list all branches for tenant
             branches = db.query(Branch).filter(Branch.tenant_id == user.tenant_id).all()
             for b in branches:
-                assigned_branches.append({"id": b.id, "name": b.name})
+                assigned_branches.append({
+                    "id": b.id, 
+                    "name": b.name, 
+                    "type": getattr(b, "type", "branch"), 
+                    "code": getattr(b, "code", ""),
+                    "is_main": getattr(b, "is_main", False)
+                })
             if branches:
-                branch_id = branches[0].id
+                main_branch = next((b for b in branches if getattr(b, "is_main", False)), branches[0])
+                branch_id = main_branch.id
 
         elif eu and eu.branch_assignments:
             # Enterprise branch assignments (primary path)
@@ -117,6 +124,9 @@ class AuthService:
                     assigned_branches.append({
                         "id":   assignment.branch.id,
                         "name": assignment.branch.name,
+                        "type": getattr(assignment.branch, "type", "branch"),
+                        "code": getattr(assignment.branch, "code", ""),
+                        "is_main": getattr(assignment.branch, "is_main", False)
                     })
                     if assignment.is_default_branch:
                         default_assignment = assignment
@@ -132,6 +142,9 @@ class AuthService:
                 assigned_branches.append({
                     "id":   ub.branch_id,
                     "name": getattr(ub.branch, "name", "Assigned Branch"),
+                    "type": getattr(ub.branch, "type", "branch"),
+                    "code": getattr(ub.branch, "code", ""),
+                    "is_main": getattr(ub.branch, "is_main", False)
                 })
 
         else:
@@ -139,7 +152,13 @@ class AuthService:
             branch = db.query(Branch).filter(Branch.tenant_id == user.tenant_id).first()
             if branch:
                 branch_id = branch.id
-                assigned_branches.append({"id": branch.id, "name": branch.name})
+                assigned_branches.append({
+                    "id": branch.id, 
+                    "name": branch.name,
+                    "type": getattr(branch, "type", "branch"),
+                    "code": getattr(branch, "code", ""),
+                    "is_main": getattr(branch, "is_main", False)
+                })
 
         # ── Resolve pharmacy_id ────────────────────────────────────────────────
         pharmacy = db.query(Pharmacy).filter(
@@ -177,12 +196,19 @@ class AuthService:
             permissions = list(user.permissions) if user.permissions else []
 
         # ── Create JWT ─────────────────────────────────────────────────────────
+        jwt_permissions = permissions
+        if hierarchy_level >= 3:
+            # Prevent 431 Request Header Fields Too Large by removing granular permissions
+            # from the JWT. The backend will fetch them from the DB dynamically.
+            # The frontend still receives the full list in the `user_data` JSON body below.
+            jwt_permissions = []
+
         access_token = create_access_token(
             subject             = user.id,
             tenant_id           = user.tenant_id or "",
             branch_id           = branch_id,
             role                = role_name,
-            permissions         = permissions,
+            permissions         = jwt_permissions,
             pharmacy_id         = pharmacy_id,
             is_super_admin      = is_sa,
             assigned_branches   = [b["id"] for b in assigned_branches],

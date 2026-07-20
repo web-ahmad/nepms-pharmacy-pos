@@ -17,9 +17,12 @@ class HRRepository:
         self.db = db
 
     # Departments
-    def get_departments(self, tenant_id: str):
+    def get_departments(self, tenant_id: str, branch_id: str = None):
         # Return departments with employee count
-        depts = self.db.query(Department).filter(Department.tenant_id == tenant_id).all()
+        q = self.db.query(Department).filter(Department.tenant_id == tenant_id)
+        if branch_id:
+            q = q.filter(Department.branch_id == branch_id)
+        depts = q.all()
         result = []
         for d in depts:
             d_dict = {
@@ -36,8 +39,11 @@ class HRRepository:
     def get_department(self, tenant_id: str, dept_id: str):
         return self.db.query(Department).filter(Department.tenant_id == tenant_id, Department.id == dept_id).first()
 
-    def create_department(self, tenant_id: str, obj_in: DepartmentCreate):
-        db_obj = Department(tenant_id=tenant_id, **obj_in.model_dump())
+    def create_department(self, tenant_id: str, obj_in: DepartmentCreate, branch_id: str = None):
+        dump = obj_in.model_dump()
+        if branch_id:
+            dump['branch_id'] = branch_id
+        db_obj = Department(tenant_id=tenant_id, **dump)
         self.db.add(db_obj)
         self.db.commit()
         self.db.refresh(db_obj)
@@ -72,8 +78,11 @@ class HRRepository:
         return True
 
     # Designations
-    def get_designations(self, tenant_id: str):
-        designations = self.db.query(Designation).filter(Designation.tenant_id == tenant_id).all()
+    def get_designations(self, tenant_id: str, branch_id: str = None):
+        q = self.db.query(Designation).filter(Designation.tenant_id == tenant_id)
+        if branch_id:
+            q = q.filter(Designation.branch_id == branch_id)
+        designations = q.all()
         result = []
         for d in designations:
             result.append({
@@ -90,8 +99,11 @@ class HRRepository:
     def get_designation(self, tenant_id: str, desig_id: str):
         return self.db.query(Designation).filter(Designation.tenant_id == tenant_id, Designation.id == desig_id).first()
 
-    def create_designation(self, tenant_id: str, obj_in):
-        db_obj = Designation(tenant_id=tenant_id, **obj_in.model_dump())
+    def create_designation(self, tenant_id: str, obj_in, branch_id: str = None):
+        dump = obj_in.model_dump()
+        if branch_id:
+            dump['branch_id'] = branch_id
+        db_obj = Designation(tenant_id=tenant_id, **dump)
         self.db.add(db_obj)
         self.db.commit()
         self.db.refresh(db_obj)
@@ -115,14 +127,17 @@ class HRRepository:
         return db_obj
 
     # Employees
-    def get_employees(self, tenant_id: str):
+    def get_employees(self, tenant_id: str, branch_id: str = None):
         from sqlalchemy.orm import joinedload
-        return self.db.query(Employee).options(joinedload(Employee.department)).filter(Employee.tenant_id == tenant_id).all()
+        q = self.db.query(Employee).options(joinedload(Employee.department)).filter(Employee.tenant_id == tenant_id)
+        if branch_id:
+            q = q.filter(Employee.branch_id == branch_id)
+        return q.all()
 
     def get_employee(self, tenant_id: str, employee_id: str):
         return self.db.query(Employee).filter(Employee.tenant_id == tenant_id, Employee.id == employee_id).first()
 
-    def create_employee(self, tenant_id: str, obj_in: EmployeeCreate):
+    def create_employee(self, tenant_id: str, obj_in: EmployeeCreate, branch_id: str = None):
         dump = obj_in.model_dump()
         dump.pop('system_access', None)
         dump.pop('password', None)
@@ -131,6 +146,9 @@ class HRRepository:
         if not dump.get('employee_id'):
             count = self.db.query(Employee).filter(Employee.tenant_id == tenant_id).count()
             dump['employee_id'] = f"EMP-{1001 + count}"
+            
+        if branch_id is not None:
+            dump['branch_id'] = branch_id
             
         db_obj = Employee(tenant_id=tenant_id, **dump)
         self.db.add(db_obj)
@@ -169,10 +187,13 @@ class HRRepository:
 
     def get_attendances_enriched(
         self, tenant_id: str, target_date: date = None,
-        employee_id: str = None, month: int = None, year: int = None
+        employee_id: str = None, month: int = None, year: int = None,
+        branch_id: str = None
     ):
         """Return attendance records with employee name, shift name, total_hours_worked."""
         q = self.db.query(Attendance).filter(Attendance.tenant_id == tenant_id)
+        if branch_id:
+            q = q.join(Employee).filter(Employee.branch_id == branch_id)
         if employee_id:
             q = q.filter(Attendance.employee_id == employee_id)
         if month and year:
@@ -270,7 +291,7 @@ class HRRepository:
         if not emp:
             return None
 
-        now = datetime.utcnow()
+        now = datetime.now()
         today = now.date()
         status = "Present"
 
@@ -584,14 +605,20 @@ class HRRepository:
         return db_obj
 
     # Shifts
-    def get_shifts(self, tenant_id: str):
-        return self.db.query(Shift).filter(Shift.tenant_id == tenant_id).all()
+    def get_shifts(self, tenant_id: str, branch_id: str = None):
+        q = self.db.query(Shift).filter(Shift.tenant_id == tenant_id)
+        if branch_id:
+            q = q.filter(Shift.branch_id == branch_id)
+        return q.all()
 
     def get_shift(self, tenant_id: str, shift_id: str):
         return self.db.query(Shift).filter(Shift.tenant_id == tenant_id, Shift.id == shift_id).first()
 
-    def create_shift(self, tenant_id: str, obj_in: ShiftCreate):
-        db_obj = Shift(tenant_id=tenant_id, **obj_in.model_dump())
+    def create_shift(self, tenant_id: str, obj_in: ShiftCreate, branch_id: str = None):
+        dump = obj_in.model_dump()
+        if branch_id:
+            dump['branch_id'] = branch_id
+        db_obj = Shift(tenant_id=tenant_id, **dump)
         self.db.add(db_obj)
         self.db.commit()
         self.db.refresh(db_obj)

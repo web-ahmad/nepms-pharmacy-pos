@@ -48,6 +48,8 @@ api.interceptors.request.use(
       const branchId = useAuthStore.getState().branchId;
       if (branchId) {
         config.headers['X-Branch-Id'] = branchId;
+      } else {
+        config.headers['X-Branch-Id'] = 'all';
       }
     }
     return config;

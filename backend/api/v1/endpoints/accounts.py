@@ -29,10 +29,10 @@ router = APIRouter(dependencies=[Depends(require_module("journals"))])
 def _is_accounting_admin(user: User) -> bool:
     if getattr(user, 'is_super_admin', False):
         return True
-    if user.role and getattr(user.role, 'name', '') in ["Super Admin", "Admin", "Pharmacy Owner", "Owner", "Branch Owner", "General Manager"]:
+    if user.role and getattr(user.role, 'name', '') in ["Super Admin", "Admin", "Pharmacy Owner", "Owner", "Franchise Owner", "General Manager"]:
         return True
     eu = getattr(user, "enterprise_user", None)
-    if eu and getattr(eu, "enterprise_role", None) and getattr(eu.enterprise_role, 'name', '') in ["Super Admin", "Admin", "Pharmacy Owner", "Owner", "Branch Owner", "General Manager"]:
+    if eu and getattr(eu, "enterprise_role", None) and getattr(eu.enterprise_role, 'name', '') in ["Super Admin", "Admin", "Pharmacy Owner", "Owner", "Franchise Owner", "General Manager"]:
         return True
     return False
 

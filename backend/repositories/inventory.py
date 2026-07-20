@@ -9,7 +9,7 @@ class CRUDMedicine(CRUDBase[Medicine, MedicineCreate, MedicineUpdate]):
     def get(self, db: Session, id: Any, tenant_id: str) -> Optional[Medicine]:
         return db.query(self.model).filter(
             self.model.id == id,
-            or_(self.model.tenant_id == tenant_id, self.model.tenant_id == None),
+            self.model.tenant_id == tenant_id,
             self.model.is_deleted == False
         ).first()
 
@@ -90,7 +90,7 @@ class CRUDMedicine(CRUDBase[Medicine, MedicineCreate, MedicineUpdate]):
             joinedload(Medicine.batches),
             joinedload(Medicine.packaging_levels)
         ).filter(
-            or_(Medicine.tenant_id == tenant_id, Medicine.tenant_id == None),
+            Medicine.tenant_id == tenant_id,
             Medicine.is_deleted == False,
             or_(
                 Medicine.name.ilike(f"%{search_term}%"),
@@ -124,7 +124,7 @@ class CRUDBatch(CRUDBase[Batch, BatchCreate, BatchCreate]): # UpdateSchema not d
         from sqlalchemy import func
         today = date.today()
         q = db.query(Batch).filter(
-            or_(Batch.tenant_id == tenant_id, Batch.tenant_id == None),
+            Batch.tenant_id == tenant_id,
             Batch.medicine_id == medicine_id,
             Batch.is_deleted == False,
             Batch.status == "Active",

@@ -12,6 +12,7 @@ export interface Role {
   is_system_default: boolean;
   branch_scope: string;
   data_scope: string;
+  hierarchy_level?: number;
   permissions: string[]; // List of permission codes
 }
 

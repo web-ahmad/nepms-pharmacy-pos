@@ -1,15 +1,18 @@
 "use client";
 
+import React, { useState } from 'react';
 import { useAnalyticsKPIs, useDashboardCharts } from '@/features/analytics/services/analytics.api';
 import { 
   AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
 import { format, subDays } from 'date-fns';
-import { TrendingUp, TrendingDown, Info, AlertTriangle, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, AlertTriangle, AlertCircle, BarChart2, Map } from 'lucide-react';
 import Link from 'next/link';
+import { GeospatialAnalytics } from '@/features/analytics/components/GeospatialAnalytics';
 
 export default function AnalyticsDashboardPage() {
+  const [activeTab, setActiveTab] = useState<'overview' | 'geospatial'>('overview');
   const { data: kpi, isLoading: kpiLoading } = useAnalyticsKPIs();
 
   const { data: chartsData, isLoading: chartLoading, isError } = useDashboardCharts({
@@ -65,10 +68,43 @@ export default function AnalyticsDashboardPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Enterprise Analytics</h1>
-        <p className="text-zinc-500 dark:text-zinc-400">Deep, actionable business intelligence.</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Enterprise Analytics</h1>
+          <p className="text-zinc-500 dark:text-zinc-400">Deep, actionable business intelligence.</p>
+        </div>
+        
+        {/* Module Tabs */}
+        <div className="flex bg-zinc-100 dark:bg-zinc-900 p-1 rounded-xl">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'overview' 
+                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm' 
+                : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            <BarChart2 className="w-4 h-4 mr-2" />
+            Financial Overview
+          </button>
+          <button
+            onClick={() => setActiveTab('geospatial')}
+            className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'geospatial' 
+                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm' 
+                : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            <Map className="w-4 h-4 mr-2" />
+            Geospatial Intelligence
+          </button>
+        </div>
       </div>
+
+      {activeTab === 'geospatial' ? (
+        <GeospatialAnalytics />
+      ) : (
+        <div className="space-y-6">
 
       {isDataEmpty && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center shadow-sm dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300">
@@ -300,6 +336,8 @@ export default function AnalyticsDashboardPage() {
         )}
       </div>
 
+    </div>
+      )}
     </div>
   );
 }

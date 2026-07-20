@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -105,6 +106,7 @@ async def startup_event():
     
     # Initialize APScheduler for Cron Jobs
     try:
+        # pyrefly: ignore [missing-import]
         from apscheduler.schedulers.background import BackgroundScheduler
         from services.risk_service import calculate_weekly_risk_scores
         from services.nightly_inventory_audit import run_nightly_inventory_audit

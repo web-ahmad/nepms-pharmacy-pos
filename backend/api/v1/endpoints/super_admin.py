@@ -120,13 +120,13 @@ class PharmacyPatchRequest(BaseModel):
 # ── Helper: build stats for one pharmacy ──────────────────────────────────────
 
 def _pharmacy_stats(pharmacy: Pharmacy, db: Session) -> dict:
-    staff_count = db.query(func.count(User.id)).filter(
-        User.pharmacy_id == pharmacy.id,
-        User.is_deleted == False,
+    staff_count = db.query(func.count(BaseUser.id)).filter(
+        BaseUser.tenant_id == pharmacy.tenant_id,
+        BaseUser.is_deleted == False,
     ).scalar() or 0
 
     branches = db.query(Branch).filter(
-        Branch.pharmacy_id == pharmacy.id,
+        Branch.tenant_id == pharmacy.tenant_id,
         Branch.is_deleted == False,
     ).all()
 
@@ -202,9 +202,18 @@ def create_pharmacy(
     )
     db.add(pharmacy)
     db.flush()
-    # Branch creation is skipped per user request. Branches will be created separately as franchises/branches.
-
-
+    # 3. Create default Main Branch
+    from models.users import Branch
+    main_branch = Branch(
+        id=str(uuid.uuid4()),
+        tenant_id=tenant.id,
+        name="Main Pharmacy",
+        address="Head Office",
+        is_main=True,
+        created_at=datetime.utcnow()
+    )
+    db.add(main_branch)
+    db.flush()
     # 4. Create base auth user
     auth_user = User(
         id=str(uuid.uuid4()),
@@ -268,7 +277,7 @@ def get_pharmacy_detail(
 
     # Add extended details
     branches = db.query(Branch).filter(
-        Branch.pharmacy_id == pharmacy_id,
+        Branch.tenant_id == pharmacy.tenant_id,
         Branch.is_deleted == False,
     ).all()
     stats["branches"] = [
@@ -276,9 +285,9 @@ def get_pharmacy_detail(
         for b in branches
     ]
 
-    users = db.query(User).filter(
-        User.pharmacy_id == pharmacy_id,
-        User.is_deleted == False,
+    users = db.query(BaseUser).filter(
+        BaseUser.tenant_id == pharmacy.tenant_id,
+        BaseUser.is_deleted == False,
     ).all()
     stats["users"] = [
         {"id": u.id, "username": u.username, "full_name": u.full_name, "email": u.email, "is_active": u.is_active}

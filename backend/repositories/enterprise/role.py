@@ -334,33 +334,17 @@ DEFAULT_ROLES: Dict[str, Dict] = {
         "icon":         "Crown",
         "sort_order":   3,
         "is_system_role": False,
-        "permissions":  _merge(
-            _SALES_FULL, _INVENTORY_FULL, _PURCHASE_FULL,
-            _ACCOUNTING_FULL, _HR_FULL, _CRM_FULL, _REPORTS_FULL,
-            _AUDIT_READ, _BRANCHES_MANAGE, _USERS_MANAGE, _SETTINGS_FULL, _NOTIFICATIONS,
-            _perm("prescriptions:manage", "doctors:manage",
-                  "compliance:manage", "ocr_queue:manage",
-                  "system_health:view", "backups:view",
-                  "system_logs:view", "notifications:manage",
-                  "executive_dashboard:view"),
-        ),
+        "permissions":  ["*tenant"],
     },
-    "Branch Owner": {
+    "Franchise Owner": {
+        "hierarchy_level": 3,
         "branch_scope": "assigned_branch",
-        "data_scope":   "branch",
+        "data_scope": "branch",
         "color":        "#6366f1",
         "icon":         "Building",
         "sort_order":   4,
         "is_system_role": False,
-        "permissions":  _merge(
-            _SALES_FULL, _INVENTORY_FULL, _PURCHASE_FULL,
-            _ACCOUNTING_FULL, _HR_FULL, _CRM_FULL, _REPORTS_FULL,
-            _AUDIT_READ, _SETTINGS_FULL, _NOTIFICATIONS,
-            _perm("prescriptions:manage", "doctors:manage",
-                  "compliance:manage", "ocr_queue:manage",
-                  "system_health:view", "backups:view",
-                  "system_logs:view", "notifications:manage"),
-        ),
+        "permissions":  ["*tenant-branch"],
     },
     "Branch Manager": {
         "branch_scope": "assigned_branch",
@@ -745,7 +729,39 @@ class RoleRepository(CRUDBase[EnterpriseRole, RoleCreate, RoleUpdate]):
             }
 
             # Determine which codes to assign
-            codes_to_add = list(all_perms.keys()) if "*" in perm_codes else perm_codes
+            if "*" in perm_codes:
+                codes_to_add = list(all_perms.keys())
+            elif "*tenant" in perm_codes or "*tenant-branch" in perm_codes:
+                saas_prefixes = (
+                    "tenant:", "subscription:", "billing:", "saas_settings:", 
+                    "feature_flags:", "system_health:", "system_logs:", 
+                    "backups:", "superadmin_audit:", "superadmin:", "system:", "super_admin:"
+                )
+                codes_to_add = [code for code in all_perms.keys() if not code.startswith(saas_prefixes)]
+                
+                if "*tenant-branch" in perm_codes:
+                    # L3+ (Branch Level) gets ZERO access to branches & branch_settings
+                    # L3+ also cannot assign branches to users
+                    codes_to_add = [
+                        code for code in codes_to_add 
+                        if not code.startswith("branches:") 
+                        and not code.startswith("branch_settings:")
+                        and code != "users:assign_branch"
+                    ]
+                else:
+                    # L2 (Pharmacy Owner) gets ONLY view access to branches
+                    codes_to_add = [
+                        code for code in codes_to_add 
+                        if not (code.startswith("branches:") and code != "branches:view")
+                    ]
+                    
+                if "tenant:create" in codes_to_add:
+                    codes_to_add.remove("tenant:create")
+            else:
+                codes_to_add = perm_codes
+                
+            # Deduplicate the list to ensure no duplicates exist before inserting
+            codes_to_add = list(set(codes_to_add))
 
             for code in codes_to_add:
                 perm = all_perms.get(code)

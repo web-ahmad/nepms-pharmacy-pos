@@ -57,14 +57,24 @@ def list_or_search_medicines(
     """
     List all medicines with optional search and filters.
     """
+    # If no branch is explicitly selected (Global mode), default to Main Pharmacy 
+    # so that inventory and POS don't aggregate everything from all franchises.
+    effective_branch_id = scope.branch_id
+    if not effective_branch_id:
+        from models.users import Branch
+        main_branch = db.query(Branch).filter(Branch.tenant_id == scope.tenant_id, Branch.is_main == True).first()
+        if main_branch:
+            effective_branch_id = main_branch.id
+
     query = db.query(Medicine).options(joinedload(Medicine.packaging_levels)).filter(
         Medicine.is_deleted == False,
-        or_(Medicine.tenant_id == scope.tenant_id, Medicine.tenant_id == None)
+        Medicine.tenant_id == scope.tenant_id
     )
     
-    if scope.branch_id:
-        query = query.filter(Medicine.batches.any(and_(Batch.branch_id == scope.branch_id, Batch.is_deleted == False)))
-        query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == scope.branch_id, Batch.is_deleted == False))
+    # Apply outer join without the filter that completely hides medicines without batches.
+    # A medicine should always show up. Its batches for the specific branch will be loaded via contains_eager.
+    if effective_branch_id:
+        query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == effective_branch_id, Batch.is_deleted == False))
     else:
         query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.is_deleted == False))
 
@@ -98,8 +108,8 @@ def list_or_search_medicines(
         if warehouse_id:
             batch_stats = batch_stats.filter(Batch.warehouse_id == warehouse_id)
             
-        if scope.branch_id:
-            batch_stats = batch_stats.filter(Batch.branch_id == scope.branch_id)
+        if effective_branch_id:
+            batch_stats = batch_stats.filter(Batch.branch_id == effective_branch_id)
             
         batch_stats = batch_stats.group_by(Batch.medicine_id).subquery()
         
@@ -125,7 +135,7 @@ def list_or_search_medicines(
     role = token_payload.get("role", "")
     permissions = token_payload.get("permissions", [])
     is_sa = token_payload.get("is_super_admin", False)
-    allowed_roles = ["Owner", "Pharmacy Owner", "Branch Owner", "Super Admin", "General Manager", "Admin", "Inventory Manager"]
+    allowed_roles = ["Owner", "Pharmacy Owner", "Franchise Owner", "Super Admin", "General Manager", "Admin", "Inventory Manager"]
     can_view_profit = is_sa or role in allowed_roles or "*" in permissions or "reports:view" in permissions
     
     resp_items = []
@@ -217,9 +227,16 @@ def create_medicine(
         db.flush()
 
         if initial_batch and initial_batch.current_stock > 0:
+            target_branch_id = scope.branch_id
+            if not target_branch_id:
+                from models.users import Branch
+                main_branch = db.query(Branch).filter(Branch.tenant_id == scope.tenant_id, Branch.is_main == True).first()
+                if main_branch:
+                    target_branch_id = main_branch.id
+
             batch = Batch(
                 tenant_id=scope.tenant_id,
-                branch_id=scope.branch_id,
+                branch_id=target_branch_id,
                 medicine_id=med.id,
                 batch_number=initial_batch.batch_number,
                 manufacturing_date=initial_batch.manufacturing_date,
@@ -240,7 +257,7 @@ def create_medicine(
             
             movement = StockMovement(
                 tenant_id=scope.tenant_id,
-                branch_id=scope.branch_id,
+                branch_id=target_branch_id,
                 medicine_id=med.id,
                 batch_id=batch.id,
                 user_id=current_user.id,
@@ -268,7 +285,7 @@ def create_medicine(
                         reference=f"OPENING-MED-{med.id[:8]}",
                         amount=total_value,
                         description=f"Opening Stock for {med.name}",
-                        branch_id=scope.branch_id,
+                        branch_id=target_branch_id,
                         source_module="Inventory",
                         source_id=batch.id
                     )
@@ -299,7 +316,7 @@ def get_medicine(
     role = token_payload.get("role", "")
     permissions = token_payload.get("permissions", [])
     is_sa = token_payload.get("is_super_admin", False)
-    allowed_roles = ["Owner", "Pharmacy Owner", "Branch Owner", "Super Admin", "General Manager", "Admin", "Inventory Manager"]
+    allowed_roles = ["Owner", "Pharmacy Owner", "Franchise Owner", "Super Admin", "General Manager", "Admin", "Inventory Manager"]
     can_view_profit = is_sa or role in allowed_roles or "*" in permissions or "reports:view" in permissions
     if not can_view_profit:
         resp.stock_value = 0.0
@@ -563,10 +580,17 @@ def bulk_import_medicines(
                     db.rollback()
                     failed_items.append({"name": medicine_in.name, "reason": "Purchase Price is required when opening stock is > 0"})
                     continue
+                    
+                target_branch_id = scope.branch_id
+                if not target_branch_id:
+                    from models.users import Branch
+                    main_branch = db.query(Branch).filter(Branch.tenant_id == scope.tenant_id, Branch.is_main == True).first()
+                    if main_branch:
+                        target_branch_id = main_branch.id
 
                 batch = Batch(
                     tenant_id=scope.tenant_id,
-                    branch_id=scope.branch_id,
+                    branch_id=target_branch_id,
                     medicine_id=med.id,
                     batch_number=initial_batch.batch_number,
                     manufacturing_date=initial_batch.manufacturing_date,
@@ -587,7 +611,7 @@ def bulk_import_medicines(
                 
                 movement = StockMovement(
                     tenant_id=scope.tenant_id,
-                    branch_id=scope.branch_id,
+                    branch_id=target_branch_id,
                     medicine_id=med.id,
                     batch_id=batch.id,
                     user_id=current_user.id,
@@ -611,7 +635,7 @@ def bulk_import_medicines(
                         user_id=current_user.id,
                         reference=f"OPEN-{batch.batch_number}",
                         amount=total_value,
-                        branch_id=scope.branch_id,
+                        branch_id=target_branch_id,
                         source_module="Inventory",
                         source_id=batch.id
                     )

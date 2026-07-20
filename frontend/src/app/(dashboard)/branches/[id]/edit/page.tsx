@@ -1,8 +1,7 @@
 'use client';
 // app/(dashboard)/branches/[id]/edit/page.tsx — Edit Branch Page
 
-import { use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import { ChevronLeft, Loader2, Save, CheckCircle2 } from 'lucide-react';
@@ -24,13 +23,13 @@ function Field({ label, children, error }: { label: string; children: React.Reac
   );
 }
 
-export default function EditBranchPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function EditBranchPage() {
+  const { id } = useParams() as { id: string };
   const router = useRouter();
   const { data: branch, isLoading: branchLoading } = useBranch(id);
   const { mutate: updateBranch, isPending } = useUpdateBranch(id);
 
-  const { register, handleSubmit, formState: { errors, isDirty } } = useForm<BranchUpdate>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isDirty } } = useForm<BranchUpdate>({
     values: branch ? {
       name:    branch.name,
       code:    branch.code,
@@ -60,6 +59,8 @@ export default function EditBranchPage({ params }: { params: Promise<{ id: strin
       receipt_footer:      branch.receipt_footer,
     } : undefined,
   });
+
+  const themeColor = watch('theme_color');
 
   function onSubmit(data: BranchUpdate) {
     updateBranch(data, {
@@ -122,7 +123,7 @@ export default function EditBranchPage({ params }: { params: Promise<{ id: strin
           </Field>
           <Field label="Theme Color">
             <div className="flex items-center gap-3">
-              <input {...register('theme_color')} type="color"
+              <input type="color" value={themeColor || '#6366f1'} onChange={(e) => setValue('theme_color', e.target.value, { shouldDirty: true })}
                 className="w-12 h-10 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer p-1" />
               <input {...register('theme_color')} placeholder="#6366f1" className={`${inputClass} flex-1`} />
             </div>

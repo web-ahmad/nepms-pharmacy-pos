@@ -23,20 +23,71 @@ class HRService:
         self.auto_posting = AutoPostingService(db)
         self.db = db
 
-    def get_analytics(self, tenant_id: str):
-        # Stub implementation
+    def get_analytics(self, tenant_id: str, branch_id: str = None):
+        from models.hr import Employee, LeaveRequest, Attendance
+        from sqlalchemy import func
+        from datetime import date
+        
+        today = date.today()
+        
+        # Employees
+        emp_q = self.db.query(Employee).filter(Employee.tenant_id == tenant_id)
+        if branch_id:
+            emp_q = emp_q.filter(Employee.branch_id == branch_id)
+            
+        total_employees = emp_q.count()
+        active_employees = emp_q.filter(Employee.is_active == True).count()
+        
+        # Payroll Cost
+        monthly_payroll_cost = emp_q.filter(Employee.is_active == True, Employee.salary_type == 'Monthly').with_entities(func.sum(Employee.base_salary)).scalar() or 0.0
+        
+        # Leaves
+        leave_q = self.db.query(LeaveRequest).join(Employee).filter(LeaveRequest.tenant_id == tenant_id, LeaveRequest.status == "Pending")
+        if branch_id:
+            leave_q = leave_q.filter(Employee.branch_id == branch_id)
+        pending_leaves = leave_q.count()
+        
+        # Attendance
+        att_q = self.db.query(Attendance).join(Employee).filter(Attendance.tenant_id == tenant_id, Attendance.date == today)
+        if branch_id:
+            att_q = att_q.filter(Employee.branch_id == branch_id)
+        present_today = att_q.filter(Attendance.status == "Present").count()
+        late_today = att_q.filter(Attendance.status == "Late").count()
+
+        # On Leave Today
+        on_leave_q = self.db.query(LeaveRequest).join(Employee).filter(
+            LeaveRequest.tenant_id == tenant_id, 
+            LeaveRequest.status == "Approved",
+            LeaveRequest.start_date <= today,
+            LeaveRequest.end_date >= today
+        )
+        if branch_id:
+            on_leave_q = on_leave_q.filter(Employee.branch_id == branch_id)
+        on_leave_today = on_leave_q.count()
+        
+        absent_today = max(0, active_employees - (present_today + late_today + on_leave_today))
+        
+        attendance_percent = ((present_today + late_today) / active_employees * 100) if active_employees > 0 else 0.0
+        
         return {
-            "total_employees": 0,
-            "active_employees": 0,
-            "attendance_percent": 0.0,
-            "pending_leaves": 0,
-            "monthly_payroll_cost": 0.0
+            "total_employees": total_employees,
+            "active_employees": active_employees,
+            "attendance_percent": round(attendance_percent, 2),
+            "present_today": present_today,
+            "late_today": late_today,
+            "absent_today": absent_today,
+            "on_leave_today": on_leave_today,
+            "pending_leaves": pending_leaves,
+            "monthly_payroll_cost": float(monthly_payroll_cost),
+            "open_tasks": 0,
+            "training_progress": 0,
+            "pending_reviews": 0,
         }
 
-    def get_departments(self, tenant_id: str):
-        return self.repo.get_departments(tenant_id)
+    def get_departments(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_departments(tenant_id, branch_id)
 
-    def create_department(self, tenant_id: str, obj_in: DepartmentCreate):
+    def create_department(self, tenant_id: str, obj_in: DepartmentCreate, branch_id: str = None):
         from models.hr import Department
         from fastapi import HTTPException
         
@@ -47,7 +98,7 @@ class HRService:
         if existing:
             raise HTTPException(status_code=400, detail=f"Department with name '{obj_in.name}' already exists.")
             
-        return self.repo.create_department(tenant_id, obj_in)
+        return self.repo.create_department(tenant_id, obj_in, branch_id)
 
     def update_department(self, tenant_id: str, dept_id: str, obj_in):
         from models.hr import Department
@@ -74,11 +125,11 @@ class HRService:
             raise HTTPException(status_code=404, detail="Department not found")
         return {"message": "Department deleted successfully"}
 
-    def get_designations(self, tenant_id: str):
-        return self.repo.get_designations(tenant_id)
+    def get_designations(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_designations(tenant_id, branch_id)
 
-    def create_designation(self, tenant_id: str, obj_in):
-        return self.repo.create_designation(tenant_id, obj_in)
+    def create_designation(self, tenant_id: str, obj_in, branch_id: str = None):
+        return self.repo.create_designation(tenant_id, obj_in, branch_id)
 
     def update_designation(self, tenant_id: str, desig_id: str, obj_in):
         desig = self.repo.update_designation(tenant_id, desig_id, obj_in)
@@ -86,8 +137,8 @@ class HRService:
             raise HTTPException(404, "Designation not found")
         return desig
 
-    def get_employees(self, tenant_id: str):
-        return self.repo.get_employees(tenant_id)
+    def get_employees(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_employees(tenant_id, branch_id)
 
     def get_employee(self, tenant_id: str, emp_id: str):
         emp = self.repo.get_employee(tenant_id, emp_id)
@@ -95,7 +146,7 @@ class HRService:
             raise HTTPException(404, "Employee not found")
         return emp
 
-    def create_employee(self, tenant_id: str, user_id: str, obj_in: EmployeeCreate):
+    def create_employee(self, tenant_id: str, user_id: str, obj_in: EmployeeCreate, branch_id: str = None):
         new_user = None
         if obj_in.system_access:
             if not obj_in.email:
@@ -124,12 +175,14 @@ class HRService:
             self.db.add(new_user)
             self.db.flush()
             
-            if obj_in.branch_id:
-                user_branch = UserBranch(user_id=new_user.id, branch_id=obj_in.branch_id)
+            # The employee's branch_id is now either explicitly passed from scope or from obj_in
+            user_branch_id = branch_id or getattr(obj_in, 'branch_id', None)
+            if user_branch_id:
+                user_branch = UserBranch(user_id=new_user.id, branch_id=user_branch_id)
                 self.db.add(user_branch)
                 self.db.flush()
 
-        emp = self.repo.create_employee(tenant_id, obj_in)
+        emp = self.repo.create_employee(tenant_id, obj_in, branch_id=branch_id)
         
         if new_user:
             emp.user_id = new_user.id
@@ -161,10 +214,11 @@ class HRService:
 
     def get_attendance_logs(
         self, tenant_id: str, target_date: date = None,
-        employee_id: str = None, month: int = None, year: int = None
+        employee_id: str = None, month: int = None, year: int = None,
+        branch_id: str = None
     ):
         """Return enriched attendance logs (with employee name, shift, hours)."""
-        return self.repo.get_attendances_enriched(tenant_id, target_date, employee_id, month, year)
+        return self.repo.get_attendances_enriched(tenant_id, target_date, employee_id, month, year, branch_id)
 
     def get_today_attendance(self, tenant_id: str, employee_id: str):
         """Fetch today's attendance record for the given employee."""
@@ -234,11 +288,11 @@ class HRService:
         self.db.commit()
         return updated
 
-    def get_shifts(self, tenant_id: str):
-        return self.repo.get_shifts(tenant_id)
+    def get_shifts(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_shifts(tenant_id, branch_id)
 
-    def create_shift(self, tenant_id: str, obj_in: ShiftCreate):
-        return self.repo.create_shift(tenant_id, obj_in)
+    def create_shift(self, tenant_id: str, obj_in: ShiftCreate, branch_id: str = None):
+        return self.repo.create_shift(tenant_id, obj_in, branch_id)
 
     def update_shift(self, tenant_id: str, shift_id: str, obj_in):
         shift = self.repo.update_shift(tenant_id, shift_id, obj_in)
@@ -335,9 +389,6 @@ class HRService:
         except Exception as e:
             self.db.rollback()
             raise HTTPException(status_code=400, detail=str(e))
-
-    def get_analytics(self, tenant_id: str):
-        return self.repo.get_analytics(tenant_id)
 
     # Advance Salary Methods
     def get_advances(self, tenant_id: str):

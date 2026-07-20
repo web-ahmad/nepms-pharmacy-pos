@@ -347,14 +347,10 @@ export function TopNavigation() {
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex flex-1 items-center gap-4">
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 tracking-tight">
-          Pharmacy Dashboard
-        </h1>
+        <BranchSwitcher />
       </div>
 
       <div className="flex items-center gap-1">
-        {/* Branch */}
-        <BranchSwitcher />
 
         {/* ── Alert icon buttons + trays ── */}
         <div ref={trayRef} className="flex items-center gap-1 relative">
