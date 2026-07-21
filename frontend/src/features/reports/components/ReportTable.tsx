@@ -112,7 +112,7 @@ export default function ReportTable({ data, isLoading }: ReportTableProps) {
               <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 relative z-10">{key}</p>
               <p className="mt-2 text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 relative z-10">
                 {typeof value === 'number' && (key.toLowerCase().includes('total') || key.toLowerCase().includes('profit') || key.toLowerCase().includes('cost') || key.toLowerCase().includes('impact') || key.toLowerCase().includes('value'))
-                  ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 }).format(value)
+                  ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'PKR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value)
                   : new Intl.NumberFormat('en-US').format(Number(value) || value)}
               </p>
             </div>
@@ -121,28 +121,28 @@ export default function ReportTable({ data, isLoading }: ReportTableProps) {
       )}
 
       {/* Main Table */}
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden dark:border-zinc-800 dark:bg-zinc-950/50">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-zinc-600 dark:text-zinc-400">
-            <thead className="bg-zinc-50/80 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:bg-zinc-900/80 dark:text-zinc-400">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="border-b border-zinc-200 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-900/50">
               <tr>
-                {data.headers.map((header) => (
+                {data.headers.map((key) => (
                   <th 
-                    key={header} 
-                    className="group cursor-pointer px-6 py-4 select-none hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors"
-                    onClick={() => requestSort(header)}
+                    key={key}
+                    onClick={() => requestSort(key)}
+                    className="group cursor-pointer select-none px-6 py-4 text-xs font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-700 transition-colors dark:text-zinc-400 dark:hover:text-zinc-200"
                   >
                     <div className="flex items-center">
-                      {header.replace(/_/g, ' ')}
-                      {getSortIcon(header)}
+                      {key.replace(/_/g, ' ')}
+                      {getSortIcon(key)}
                     </div>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/50 bg-white dark:bg-transparent">
               {paginatedRows.map((row, i) => (
-                <tr key={i} className="transition-colors hover:bg-zinc-50/80 dark:hover:bg-zinc-900/50">
+                <tr key={i} className="hover:bg-zinc-50/80 transition-colors dark:hover:bg-zinc-900/30">
                   {data.headers.map((header) => (
                     <td key={`${i}-${header}`} className="whitespace-nowrap px-6 py-3.5">
                       {formatValue(header, row[header])}
@@ -156,28 +156,28 @@ export default function ReportTable({ data, isLoading }: ReportTableProps) {
         
         {/* Pagination Footer */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-6 py-3 dark:border-zinc-800 dark:bg-zinc-900/50">
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              Showing <span className="font-medium text-zinc-900 dark:text-zinc-200">{(currentPage - 1) * rowsPerPage + 1}</span> to{' '}
-              <span className="font-medium text-zinc-900 dark:text-zinc-200">{Math.min(currentPage * rowsPerPage, sortedRows.length)}</span> of{' '}
-              <span className="font-medium text-zinc-900 dark:text-zinc-200">{sortedRows.length}</span> records
-            </span>
-            <div className="flex items-center gap-1">
+          <div className="flex items-center justify-between border-t border-zinc-200 bg-white px-6 py-4 dark:border-zinc-800 dark:bg-transparent">
+            <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              Showing <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{((currentPage - 1) * rowsPerPage) + 1}</span> to <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{Math.min(currentPage * rowsPerPage, sortedRows.length)}</span> of <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{sortedRows.length}</span> entries
+            </div>
+            <div className="flex items-center space-x-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="inline-flex h-8 w-8 items-center justify-center rounded border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 disabled:opacity-50 disabled:pointer-events-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
               >
-                <span className="sr-only">Previous</span>
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft size={16} />
               </button>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Page {currentPage}</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">of {totalPages}</span>
+              </div>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="inline-flex h-8 w-8 items-center justify-center rounded border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 disabled:opacity-50 disabled:pointer-events-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"
               >
-                <span className="sr-only">Next</span>
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>

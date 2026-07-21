@@ -10,6 +10,17 @@ class DateRangeParams(BaseModel):
     cashier_id: Optional[str] = None
     export_format: Optional[str] = None # csv, excel, pdf
 
+class CustomReportFilter(BaseModel):
+    column: str
+    operator: str # 'eq', 'gt', 'lt', 'contains'
+    value: Any
+
+class CustomReportPayload(BaseModel):
+    base_entity: str # 'sales', 'inventory', 'purchases'
+    selected_columns: List[str]
+    filters: Optional[List[CustomReportFilter]] = []
+    group_by: Optional[str] = None
+
 class ReportResponse(BaseModel):
     title: str
     headers: List[str]

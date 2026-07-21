@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional, List
-from datetime import date
+from datetime import date, timedelta
 
 from database import get_db
 from models.users import User
 from api.v1.endpoints.auth import get_current_user
-from schemas.reports import DateRangeParams
+from schemas.reports import DateRangeParams, CustomReportPayload
 import schemas.reports
 from services.reports_service import ReportsService
+from services.dynamic_report_engine import DynamicReportEngine
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
@@ -16,15 +17,53 @@ router = APIRouter()
 def get_reports_service(db: Session = Depends(get_db)):
     return ReportsService(db)
 
+def _has_permission(user: User, perm: str) -> bool:
+    if user.is_super_admin:
+        return True
+    perms = user.permissions
+    return "*" in perms or perm in perms
+
 def require_reports_view(current_user: User = Depends(get_current_user)):
-    if "reports.view" not in current_user.permissions and current_user.role != "Super Admin":
+    if not _has_permission(current_user, "reports.view"):
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
 
 def require_reports_export(current_user: User = Depends(get_current_user)):
-    if "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return current_user
+
+@router.get("/dynamic/{report_id}")
+def get_dynamic_report(
+    report_id: str,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    branch_id: Optional[str] = None,
+    warehouse_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(require_reports_view)
+):
+    """Universal endpoint for all reports defined in DynamicReportEngine"""
+    engine = DynamicReportEngine(db, current_user)
+    params = DateRangeParams(
+        start_date=start_date or date.today() - timedelta(days=30),
+        end_date=end_date or date.today(),
+        branch_id=branch_id,
+        warehouse_id=warehouse_id
+    )
+    return engine.execute_report(report_id, scope.tenant_id, params)
+
+@router.post("/custom/build")
+def build_custom_report(
+    payload: CustomReportPayload,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(require_reports_view)
+):
+    """Generates a dynamic custom report based on JSON payload"""
+    engine = DynamicReportEngine(db, current_user)
+    return engine.execute_custom_report(payload, scope.tenant_id)
 
 @router.get("/sales/summary")
 def get_sales_summary(
@@ -39,7 +78,7 @@ def get_sales_summary(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)
@@ -57,7 +96,7 @@ def get_sales_by_medicine(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)
@@ -75,7 +114,7 @@ def get_sales_by_category(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)
@@ -91,7 +130,7 @@ def get_inventory_valuation(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)
@@ -107,7 +146,7 @@ def get_low_stock(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)
@@ -124,7 +163,7 @@ def get_expiry(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)
@@ -142,7 +181,7 @@ def get_purchase_summary(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)
@@ -153,12 +192,13 @@ def get_purchase_summary(
 def get_customer_summary(
     export: Optional[str] = None,
     db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
-    service = ReportsService(db)
+    service = ReportsService(db, current_user)
     return service.get_customer_summary(scope.tenant_id, export)
 
 @router.get("/prescriptions/summary")
@@ -171,7 +211,7 @@ def get_prescription_report(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(require_reports_view)
 ):
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)
@@ -189,10 +229,10 @@ def get_profit_and_loss(
     current_user: User = Depends(get_current_user)
 ):
     # Uses financial.view
-    if "financial.view" not in current_user.permissions and current_user.role != "Super Admin":
+    if not _has_permission(current_user, "financial.view"):
         raise HTTPException(status_code=403, detail="Not enough permissions")
     
-    if export and "reports.export" not in current_user.permissions and current_user.role != "Super Admin":
+    if export and not _has_permission(current_user, "reports.export"):
         raise HTTPException(status_code=403, detail="Not enough permissions to export")
         
     service = ReportsService(db, current_user)

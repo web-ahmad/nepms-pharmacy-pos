@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, case
 from models.sales import Sale, SaleItem, CustomerLedger
-from models.inventory import Medicine
-from models.purchase import PurchaseOrder, POItem
+from models.inventory import Medicine, Category, Batch
+from models.purchase import PurchaseOrder, POItem, Supplier
 from models.crm import Customer, LoyaltyTransaction
 from models.users import User
 from models.prescription import Prescription
@@ -68,32 +68,34 @@ class ReportsRepository:
     def get_sales_by_medicine(self, tenant_id: str, params: DateRangeParams):
         query = self.db.query(
             Medicine.name.label('medicine_name'),
-            Medicine.category.label('category'),
+            func.coalesce(Category.name, 'Uncategorized').label('category'),
             func.sum(SaleItem.quantity).label('qty_sold'),
             func.sum(SaleItem.subtotal).label('gross_revenue'),
             func.sum(SaleItem.discount).label('discount_given'),
             func.sum(SaleItem.subtotal - SaleItem.discount).label('net_revenue')
         ).select_from(SaleItem).join(Sale, Sale.id == SaleItem.sale_id)\
          .join(Medicine, Medicine.id == SaleItem.medicine_id)\
+         .outerjoin(Category, Category.id == Medicine.category_id)\
          .filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
          
         query = self._apply_date_filters(query, Sale.created_at, params)
         query = self._apply_scope_filters(query, Sale, params)
-        results = query.group_by(Medicine.name, Medicine.category).order_by(desc('qty_sold')).all()
+        results = query.group_by(Medicine.name, Category.name).order_by(desc('qty_sold')).all()
         return [dict(r._mapping) for r in results]
 
     def get_sales_by_category(self, tenant_id: str, params: DateRangeParams):
         query = self.db.query(
-            Medicine.category.label('category'),
+            func.coalesce(Category.name, 'Uncategorized').label('category'),
             func.sum(SaleItem.quantity).label('qty_sold'),
             func.sum(SaleItem.subtotal - SaleItem.discount).label('net_revenue')
         ).select_from(SaleItem).join(Sale, Sale.id == SaleItem.sale_id)\
          .join(Medicine, Medicine.id == SaleItem.medicine_id)\
+         .outerjoin(Category, Category.id == Medicine.category_id)\
          .filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
          
         query = self._apply_date_filters(query, Sale.created_at, params)
         query = self._apply_scope_filters(query, Sale, params)
-        results = query.group_by(Medicine.category).order_by(desc('net_revenue')).all()
+        results = query.group_by(Category.name).order_by(desc('qty_sold')).all()
         return [dict(r._mapping) for r in results]
 
     # ------------------- INVENTORY REPORTS -------------------
@@ -167,15 +169,16 @@ class ReportsRepository:
     # ------------------- PURCHASE REPORTS -------------------
     def get_purchase_summary(self, tenant_id: str, params: DateRangeParams):
         query = self.db.query(
-            PurchaseOrder.supplier_name.label('supplier_name'),
+            Supplier.name.label('supplier_name'),
             func.count(PurchaseOrder.id).label('po_count'),
             func.sum(PurchaseOrder.total_amount).label('total_purchased'),
             func.sum(case((PurchaseOrder.status == 'Completed', PurchaseOrder.total_amount), else_=0)).label('completed_amount')
-        ).filter(PurchaseOrder.tenant_id == tenant_id)
+        ).select_from(PurchaseOrder).join(Supplier, Supplier.id == PurchaseOrder.supplier_id)\
+         .filter(PurchaseOrder.tenant_id == tenant_id)
         
         query = self._apply_date_filters(query, PurchaseOrder.created_at, params)
         query = self._apply_scope_filters(query, PurchaseOrder, params)
-        results = query.group_by('supplier_name').order_by(desc('total_purchased')).all()
+        results = query.group_by(Supplier.name).order_by(desc('total_purchased')).all()
         return [dict(r._mapping) for r in results]
 
     # ------------------- CRM REPORTS -------------------
@@ -215,9 +218,9 @@ class ReportsRepository:
         sales_query = self._apply_scope_filters(sales_query, Sale, params)
         sales_data = sales_query.first()
         
-        # COGS (Cost of Goods Sold) approximation using Medicine purchase price * sold qty
+        # COGS (Cost of Goods Sold) approximation using Medicine cost_per_base_unit * sold qty
         cogs_query = self.db.query(
-            func.sum(SaleItem.quantity * Medicine.purchase_price).label('cogs')
+            func.sum(SaleItem.quantity * Medicine.cost_per_base_unit).label('cogs')
         ).select_from(SaleItem).join(Sale, Sale.id == SaleItem.sale_id)\
          .join(Medicine, Medicine.id == SaleItem.medicine_id)\
          .filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
