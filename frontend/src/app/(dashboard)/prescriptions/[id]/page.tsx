@@ -8,3 +8,8 @@ export default async function PrescriptionDetailsPage({ params }: { params: Prom
     </div>
   );
 }
+
+
+export function generateStaticParams() {
+  return [{ id: '1' }];
+}

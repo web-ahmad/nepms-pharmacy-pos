@@ -42,7 +42,8 @@ def require_hr_create(token_payload: dict = Depends(requires_permission("hr:crea
 def require_hr_update(token_payload: dict = Depends(requires_permission("hr:update"))): return PayloadUser(token_payload)
 def require_hr_approve(token_payload: dict = Depends(requires_permission("hr:approve"))): return PayloadUser(token_payload)
 def require_payroll_view(token_payload: dict = Depends(requires_permission("payroll:view"))): return PayloadUser(token_payload)
-def require_payroll_run(token_payload: dict = Depends(requires_permission("payroll:run"))): return PayloadUser(token_payload)
+def require_payroll_run(token_payload: dict = Depends(requires_permission("payroll:create"))): return PayloadUser(token_payload)
+def require_payroll_approve(token_payload: dict = Depends(requires_permission("payroll:approve"))): return PayloadUser(token_payload)
 
 def get_effective_branch_id(db: Session, tenant_id: str, scope: PharmacyScope):
     effective_branch_id = scope.branch_id
@@ -390,11 +391,11 @@ def submit_payroll(id: str, db: Session = Depends(get_db), current_user: User = 
     return HRService(db).submit_payroll(current_user.tenant_id, current_user.id, id)
 
 @router.post("/payroll/{id}/approve", response_model=PayrollRunResponse)
-def approve_payroll(id: str, request: PayrollApprovalRequest, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
+def approve_payroll(id: str, request: PayrollApprovalRequest, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_approve)):
     return HRService(db).approve_payroll(current_user.tenant_id, current_user.id, id, request.override, request.remarks)
 
 @router.post("/payroll/{id}/reject", response_model=PayrollRunResponse)
-def reject_payroll(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
+def reject_payroll(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_approve)):
     return HRService(db).reject_payroll(current_user.tenant_id, current_user.id, id)
 
 @router.get("/payroll/{id}/export-master")

@@ -90,18 +90,28 @@ class ReportsService:
 
     def get_low_stock(self, tenant_id: str, params: DateRangeParams = None):
         rows = self.repo.get_low_stock_report(tenant_id)
-        headers = ['medicine_name', 'stock_quantity', 'min_stock_level', 'supplier']
+        headers = ['medicine_name', 'stock_quantity', 'min_stock_level', 'manufacturer', 'reorder_quantity', 'reorder_cost']
+        summary = {
+            "Items Low Stock": len(rows),
+            "Total Reorder Qty": sum(r['reorder_quantity'] for r in rows if r.get('reorder_quantity')),
+            "Est. Reorder Cost": sum(r['reorder_cost'] for r in rows if r.get('reorder_cost'))
+        }
         export_fmt = params.export_format if params else None
         branch_id = params.branch_id if params else None
-        return self._handle_response("Low Stock Report", headers, rows, export_fmt, branch_id=branch_id)
+        return self._handle_response("Low Stock Report", headers, rows, export_fmt, summary, branch_id)
 
     def get_expiry(self, tenant_id: str, expired: bool, params: DateRangeParams = None):
         rows = self.repo.get_expiry_report(tenant_id, expired)
-        headers = ['medicine_name', 'batch_number', 'expiry_date', 'stock_quantity']
+        headers = ['medicine_name', 'batch_number', 'expiry_date', 'stock_quantity', 'cost_value']
         title = "Expired Medicines" if expired else "Near Expiry Medicines"
+        summary = {
+            "Total Items": len(rows),
+            "Total Stock Qty": sum(r['stock_quantity'] for r in rows if r.get('stock_quantity')),
+            "Financial Impact": sum(r['cost_value'] for r in rows if r.get('cost_value'))
+        }
         export_fmt = params.export_format if params else None
         branch_id = params.branch_id if params else None
-        return self._handle_response(title, headers, rows, export_fmt, branch_id=branch_id)
+        return self._handle_response(title, headers, rows, export_fmt, summary, branch_id)
 
     # ----------------- PURCHASE REPORTS -----------------
     def get_purchase_summary(self, tenant_id: str, params: DateRangeParams):

@@ -30,22 +30,26 @@ class ReportsRepository:
     # ------------------- SALES REPORTS -------------------
     def get_sales_summary(self, tenant_id: str, params: DateRangeParams, group_by_period: str = 'day'):
         """Daily, Weekly, Monthly, Yearly Sales depending on group_by_period ('day', 'month', 'year')"""
+        dialect = self.db.bind.dialect.name
         if group_by_period == 'day':
             date_expr = func.date(Sale.created_at)
         elif group_by_period == 'month':
-            date_expr = func.to_char(Sale.created_at, 'YYYY-MM')
+            date_expr = func.strftime('%Y-%m', Sale.created_at) if dialect == 'sqlite' else func.to_char(Sale.created_at, 'YYYY-MM')
         else: # year
-            date_expr = func.to_char(Sale.created_at, 'YYYY')
+            date_expr = func.strftime('%Y', Sale.created_at) if dialect == 'sqlite' else func.to_char(Sale.created_at, 'YYYY')
 
         query = self.db.query(
             date_expr.label('period'),
             func.count(Sale.id).label('invoice_count'),
-            func.sum(Sale.total_amount).label('gross_sales'),
+            func.sum(Sale.subtotal).label('gross_sales'),
             func.sum(Sale.tax_amount).label('tax_collected'),
             func.sum(Sale.discount_amount).label('discounts'),
-            func.sum(Sale.final_amount).label('net_sales'),
+            func.sum(Sale.total_amount).label('net_sales'),
             func.sum(Sale.amount_paid).label('amount_paid')
         ).filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
+        
+        with open("debug_reports.log", "a") as f:
+            f.write(f"Querying for tenant {tenant_id}, params: start={params.start_date}, end={params.end_date}, branch={params.branch_id}\\n")
         
         query = self._apply_date_filters(query, Sale.created_at, params)
         query = self._apply_scope_filters(query, Sale, params)
@@ -54,7 +58,12 @@ class ReportsRepository:
             query = query.filter(Sale.cashier_id == params.cashier_id)
             
         results = query.group_by('period').order_by('period').all()
-        return [dict(r._mapping) for r in results]
+        ret = [dict(r._mapping) for r in results]
+        
+        with open("debug_reports.log", "a") as f:
+            f.write(f"Results: {ret}\\n")
+            
+        return ret
 
     def get_sales_by_medicine(self, tenant_id: str, params: DateRangeParams):
         query = self.db.query(
@@ -89,54 +98,70 @@ class ReportsRepository:
 
     # ------------------- INVENTORY REPORTS -------------------
     def get_current_stock_valuation(self, tenant_id: str):
+        from models.inventory import Category, Batch
+        
         query = self.db.query(
             Medicine.name.label('medicine_name'),
-            Medicine.category.label('category'),
-            Medicine.batch_number.label('batch_number'),
-            Medicine.stock_quantity.label('stock_quantity'),
-            Medicine.purchase_price.label('unit_cost'),
-            Medicine.selling_price.label('unit_price'),
-            (Medicine.stock_quantity * Medicine.purchase_price).label('total_cost_value'),
-            (Medicine.stock_quantity * Medicine.selling_price).label('total_retail_value')
-        ).filter(Medicine.tenant_id == tenant_id, Medicine.stock_quantity > 0)
+            Category.name.label('category'),
+            func.sum(Batch.current_quantity).label('stock_quantity'),
+            func.avg(func.coalesce(Batch.purchase_price, Medicine.cost_per_base_unit)).label('unit_cost'),
+            func.avg(func.coalesce(Batch.unit_selling_price, Medicine.unit_retail_price)).label('unit_price'),
+            func.sum(Batch.current_quantity * func.coalesce(Batch.purchase_price, Medicine.cost_per_base_unit)).label('total_cost_value'),
+            func.sum(Batch.current_quantity * func.coalesce(Batch.unit_selling_price, Medicine.unit_retail_price)).label('total_retail_value')
+        ).outerjoin(Category, Medicine.category_id == Category.id)\
+         .join(Batch, Batch.medicine_id == Medicine.id)\
+         .filter(Medicine.tenant_id == tenant_id, Batch.status == 'Active', Batch.current_quantity > 0)
         
-        # We don't have params here, but ideally we should pass params for branch/warehouse.
-        # Let's assume params is passed in future, for now it's tenant level.
-        results = query.order_by(desc('total_cost_value')).all()
+        results = query.group_by(Medicine.name, Category.name).order_by(desc('total_cost_value')).all()
         return [dict(r._mapping) for r in results]
 
     def get_low_stock_report(self, tenant_id: str):
+        from models.inventory import Batch
+        
+        subq = self.db.query(
+            Batch.medicine_id,
+            func.sum(Batch.current_quantity).label('total_qty')
+        ).filter(Batch.status == 'Active').group_by(Batch.medicine_id).subquery()
+
         query = self.db.query(
             Medicine.name.label('medicine_name'),
-            Medicine.stock_quantity.label('stock_quantity'),
+            func.coalesce(subq.c.total_qty, 0).label('stock_quantity'),
             Medicine.min_stock_level.label('min_stock_level'),
-            Medicine.supplier.label('supplier')
-        ).filter(
-            Medicine.tenant_id == tenant_id, 
-            Medicine.stock_quantity <= Medicine.min_stock_level
-        )
+            Medicine.manufacturer.label('manufacturer'),
+            func.coalesce(Medicine.min_stock_level - func.coalesce(subq.c.total_qty, 0), Medicine.min_stock_level).label('reorder_quantity'),
+            (func.coalesce(Medicine.min_stock_level - func.coalesce(subq.c.total_qty, 0), Medicine.min_stock_level) * Medicine.cost_per_base_unit).label('reorder_cost')
+        ).outerjoin(subq, Medicine.id == subq.c.medicine_id)\
+         .filter(Medicine.tenant_id == tenant_id, func.coalesce(subq.c.total_qty, 0) <= Medicine.min_stock_level, Medicine.is_active == True)
         
         results = query.order_by('stock_quantity').all()
         return [dict(r._mapping) for r in results]
 
     def get_expiry_report(self, tenant_id: str, expired: bool = False):
+        from models.inventory import Batch
+        import datetime as dt
+        from datetime import timedelta
+        
         query = self.db.query(
             Medicine.name.label('medicine_name'),
-            Medicine.batch_number.label('batch_number'),
-            Medicine.expiry_date.label('expiry_date'),
-            Medicine.stock_quantity.label('stock_quantity')
-        ).filter(Medicine.tenant_id == tenant_id, Medicine.stock_quantity > 0)
+            Batch.batch_number.label('batch_number'),
+            Batch.expiry_date.label('expiry_date'),
+            Batch.current_quantity.label('stock_quantity'),
+            (Batch.current_quantity * func.coalesce(Batch.purchase_price, Medicine.cost_per_base_unit)).label('cost_value')
+        ).join(Batch, Batch.medicine_id == Medicine.id)\
+         .filter(Medicine.tenant_id == tenant_id, Batch.current_quantity > 0, Batch.status == 'Active')
+        
+        today = dt.datetime.now().date()
         
         if expired:
-            query = query.filter(Medicine.expiry_date < datetime.now().date())
+            query = query.filter(Batch.expiry_date < today)
         else:
-            # Near expiry (within 90 days)
+            ninety_days_from_now = today + timedelta(days=90)
             query = query.filter(
-                Medicine.expiry_date >= datetime.now().date(),
-                Medicine.expiry_date <= func.date(datetime.now().date() + func.cast('90 days', func.Interval()))
+                Batch.expiry_date >= today,
+                Batch.expiry_date <= ninety_days_from_now
             )
             
-        results = query.order_by('expiry_date').all()
+        results = query.order_by(Batch.expiry_date).all()
         return [dict(r._mapping) for r in results]
 
     # ------------------- PURCHASE REPORTS -------------------
@@ -183,7 +208,7 @@ class ReportsRepository:
     def get_profit_and_loss(self, tenant_id: str, params: DateRangeParams):
         # Calculate Revenue
         sales_query = self.db.query(
-            func.sum(Sale.final_amount).label('total_revenue'),
+            func.sum(Sale.total_amount).label('total_revenue'),
             func.sum(Sale.tax_amount).label('total_tax')
         ).filter(Sale.tenant_id == tenant_id, Sale.status == 'Completed')
         sales_query = self._apply_date_filters(sales_query, Sale.created_at, params)

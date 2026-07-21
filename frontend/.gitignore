@@ -42,3 +42,4 @@ next-env.d.ts
 
 .env
 backend/.env
+whatsapp_service/auth_info_baileys/

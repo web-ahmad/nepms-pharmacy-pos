@@ -56,7 +56,11 @@ export function BranchCard({ branch, index = 0, onDelete, showCompare = true }: 
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                 {branch.name}
               </h3>
-              <p className="text-xs text-zinc-400 font-mono">{branch.code}</p>
+              {branch.type === 'main_branch' ? (
+                <p className="text-xs text-zinc-400 font-mono">Main branch</p>
+              ) : branch.code ? (
+                <p className="text-xs text-zinc-400 font-mono">Branch - {branch.code}</p>
+              ) : null}
             </div>
           </div>
 

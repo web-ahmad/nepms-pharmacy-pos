@@ -931,7 +931,11 @@ export function BranchDetailView({ branch, defaultTab = 'overview' }: Props) {
                 <BranchTypeBadge   type={branch.type}     size="sm" />
 
               </div>
-              <p className="text-sm text-zinc-400 dark:text-zinc-500 font-mono">{branch.code}</p>
+              {branch.type === 'main_branch' ? (
+                <p className="text-sm text-zinc-400 dark:text-zinc-500 font-mono">Main branch</p>
+              ) : branch.code ? (
+                <p className="text-sm text-zinc-400 dark:text-zinc-500 font-mono">Branch - {branch.code}</p>
+              ) : null}
               {(branch.city || branch.province) && (
                 <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
                   <MapPin size={12} className="text-zinc-400" />

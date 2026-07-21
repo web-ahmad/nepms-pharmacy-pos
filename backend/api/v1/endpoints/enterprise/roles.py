@@ -60,7 +60,18 @@ def list_permissions(
     user_perms = token_payload.get("permissions", [])
     is_sa = token_payload.get("is_super_admin", False)
     hierarchy_level = token_payload.get("hierarchy_level", 4)
-    has_wildcard = "*" in user_perms
+    
+    if not user_perms and not is_sa and hierarchy_level >= 3:
+        # Dynamically fetch permissions since they are stripped from JWT for L3/L4
+        from models.enterprise.user import EnterpriseUser
+        from services.enterprise.user_service import user_service
+        user_id = token_payload.get("sub")
+        branch_id = token_payload.get("branch_id")
+        eu = db.query(EnterpriseUser).filter(EnterpriseUser.user_id == user_id).first()
+        if eu:
+            user_perms = user_service.compute_effective_permissions(db, enterprise_user=eu, branch_id=branch_id)
+            
+    has_wildcard = "*" in user_perms or "*tenant-branch" in user_perms or "*tenant" in user_perms
 
     SAAS_PREFIXES = (
         "tenant:", "subscription:", "billing:", "saas_settings:", 
@@ -272,7 +283,6 @@ def seed_defaults(
 def seed_enterprise(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("settings:manage")),
 ):
     """
     Idempotent enterprise seed endpoint.

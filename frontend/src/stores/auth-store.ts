@@ -40,7 +40,7 @@ export interface AuthUser {
   permissions: string[];
   permissions_version?: string;
   is_super_admin?: boolean;
-  assigned_branches?: { id: string; name: string; type?: string; code?: string; is_main?: boolean }[];
+  assigned_branches?: { id: string; name: string; type?: string; code?: string; is_main?: boolean; theme_color?: string }[];
   pharmacy_name?: string;
 }
 
@@ -146,9 +146,12 @@ export const useAuthStore = create<AuthState>()(
         if (user.permissions.includes('*')) return true;
         if (user.permissions.includes(code)) return true;
         
-        // If they have :manage for the resource, allow :create/:view/:update/:delete
-        const [resource] = code.split(':');
-        if (resource && user.permissions.includes(`${resource}:manage`)) {
+        const dotCode = code.replace(':', '.');
+        if (user.permissions.includes(dotCode)) return true;
+        
+        // If they have :manage or .manage for the resource, allow :create/:view/:update/:delete
+        const [resource] = code.split(/[:.]/);
+        if (resource && (user.permissions.includes(`${resource}:manage`) || user.permissions.includes(`${resource}.manage`))) {
             return true;
         }
         return false;

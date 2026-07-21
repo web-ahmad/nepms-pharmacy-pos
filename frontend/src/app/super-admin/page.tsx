@@ -61,7 +61,7 @@ export default function SuperAdminDashboard() {
   const fetchPharmacies = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/super-admin/pharmacies', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         cache: 'no-store',
       });
@@ -77,7 +77,7 @@ export default function SuperAdminDashboard() {
     e.stopPropagation();
     const next = pharmacy.subscription_status === 'suspended' ? 'active' : 'suspended';
     setPatchingId(pharmacy.id);
-    const res = await fetch(`/api/v1/super-admin/pharmacies/${pharmacy.id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${pharmacy.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ subscription_status: next }),
@@ -96,7 +96,7 @@ export default function SuperAdminDashboard() {
     }
     
     setPatchingId(pharmacy.id);
-    const res = await fetch(`/api/v1/super-admin/pharmacies/${pharmacy.id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${pharmacy.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
     });

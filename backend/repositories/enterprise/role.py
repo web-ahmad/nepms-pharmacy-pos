@@ -310,6 +310,7 @@ _PRESCRIPTIONS    = _perm("prescriptions:manage", "doctors:view", "medicines:vie
 
 DEFAULT_ROLES: Dict[str, Dict] = {
     "Super Admin": {
+        "hierarchy_level": 1,
         "branch_scope": "global",
         "data_scope":   "global",
         "color":        "#dc2626",
@@ -319,6 +320,7 @@ DEFAULT_ROLES: Dict[str, Dict] = {
         "permissions":  ["*"],
     },
     "Devjix Support": {
+        "hierarchy_level": 1,
         "branch_scope": "global",
         "data_scope":   "global",
         "color":        "#1e3a8a",
@@ -328,6 +330,7 @@ DEFAULT_ROLES: Dict[str, Dict] = {
         "permissions":  ["*"],
     },
     "Pharmacy Owner": {
+        "hierarchy_level": 2,
         "branch_scope": "global",
         "data_scope":   "tenant",
         "color":        "#f59e0b",
@@ -705,6 +708,7 @@ class RoleRepository(CRUDBase[EnterpriseRole, RoleCreate, RoleUpdate]):
                     branch_scope=branch_scope,
                     data_scope=data_scope,
                     sort_order=config.get("sort_order", 99),
+                    hierarchy_level=config.get("hierarchy_level", 4),
                     pharmacy_id=pharmacy_id,
                 )
                 db.add(role)
@@ -719,6 +723,7 @@ class RoleRepository(CRUDBase[EnterpriseRole, RoleCreate, RoleUpdate]):
                     role.color        = config.get("color", role.color)
                     role.sort_order   = config.get("sort_order", role.sort_order)
                     role.is_system_role = config.get("is_system_role", False)
+                    role.hierarchy_level = config.get("hierarchy_level", 4)
 
             # Get existing permission links for this role
             existing_rp_perm_ids: Set[str] = {

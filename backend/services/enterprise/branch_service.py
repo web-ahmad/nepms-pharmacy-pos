@@ -175,6 +175,7 @@ class BranchService:
         # --- AUTO-LINK POS DATA START ---
         from models.users import Branch as LegacyBranch
         from sqlalchemy.exc import IntegrityError
+        import uuid
         
         legacy_id = branch.id
         legacy_branch = LegacyBranch(
@@ -190,10 +191,11 @@ class BranchService:
             db.flush()
         except IntegrityError:
             db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"The branch code '{branch.code}' is already registered in the legacy POS system across the enterprise. Please choose a different unique code."
-            )
+            # Auto-resolve global legacy branch code collision
+            unique_suffix = str(uuid.uuid4())[:4]
+            legacy_branch.code = f"{branch.code}-{unique_suffix}"
+            db.add(legacy_branch)
+            db.flush()
         
         branch.legacy_branch_id = legacy_id
         db.add(branch)

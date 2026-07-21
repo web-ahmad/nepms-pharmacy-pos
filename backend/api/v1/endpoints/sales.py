@@ -175,7 +175,7 @@ def void_sale(
     permissions = token_payload.get("permissions", [])
     role = token_payload.get("role", "")
     
-    if role not in ["Owner", "Super Admin", "Cashier"] and "pos:void_sale" not in permissions and "*" not in permissions:
+    if "Owner" not in role and role not in ["Super Admin", "Cashier"] and "pos:void_sale" not in permissions and "*" not in permissions:
         raise HTTPException(status_code=403, detail="Missing required permission: pos:void_sale")
         
     sale = SalesService.void_sale(

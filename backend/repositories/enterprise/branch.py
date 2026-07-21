@@ -263,7 +263,14 @@ class BranchRepository(CRUDBase[PharmacyBranch, BranchCreate, BranchUpdate]):
 
     def count_staff(self, db: Session, branch_id: str) -> int:
         from models.hr import Employee
-        legacy_staff = (
+        from models.users import UserBranch
+        
+        # Get the branch to find its legacy_branch_id
+        branch = db.query(self.model).filter(self.model.id == branch_id).first()
+        legacy_branch_id = branch.legacy_branch_id if hasattr(branch, 'legacy_branch_id') and branch else branch_id
+
+        # 1. New Enterprise Assignments
+        enterprise_staff = (
             db.query(func.count(BranchStaffAssignment.id))
             .filter(
                 BranchStaffAssignment.branch_id == branch_id,
@@ -273,6 +280,8 @@ class BranchRepository(CRUDBase[PharmacyBranch, BranchCreate, BranchUpdate]):
             .scalar()
             or 0
         )
+        
+        # 2. HR Employees
         hr_staff = (
             db.query(func.count(Employee.id))
             .filter(
@@ -282,7 +291,18 @@ class BranchRepository(CRUDBase[PharmacyBranch, BranchCreate, BranchUpdate]):
             .scalar()
             or 0
         )
-        return legacy_staff + hr_staff
+        
+        # 3. Legacy POS Assignments (UserBranch)
+        legacy_staff = (
+            db.query(func.count(UserBranch.id))
+            .filter(
+                UserBranch.branch_id == legacy_branch_id
+            )
+            .scalar()
+            or 0
+        ) if legacy_branch_id else 0
+        
+        return enterprise_staff + hr_staff + legacy_staff
 
     # ── Comparison data ───────────────────────────────────────────────────────
 

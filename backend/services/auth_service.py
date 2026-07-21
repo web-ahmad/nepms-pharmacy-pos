@@ -4,6 +4,7 @@ from core.security import verify_password, create_access_token
 from repositories.auth import user_repo
 from schemas.auth import UserLogin, Token
 
+from database import supabase_client
 
 class AuthService:
     @staticmethod
@@ -12,15 +13,17 @@ class AuthService:
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
+                detail="Invalid username or password.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        
         if not verify_password(login_data.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
+                detail="Invalid username or password.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+            
         if not user.is_active:
             raise HTTPException(status_code=400, detail="Inactive user")
 
@@ -104,13 +107,18 @@ class AuthService:
         if is_sa or hierarchy_level == 2:
             # Super Admin and Owner: list all branches for tenant
             branches = db.query(Branch).filter(Branch.tenant_id == user.tenant_id).all()
+            from models.enterprise.branch import PharmacyBranch
+            legacy_ids = [b.id for b in branches]
+            ent_branches = db.query(PharmacyBranch).filter(PharmacyBranch.legacy_branch_id.in_(legacy_ids)).all()
+            color_map = {eb.legacy_branch_id: eb.theme_color for eb in ent_branches if eb.legacy_branch_id}
             for b in branches:
                 assigned_branches.append({
                     "id": b.id, 
                     "name": b.name, 
                     "type": getattr(b, "type", "branch"), 
                     "code": getattr(b, "code", ""),
-                    "is_main": getattr(b, "is_main", False)
+                    "is_main": getattr(b, "is_main", False),
+                    "theme_color": color_map.get(b.id) or getattr(b, "theme_color", "#6366f1")
                 })
             if branches:
                 main_branch = next((b for b in branches if getattr(b, "is_main", False)), branches[0])
@@ -122,29 +130,35 @@ class AuthService:
             for assignment in eu.branch_assignments:
                 if assignment.is_active and assignment.branch:
                     assigned_branches.append({
-                        "id":   assignment.branch.id,
+                        "id":   assignment.branch.legacy_branch_id or assignment.branch.id,
                         "name": assignment.branch.name,
                         "type": getattr(assignment.branch, "type", "branch"),
                         "code": getattr(assignment.branch, "code", ""),
-                        "is_main": getattr(assignment.branch, "is_main", False)
+                        "is_main": getattr(assignment.branch, "is_main", False),
+                        "theme_color": getattr(assignment.branch, "theme_color", "#6366f1")
                     })
                     if assignment.is_default_branch:
                         default_assignment = assignment
             if default_assignment:
-                branch_id = default_assignment.branch.id
+                branch_id = default_assignment.branch.legacy_branch_id or default_assignment.branch.id
             elif assigned_branches:
                 branch_id = assigned_branches[0]["id"]
 
         elif user.branches:
             # Legacy UserBranch fallback
             branch_id = user.branches[0].branch_id
+            legacy_ids = [ub.branch_id for ub in user.branches]
+            from models.enterprise.branch import PharmacyBranch
+            ent_branches = db.query(PharmacyBranch).filter(PharmacyBranch.legacy_branch_id.in_(legacy_ids)).all()
+            color_map = {eb.legacy_branch_id: eb.theme_color for eb in ent_branches if eb.legacy_branch_id}
             for ub in user.branches:
                 assigned_branches.append({
                     "id":   ub.branch_id,
                     "name": getattr(ub.branch, "name", "Assigned Branch"),
                     "type": getattr(ub.branch, "type", "branch"),
                     "code": getattr(ub.branch, "code", ""),
-                    "is_main": getattr(ub.branch, "is_main", False)
+                    "is_main": getattr(ub.branch, "is_main", False),
+                    "theme_color": color_map.get(ub.branch_id) or getattr(ub.branch, "theme_color", "#6366f1")
                 })
 
         else:

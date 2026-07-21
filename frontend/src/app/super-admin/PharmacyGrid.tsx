@@ -86,7 +86,7 @@ function CreatePharmacyModal({ onClose, onCreated }: { onClose: () => void; onCr
     if (!adminUsername.trim() || !adminPassword.trim()) { setError('Admin username and password are required'); return; }
     setLoading(true); setError('');
     try {
-      const res = await fetch('/api/v1/super-admin/pharmacies', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ name, owner_contact: contact, subscription_status: status, admin_username: adminUsername, admin_password: adminPassword }),
@@ -200,9 +200,9 @@ function PharmacyDetailDrawer({ id, onClose, onStatusChange }: { id: string; onC
   const [patching, setPatching] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/v1/super-admin/pharmacies/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } })
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } })
       .then(r => r.json()).then(setDetail).finally(() => setLoading(false));
-    fetch(`/api/v1/super-admin/pharmacies/${id}/billing`, { headers: { Authorization: `Bearer ${accessToken}` } })
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}/billing`, { headers: { Authorization: `Bearer ${accessToken}` } })
       .then(r => r.json()).then(setBilling).catch(console.error);
   }, [id, accessToken]);
 
@@ -211,7 +211,7 @@ function PharmacyDetailDrawer({ id, onClose, onStatusChange }: { id: string; onC
     if (!detail) return;
     const next = detail.subscription_status === 'suspended' ? 'active' : 'suspended';
     setPatching(true);
-    const res = await fetch(`/api/v1/super-admin/pharmacies/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
       body: JSON.stringify({ subscription_status: next }),
@@ -301,12 +301,12 @@ function PharmacyDetailDrawer({ id, onClose, onStatusChange }: { id: string; onC
                       if (!amt) return;
                       const note = prompt('Enter reference note:');
                       if (!note) return;
-                      fetch(`/api/v1/super-admin/pharmacies/${id}/manual-payment`, {
+                      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}/manual-payment`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
                         body: JSON.stringify({ amount: parseFloat(amt), reference_note: note }),
                       }).then(() => {
-                        fetch(`/api/v1/super-admin/pharmacies/${id}/billing`, { headers: { Authorization: `Bearer ${accessToken}` } })
+                        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}/billing`, { headers: { Authorization: `Bearer ${accessToken}` } })
                           .then(r => r.json()).then(setBilling);
                       });
                     }}
@@ -372,12 +372,12 @@ function PharmacyDetailDrawer({ id, onClose, onStatusChange }: { id: string; onC
                     if (!branchName) return;
                     const code = prompt('Enter branch code (e.g. BR-001):');
                     if (!code) return;
-                    fetch(`/api/v1/super-admin/pharmacies/${id}/branches`, {
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}/branches`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
                       body: JSON.stringify({ name: branchName, code, is_main: false }),
                     }).then(() => {
-                      fetch(`/api/v1/super-admin/pharmacies/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } })
+                      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } })
                         .then(r => r.json()).then(setDetail);
                     });
                   }}

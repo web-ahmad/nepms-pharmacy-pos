@@ -4,3 +4,8 @@ export default async function BranchStatsPage({ params }: { params: Promise<{ id
   const { id } = await params;
   return <BranchStatsFullView branchId={id} />;
 }
+
+
+export function generateStaticParams() {
+  return [{ id: '1' }];
+}

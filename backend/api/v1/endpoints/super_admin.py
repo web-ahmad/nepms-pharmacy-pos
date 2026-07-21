@@ -207,7 +207,7 @@ def create_pharmacy(
     main_branch = Branch(
         id=str(uuid.uuid4()),
         tenant_id=tenant.id,
-        name="Main Pharmacy",
+        name=body.name,
         address="Head Office",
         is_main=True,
         created_at=datetime.utcnow()

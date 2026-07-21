@@ -1,6 +1,6 @@
 'use client';
 
-import { useAlertConfigs, useUpdateAlertConfig } from '../hooks/useAuditData';
+import { useAlertConfigs, useUpdateAlertConfig, useGetWhatsappNumber, useSetWhatsappNumber } from '../hooks/useAuditData';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import {
   Loader2, Save, Bell, BellOff, MessageCircle, Smartphone,
@@ -60,8 +60,18 @@ const NOTIFY_OPTIONS = [
 
 export default function AlertConfigForm({ branchId }: { branchId?: string }) {
   const { data: configs, isLoading, refetch } = useAlertConfigs(branchId);
+  const { data: whatsappData, isLoading: isLoadingWa } = useGetWhatsappNumber(branchId);
+  const { mutate: setWhatsappNumber, isPending: isSettingWa } = useSetWhatsappNumber();
 
-  if (isLoading) {
+  const [waNumber, setWaNumber] = useState('');
+  
+  useEffect(() => {
+    if (whatsappData?.whatsapp_number) {
+      setWaNumber(whatsappData.whatsapp_number);
+    }
+  }, [whatsappData]);
+
+  if (isLoading || isLoadingWa) {
     return (
       <div className="flex items-center justify-center h-48">
         <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
@@ -94,16 +104,45 @@ export default function AlertConfigForm({ branchId }: { branchId?: string }) {
     const bi = ORDER.indexOf(b.event_type);
     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
   });
+  
+  const handleSaveWaNumber = () => {
+    setWhatsappNumber({ whatsapp_number: waNumber, branch_id: branchId }, {
+      onSuccess: () => {
+        toast.success("WhatsApp number updated successfully");
+      },
+      onError: () => {
+        toast.error("Failed to update WhatsApp number");
+      }
+    });
+  };
 
   return (
     <div className="space-y-4">
       {/* Header info strip */}
-      <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 text-sm">
-        <MessageCircle className="w-4 h-4 flex-shrink-0" />
-        <span>
-          WhatsApp alerts are sent to <strong>03144236077</strong> via the Baileys service.
-          Toggle each event type on/off and configure thresholds below.
-        </span>
+      <div className="flex flex-col md:flex-row items-center gap-3 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 text-sm">
+        <MessageCircle className="w-6 h-6 flex-shrink-0" />
+        <div className="flex-1">
+          <span className="block mb-2 font-medium">
+            Configure the WhatsApp number where alerts will be sent:
+          </span>
+          <div className="flex items-center gap-2 max-w-sm">
+             <input 
+               type="text" 
+               className="flex-1 px-3 py-2 border rounded text-zinc-800 dark:text-zinc-100 bg-white dark:bg-zinc-800 border-blue-300 dark:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+               placeholder="e.g. +923001234567" 
+               value={waNumber}
+               onChange={(e) => setWaNumber(e.target.value)}
+             />
+             <button 
+               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center gap-2 transition-colors disabled:opacity-50"
+               onClick={handleSaveWaNumber}
+               disabled={isSettingWa}
+             >
+               {isSettingWa ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+               Save
+             </button>
+          </div>
+        </div>
       </div>
 
       {sorted.map((config: any) => (

@@ -68,8 +68,8 @@ export const useMarketIntelligence = (internalInsights: string[]) => {
       const res = await axios.post('/api/analytics/market-intelligence', { internalInsights });
       return res.data?.insights as MarketInsight[];
     },
-    // Only run this query if we have internal insights to pass
-    enabled: internalInsights && internalInsights.length > 0,
+    // Run query regardless of internal insights to provide weather/general alerts
+    // enabled: internalInsights && internalInsights.length > 0,
     refetchInterval: 600000 // refresh every 10 mins
   });
 };

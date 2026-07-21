@@ -79,3 +79,24 @@ export function useUpdateAlertConfig() {
     },
   });
 }
+
+export function useGetWhatsappNumber(branchId?: string) {
+  return useQuery({
+    queryKey: ['audit', 'whatsapp-number', branchId],
+    queryFn: () => fetchAudit('/whatsapp-number', branchId ? { branch_id: branchId } : undefined),
+  });
+}
+
+export function useSetWhatsappNumber() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { whatsapp_number: string, branch_id?: string }) => {
+      const res = await api.post(`${BASE}/whatsapp-number`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['audit', 'whatsapp-number'] });
+    },
+  });
+}

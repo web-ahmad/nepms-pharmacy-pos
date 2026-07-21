@@ -40,7 +40,7 @@ export default function LoginPage() {
       });
 
       const { access_token, user, tenant_id, branch_id } = response.data;
-      
+
       setAuth(access_token, user, tenant_id, branch_id);
 
       // Yield one microtask tick so Zustand's persist middleware can flush

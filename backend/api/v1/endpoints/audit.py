@@ -5,6 +5,7 @@ from datetime import datetime
 
 from database import SessionLocal
 from core.deps import get_db, get_current_user, get_token_payload
+from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from models.audit import AuditEvent, AlertHistory, CameraSnapshot, AlertConfig
 from models.users import User
 from services.risk_service import calculate_weekly_risk_scores
@@ -162,8 +163,52 @@ def upsert_alert_config(
     )
     db.add(row)
     db.commit()
-    return {"status": "created"}
+    return {"status": "created", "id": row.id}
 
+from models.enterprise.branch_configuration import BranchPreference
+
+@router.get("/whatsapp-number")
+def get_whatsapp_number(
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    branch_id = scope.branch_id
+    if not branch_id:
+        branch_id = "global"
+    pref = db.query(BranchPreference).filter_by(branch_id=branch_id, pref_key="whatsapp_alert_number").first()
+    if pref and pref.pref_value:
+        return {"whatsapp_number": pref.pref_value}
+    
+    # fallback to env
+    import os
+    return {"whatsapp_number": os.getenv("TEST_WHATSAPP_NUMBER", "")}
+
+@router.post("/whatsapp-number")
+def set_whatsapp_number(
+    payload: dict,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    branch_id = scope.branch_id
+    if not branch_id:
+        branch_id = "global"
+    new_number = payload.get("whatsapp_number", "").strip()
+    
+    pref = db.query(BranchPreference).filter_by(branch_id=branch_id, pref_key="whatsapp_alert_number").first()
+    if not pref:
+        pref = BranchPreference(
+            branch_id=branch_id,
+            pref_key="whatsapp_alert_number",
+            pref_value=new_number,
+            data_type="string",
+            category="alerts",
+            description="WhatsApp number for audit alerts"
+        )
+        db.add(pref)
+    else:
+        pref.pref_value = new_number
+    db.commit()
+    return {"status": "success", "whatsapp_number": new_number}
 
 @router.patch("/alert-config")
 def patch_alert_config(

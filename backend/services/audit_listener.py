@@ -65,10 +65,20 @@ WHATSAPP_SERVICE_URL = os.getenv("WHATSAPP_SERVICE_URL", "http://localhost:3001"
 TEST_WHATSAPP_NUMBER = os.getenv("TEST_WHATSAPP_NUMBER", "")
 
 
-async def _send_whatsapp(event_id: str, message: str, image_url: str | None) -> bool:
+from models.enterprise.branch_configuration import BranchPreference
+
+async def _send_whatsapp(db, branch_id: str, event_id: str, message: str, image_url: str | None) -> bool:
     """Calls the local Baileys Node service /send endpoint."""
-    if not TEST_WHATSAPP_NUMBER:
-        logger.warning("TEST_WHATSAPP_NUMBER not set – skipping WhatsApp alert.")
+    target_number = TEST_WHATSAPP_NUMBER
+    try:
+        pref = db.query(BranchPreference).filter_by(branch_id=branch_id, pref_key="whatsapp_alert_number").first()
+        if pref and pref.pref_value:
+            target_number = pref.pref_value
+    except Exception as e:
+        logger.warning(f"Error fetching whatsapp_alert_number preference: {e}")
+
+    if not target_number:
+        logger.warning("WhatsApp alert number not set – skipping WhatsApp alert.")
         return False
 
     # Build absolute image URL if local path
@@ -81,7 +91,7 @@ async def _send_whatsapp(event_id: str, message: str, image_url: str | None) -> 
     try:
         import aiohttp
         payload = {
-            "phone": TEST_WHATSAPP_NUMBER,
+            "phone": target_number,
             "message": message,
         }
         if abs_image_url:
@@ -190,7 +200,7 @@ async def _handle_void(event: AuditEvent, db):
         f"{'📷 Snapshot attached.' if image_url else '📷 Camera unavailable.'}"
     )
 
-    success = await _send_whatsapp(event.id, msg, image_url)
+    success = await _send_whatsapp(db, event.branch_id, event.id, msg, image_url)
     _log_alert(db, event.id, "whatsapp", "sent" if success else "failed", pharmacy_id=pharmacy_id)
 
 
@@ -207,7 +217,7 @@ async def _handle_discount(event: AuditEvent, db):
         f"✂️ *Discount*: {meta.get('discount_percent', 0)}%\n"
         f"🕒 *Time*: {event.created_at}"
     )
-    success = await _send_whatsapp(event.id, msg, image_url)
+    success = await _send_whatsapp(db, event.branch_id, event.id, msg, image_url)
     _log_alert(db, event.id, "whatsapp", "sent" if success else "failed", pharmacy_id=pharmacy_id)
 
 
@@ -225,7 +235,7 @@ async def _handle_refund(event: AuditEvent, db):
         f"📝 *Reason*: {meta.get('reason', 'N/A')}\n"
         f"🕒 *Time*: {event.created_at}"
     )
-    success = await _send_whatsapp(event.id, msg, image_url)
+    success = await _send_whatsapp(db, event.branch_id, event.id, msg, image_url)
     _log_alert(db, event.id, "whatsapp", "sent" if success else "failed", pharmacy_id=pharmacy_id)
 
 
@@ -252,7 +262,7 @@ async def _handle_cash_variance(event: AuditEvent, db):
         f"🕒 *Closed At*: {event.created_at}\n\n"
         f"{'📷 Snapshot attached.' if image_url else '📷 Camera unavailable.'}"
     )
-    success = await _send_whatsapp(event.id, msg, image_url)
+    success = await _send_whatsapp(db, event.branch_id, event.id, msg, image_url)
     _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
 
 
@@ -272,7 +282,7 @@ async def _handle_expired(event: AuditEvent, db):
         f"🕒 *Detected*: {event.created_at}\n\n"
         f"⚠️ Please remove this batch from the shelf immediately."
     )
-    success = await _send_whatsapp(event.id, msg, image_url)
+    success = await _send_whatsapp(db, event.branch_id, event.id, msg, image_url)
     _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
 
 
@@ -293,7 +303,7 @@ async def _handle_near_expiry(event: AuditEvent, db):
         f"🕒 *Detected*: {event.created_at}\n\n"
         f"💡 Prioritise selling or returning this batch."
     )
-    success = await _send_whatsapp(event.id, msg, image_url)
+    success = await _send_whatsapp(db, event.branch_id, event.id, msg, image_url)
     _log_alert(db, event.id, "whatsapp", "sent" if success else "failed")
 
 
@@ -434,7 +444,13 @@ async def poll_audit_events(poll_interval: float = 2.0):
                     last_processed_at = event.created_at
                     handler = HANDLERS.get(event.event_type)
                     if handler:
-                        asyncio.create_task(handler(event, db))
+                        async def wrapped_handler(evt, hnd):
+                            local_db = SessionLocal()
+                            try:
+                                await hnd(evt, local_db)
+                            finally:
+                                local_db.close()
+                        asyncio.create_task(wrapped_handler(event, handler))
                     else:
                         logger.debug("No handler for event_type=%s", event.event_type)
             finally:

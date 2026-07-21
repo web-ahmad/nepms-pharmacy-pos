@@ -18,19 +18,19 @@ class AnalyticsService:
         first_of_year = today.replace(month=1, day=1)
         
         # Sales metrics
-        today_sales = self.db.query(func.sum(Sale.final_amount)).filter(
+        today_sales = self.db.query(func.sum(Sale.total_amount)).filter(
             Sale.tenant_id == tenant_id, 
             Sale.status == 'Completed',
             func.date(Sale.created_at) == today
         ).scalar() or 0
         
-        mtd_sales = self.db.query(func.sum(Sale.final_amount)).filter(
+        mtd_sales = self.db.query(func.sum(Sale.total_amount)).filter(
             Sale.tenant_id == tenant_id, 
             Sale.status == 'Completed',
             func.date(Sale.created_at) >= first_of_month
         ).scalar() or 0
         
-        ytd_sales = self.db.query(func.sum(Sale.final_amount)).filter(
+        ytd_sales = self.db.query(func.sum(Sale.total_amount)).filter(
             Sale.tenant_id == tenant_id, 
             Sale.status == 'Completed',
             func.date(Sale.created_at) >= first_of_year

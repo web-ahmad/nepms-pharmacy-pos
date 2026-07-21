@@ -40,6 +40,8 @@ app.add_middleware(ExceptionMiddleware)
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://devjix.com",
+    "https://www.devjix.com",
 ]
 
 app.add_middleware(

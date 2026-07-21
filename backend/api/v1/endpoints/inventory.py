@@ -69,14 +69,20 @@ def list_or_search_medicines(
     query = db.query(Medicine).options(joinedload(Medicine.packaging_levels)).filter(
         Medicine.is_deleted == False,
         Medicine.tenant_id == scope.tenant_id
-    )
+    ).distinct()
     
-    # Apply outer join without the filter that completely hides medicines without batches.
-    # A medicine should always show up. Its batches for the specific branch will be loaded via contains_eager.
+    # Apply outer join when searching so all catalog items are findable.
+    # Otherwise, apply inner join so the default inventory list only shows items this branch carries.
     if effective_branch_id:
-        query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == effective_branch_id, Batch.is_deleted == False))
+        if search_term:
+            query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == effective_branch_id, Batch.is_deleted == False))
+        else:
+            query = query.join(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == effective_branch_id, Batch.is_deleted == False))
     else:
-        query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.is_deleted == False))
+        if search_term:
+            query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.is_deleted == False))
+        else:
+            query = query.join(Batch, and_(Batch.medicine_id == Medicine.id, Batch.is_deleted == False))
 
     if search_term:
         query = query.filter(or_(
