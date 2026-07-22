@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Activity, Download, FileText, FileSpreadsheet } from 'lucide-react';
 
 export interface DynamicColumn {
   key: string;
@@ -132,13 +132,45 @@ export default function UniversalDataTable({ data, isLoading, rowsPerPage = 10 }
     );
   }
 
+  const exportToCSV = () => {
+    if (!data) return;
+    const headers = data.metadata.columns.map(c => c.label).join(',');
+    const csvRows = sortedRows.map(row => 
+      data.metadata.columns.map(c => `"${String(row[c.key] ?? '').replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+    const blob = new Blob([`${headers}\n${csvRows}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${data.metadata.title.replace(/\s+/g, '_').toLowerCase()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportToPDF = () => {
+    // In a real app, you'd use jspdf and jspdf-autotable here.
+    // For now, trigger browser print which can save as PDF.
+    window.print();
+  };
+
   return (
     <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden dark:border-zinc-800 dark:bg-zinc-950/50">
-      <div className="border-b border-zinc-200 p-5 dark:border-zinc-800">
+      <div className="flex items-center justify-between border-b border-zinc-200 p-5 dark:border-zinc-800">
         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{data.metadata.title}</h3>
+        <div className="flex gap-2">
+          <button onClick={exportToCSV} className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900">
+            <FileSpreadsheet className="h-3.5 w-3.5 text-green-600" />
+            CSV/Excel
+          </button>
+          <button onClick={exportToPDF} className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900">
+            <FileText className="h-3.5 w-3.5 text-red-600" />
+            PDF
+          </button>
+        </div>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm whitespace-nowrap">
+      <div className="overflow-x-auto print:overflow-visible">
+        <table className="w-full text-left text-sm whitespace-nowrap print:w-full">
           <thead className="border-b border-zinc-200 bg-zinc-50/50 dark:border-zinc-800 dark:bg-zinc-900/50">
             <tr>
               {data.metadata.columns.map((col) => (

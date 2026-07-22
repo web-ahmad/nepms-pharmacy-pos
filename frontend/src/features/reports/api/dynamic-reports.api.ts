@@ -6,7 +6,7 @@ export const useDynamicReport = (reportId: string, params: Record<string, any> =
   return useQuery<DynamicReportSchema>({
     queryKey: ['dynamic-report', reportId, params],
     queryFn: async () => {
-      const { data } = await api.get(`/reports/dynamic/${reportId}`, { params });
+      const { data } = await api.get(`/api/v1/reports/dynamic/${reportId}`, { params });
       return data;
     },
   });
@@ -15,7 +15,26 @@ export const useDynamicReport = (reportId: string, params: Record<string, any> =
 export const useBuildCustomReport = () => {
   return useMutation<DynamicReportSchema, Error, any>({
     mutationFn: async (payload) => {
-      const { data } = await api.post(`/reports/custom/build`, payload);
+      const { data } = await api.post(`/api/v1/reports/custom/build`, payload);
+      return data;
+    }
+  });
+};
+
+export const useSaveReportTemplate = () => {
+  return useMutation<any, Error, any>({
+    mutationFn: async (payload) => {
+      const { data } = await api.post(`/api/v1/reports/custom/templates`, payload);
+      return data;
+    }
+  });
+};
+
+export const useGetReportTemplates = () => {
+  return useQuery<any[]>({
+    queryKey: ['report-templates'],
+    queryFn: async () => {
+      const { data } = await api.get(`/api/v1/reports/custom/templates`);
       return data;
     }
   });

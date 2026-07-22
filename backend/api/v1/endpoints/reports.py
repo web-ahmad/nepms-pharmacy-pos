@@ -6,11 +6,12 @@ from datetime import date, timedelta
 from database import get_db
 from models.users import User
 from api.v1.endpoints.auth import get_current_user
-from schemas.reports import DateRangeParams, CustomReportPayload
+from schemas.reports import DateRangeParams, CustomReportPayload, ReportTemplateCreate, ReportTemplateResponse
 import schemas.reports
 from services.reports_service import ReportsService
 from services.dynamic_report_engine import DynamicReportEngine
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
+from models.reports import ReportTemplate
 
 router = APIRouter()
 
@@ -64,6 +65,68 @@ def build_custom_report(
     """Generates a dynamic custom report based on JSON payload"""
     engine = DynamicReportEngine(db, current_user)
     return engine.execute_custom_report(payload, scope.tenant_id)
+
+@router.post("/custom/templates", response_model=ReportTemplateResponse)
+def save_custom_template(
+    payload: ReportTemplateCreate,
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(require_reports_view)
+):
+    template = ReportTemplate(
+        tenant_id=scope.tenant_id,
+        user_id=current_user.id,
+        name=payload.name,
+        report_type=payload.report_type,
+        configuration={
+            "columns": payload.columns,
+            "filters": payload.filters,
+            "sorting": payload.sorting,
+            "grouping": payload.grouping,
+            "chart_type": payload.chart_type
+        }
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    
+    return {
+        "id": template.id,
+        "created_at": template.created_at,
+        "name": template.name,
+        "report_type": template.report_type,
+        "columns": template.configuration.get("columns", []),
+        "filters": template.configuration.get("filters", {}),
+        "sorting": template.configuration.get("sorting", {}),
+        "grouping": template.configuration.get("grouping"),
+        "chart_type": template.configuration.get("chart_type")
+    }
+
+@router.get("/custom/templates", response_model=List[ReportTemplateResponse])
+def get_custom_templates(
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(require_reports_view)
+):
+    templates = db.query(ReportTemplate).filter(
+        ReportTemplate.tenant_id == scope.tenant_id,
+        ReportTemplate.user_id == current_user.id
+    ).all()
+    
+    results = []
+    for t in templates:
+        results.append({
+            "id": t.id,
+            "created_at": t.created_at,
+            "name": t.name,
+            "report_type": t.report_type,
+            "columns": t.configuration.get("columns", []),
+            "filters": t.configuration.get("filters", {}),
+            "sorting": t.configuration.get("sorting", {}),
+            "grouping": t.configuration.get("grouping"),
+            "chart_type": t.configuration.get("chart_type")
+        })
+    return results
 
 @router.get("/sales/summary")
 def get_sales_summary(

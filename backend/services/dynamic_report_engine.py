@@ -29,7 +29,6 @@ class DynamicReportEngine:
             "recent_alerts": self._strategy_recent_alerts,
             "inventory_valuation": self._strategy_inventory_valuation,
             "profit_and_loss": self._strategy_profit_and_loss,
-            "sales_summary": self._strategy_sales_summary,
             "sales_daily": self._strategy_sales_daily,
             "sales_category": self._strategy_sales_category,
             "sales_cashier": self._strategy_sales_cashier,
@@ -215,13 +214,13 @@ class DynamicReportEngine:
         
         # Aggregate sales by date
         trend_query = self.db.query(
-            cast(Sale.created_at, Date).label('date'),
+            func.date(Sale.created_at).label('date'),
             func.sum(Sale.total_amount).label('sales')
         ).filter(
             Sale.tenant_id == tenant_id,
             Sale.status == 'Completed',
             Sale.created_at >= start_date
-        ).group_by(cast(Sale.created_at, Date)).order_by(cast(Sale.created_at, Date)).all()
+        ).group_by(func.date(Sale.created_at)).order_by(func.date(Sale.created_at)).all()
 
         rows = []
         for row in trend_query:
@@ -373,13 +372,13 @@ class DynamicReportEngine:
     def _strategy_sales_daily(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """Daily Sales (Total, Cash, Credit)"""
         query = self.db.query(
-            cast(Sale.created_at, Date).label('date'),
+            func.date(Sale.created_at).label('date'),
             func.sum(Sale.total_amount).label('total_revenue'),
             func.sum(case((Sale.payment_method == 'Cash', Sale.total_amount), else_=0)).label('cash_sales'),
             func.sum(case((Sale.payment_method == 'Credit', Sale.total_amount), else_=0)).label('credit_sales'),
         ).filter(
             Sale.tenant_id == tenant_id, Sale.status == 'Completed'
-        ).group_by(cast(Sale.created_at, Date)).order_by(desc(cast(Sale.created_at, Date))).all()
+        ).group_by(func.date(Sale.created_at)).order_by(desc(func.date(Sale.created_at))).all()
         
         return {
             "metadata": {
@@ -445,7 +444,7 @@ class DynamicReportEngine:
         """Discount & Margins Report"""
         query = self.db.query(
             Sale.invoice_number.label('invoice_number'),
-            cast(Sale.created_at, Date).label('date'),
+            func.date(Sale.created_at).label('date'),
             Sale.subtotal.label('subtotal'),
             Sale.discount_amount.label('discount_amount'),
             Sale.total_amount.label('total_amount')
@@ -472,7 +471,7 @@ class DynamicReportEngine:
         """Cancelled / Void Bills Report"""
         query = self.db.query(
             Sale.invoice_number.label('invoice_number'),
-            cast(Sale.created_at, Date).label('date'),
+            func.date(Sale.created_at).label('date'),
             Sale.total_amount.label('total_amount'),
             User.full_name.label('cashier_name'),
             Sale.notes.label('notes')
@@ -763,7 +762,7 @@ class DynamicReportEngine:
     def _strategy_cash_book(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """Cash Book (Daybook)"""
         query = self.db.query(
-            cast(CashLedgerEntry.created_at, Date).label('date'),
+            func.date(CashLedgerEntry.created_at).label('date'),
             CashLedgerEntry.entry_type,
             CashLedgerEntry.payment_mode,
             CashLedgerEntry.amount,

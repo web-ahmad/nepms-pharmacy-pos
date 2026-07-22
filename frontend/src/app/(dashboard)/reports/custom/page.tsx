@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import UniversalDataTable from '@/features/reports/components/UniversalDataTable';
-import { useBuildCustomReport } from '@/features/reports/api/dynamic-reports.api';
+import { useBuildCustomReport, useSaveReportTemplate, useGetReportTemplates } from '@/features/reports/api/dynamic-reports.api';
+import { Save } from 'lucide-react';
 
 const ENTITY_COLUMNS: Record<string, string[]> = {
   sales: ['invoice_number', 'total_amount', 'tax_amount', 'discount_amount', 'cashier_name', 'status', 'created_at'],
@@ -14,8 +15,12 @@ export default function CustomReportBuilderPage() {
   const [baseEntity, setBaseEntity] = useState('sales');
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<string>('');
+  const [templateName, setTemplateName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   
   const { mutate: buildReport, data, isPending, error } = useBuildCustomReport();
+  const { mutateAsync: saveTemplate } = useSaveReportTemplate();
+  const { data: templates, refetch: refetchTemplates } = useGetReportTemplates();
 
   // Reset columns when entity changes
   useEffect(() => {
@@ -36,7 +41,41 @@ export default function CustomReportBuilderPage() {
       base_entity: baseEntity,
       selected_columns: selectedColumns,
       group_by: groupBy || null,
-      filters: [] // Filters UI omitted for brevity, but payload is ready
+      filters: [] 
+    });
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!templateName || selectedColumns.length === 0) return;
+    setIsSaving(true);
+    try {
+      await saveTemplate({
+        name: templateName,
+        report_type: baseEntity,
+        columns: selectedColumns,
+        grouping: groupBy || null,
+        filters: {},
+        sorting: {}
+      });
+      setTemplateName('');
+      refetchTemplates();
+      alert('Template Saved Successfully!');
+    } catch (e) {
+      alert('Failed to save template');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const loadTemplate = (t: any) => {
+    setBaseEntity(t.report_type);
+    setSelectedColumns(t.columns || []);
+    setGroupBy(t.grouping || '');
+    buildReport({
+      base_entity: t.report_type,
+      selected_columns: t.columns || [],
+      group_by: t.grouping || null,
+      filters: [] 
     });
   };
 
@@ -108,6 +147,47 @@ export default function CustomReportBuilderPage() {
         {error && (
           <p className="text-xs text-red-500 mt-2">{error.message}</p>
         )}
+
+        <hr className="my-2 border-zinc-200 dark:border-zinc-800" />
+        
+        <div className="space-y-3">
+          <label className="text-sm font-medium text-zinc-900 dark:text-zinc-200">Save as Template</label>
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Template Name..." 
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              className="w-full flex-1 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            />
+            <button 
+              onClick={handleSaveTemplate}
+              disabled={isSaving || !templateName || selectedColumns.length === 0}
+              className="flex items-center justify-center rounded-md bg-zinc-100 px-3 py-1.5 text-zinc-700 hover:bg-zinc-200 disabled:opacity-50 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              <Save size={16} />
+            </button>
+          </div>
+        </div>
+
+        {templates && templates.length > 0 && (
+          <div className="space-y-2 mt-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Saved Templates</label>
+            <div className="flex flex-col gap-1.5">
+              {templates.map(t => (
+                <button 
+                  key={t.id} 
+                  onClick={() => loadTemplate(t)}
+                  className="text-left w-full rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900/50"
+                >
+                  <span className="font-medium block">{t.name}</span>
+                  <span className="text-xs text-zinc-500 block">{t.report_type} • {t.columns?.length || 0} cols</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* RIGHT MAIN AREA: PREVIEW */}
