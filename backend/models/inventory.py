@@ -373,3 +373,18 @@ class InventoryCycleCountItem(BaseModel):
     reason = Column(String(255))
     
     cycle_count = relationship("InventoryCycleCount", back_populates="items")
+
+from sqlalchemy import select, func
+from sqlalchemy.orm import column_property
+
+# Dynamically add current_stock to Medicine to aggregate active batch quantities
+Medicine.current_stock = column_property(
+    select(func.coalesce(func.sum(Batch.current_quantity), 0))
+    .where(
+        (Batch.medicine_id == Medicine.id) & 
+        (Batch.status == 'Active') & 
+        (Batch.is_deleted == False)
+    )
+    .correlate_except(Batch)
+    .scalar_subquery()
+)
