@@ -53,6 +53,18 @@ api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 # Super Admin — platform-level pharmacy management
 api_router.include_router(super_admin.router, prefix="/super-admin", tags=["super-admin"])
 
+# Super Admin — Plans / Coupons / Currency / Referral / Media / Settings
+from api.v1.endpoints import (
+    super_admin_plans, super_admin_coupons, super_admin_currency,
+    super_admin_referral, super_admin_media, super_admin_settings,
+)
+api_router.include_router(super_admin_plans.router, prefix="/super-admin", tags=["super-admin-plans"])
+api_router.include_router(super_admin_coupons.router, prefix="/super-admin", tags=["super-admin-coupons"])
+api_router.include_router(super_admin_currency.router, prefix="/super-admin", tags=["super-admin-currency"])
+api_router.include_router(super_admin_referral.router, prefix="/super-admin", tags=["super-admin-referral"])
+api_router.include_router(super_admin_media.router, prefix="/super-admin", tags=["super-admin-media"])
+api_router.include_router(super_admin_settings.router, prefix="/super-admin", tags=["super-admin-settings"])
+
 # Enterprise — multi-branch management (Phase 1)
 from api.v1.endpoints.enterprise.branches import router as enterprise_branches_router
 api_router.include_router(enterprise_branches_router, prefix="/enterprise/branches", tags=["enterprise-branches"])

@@ -77,6 +77,18 @@ export const useUpdateModule = (id: string) => {
   });
 };
 
+export const useBulkUpdateModules = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, is_enabled }: { ids: string[]; is_enabled: boolean }) => {
+      await Promise.all(ids.map((id) => api.put(`/api/v1/settings/modules/${id}`, { is_enabled })));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings', 'modules'] });
+    }
+  });
+};
+
 export const useWhatsAppQR = () => {
   return useQuery({
     queryKey: ['settings', 'whatsapp', 'qr'],

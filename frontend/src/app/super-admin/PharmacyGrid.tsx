@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/stores/auth-store';
+import { api } from '@/services/api';
+import toast from 'react-hot-toast';
 import {
   Building2, Plus, RefreshCw, Search, LayoutGrid, List,
   CheckCircle2, XCircle, Clock, Activity, Users, GitBranch,
@@ -22,6 +23,16 @@ export interface Pharmacy {
   staff_count: number;
   branch_count: number;
   branches?: { id: string; name: string; code: string; }[];
+  plan_id?: string | null;
+  plan_name?: string | null;
+}
+
+interface PlanOption {
+  id: string;
+  name: string;
+  price: number;
+  billing_cycle: 'monthly' | 'yearly';
+  is_active: boolean;
 }
 
 export interface PharmacyDetail extends Pharmacy {
@@ -71,31 +82,51 @@ function PharmacyAvatar({ name, status }: { name: string; status: string }) {
 // ── Create Pharmacy Modal ──────────────────────────────────────────────────────
 
 function CreatePharmacyModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const { accessToken } = useAuthStore();
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [status, setStatus] = useState<'active' | 'suspended' | 'trial'>('trial');
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
+  const [planId, setPlanId] = useState('');
+  const [plans, setPlans] = useState<PlanOption[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get<PlanOption[]>('/api/v1/super-admin/plans');
+        if (!cancelled) setPlans(data.filter(p => p.is_active));
+      } catch {
+        // Non-fatal — the form falls back to the "no plans configured" state.
+      } finally {
+        if (!cancelled) setPlansLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { setError('Pharmacy name is required'); return; }
     if (!adminUsername.trim() || !adminPassword.trim()) { setError('Admin username and password are required'); return; }
+    if (plans.length > 0 && !planId) { setError('Please select a subscription plan'); return; }
     setLoading(true); setError('');
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ name, owner_contact: contact, subscription_status: status, admin_username: adminUsername, admin_password: adminPassword }),
+      await api.post('/api/v1/super-admin/pharmacies', {
+        name, owner_contact: contact, subscription_status: status,
+        admin_username: adminUsername, admin_password: adminPassword,
+        plan_id: planId || null,
       });
-      const data = await res.json();
-      if (!res.ok) { setError(data.detail || 'Failed to create pharmacy'); return; }
+      toast.success('Pharmacy created');
       onCreated(); onClose();
-    } catch { setError('Network error — please try again'); }
-    finally { setLoading(false); }
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? 'Failed to create pharmacy');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputCls = "w-full rounded-xl px-3.5 py-2.5 text-sm transition-all outline-none";
@@ -135,6 +166,33 @@ function CreatePharmacyModal({ onClose, onCreated }: { onClose: () => void; onCr
           <div>
             <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--sa-text-muted)' }}>OWNER CONTACT</label>
             <input id="pharmacy-contact-input" type="text" value={contact} onChange={e => setContact(e.target.value)} placeholder="e.g. +92 300 1234567" className={inputCls} style={inputStyle} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--sa-text-muted)' }}>
+              SUBSCRIPTION PLAN {plans.length > 0 && <span style={{ color: 'var(--sa-danger)' }}>*</span>}
+            </label>
+            {plansLoading ? (
+              <div className="sa-skeleton h-10 rounded-xl" />
+            ) : plans.length === 0 ? (
+              <p className="text-xs px-3.5 py-2.5 rounded-xl" style={{ background: 'var(--sa-warning-muted)', color: 'var(--sa-warning)' }}>
+                No plans configured yet — create one under Plans first. The pharmacy will be created without a plan.
+              </p>
+            ) : (
+              <select
+                id="pharmacy-plan-select"
+                value={planId}
+                onChange={e => setPlanId(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+              >
+                <option value="">Select a plan…</option>
+                {plans.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — ${p.price.toFixed(2)}/{p.billing_cycle === 'monthly' ? 'mo' : 'yr'}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -193,31 +251,36 @@ function CreatePharmacyModal({ onClose, onCreated }: { onClose: () => void; onCr
 // ── Detail Drawer ──────────────────────────────────────────────────────────────
 
 function PharmacyDetailDrawer({ id, onClose, onStatusChange }: { id: string; onClose: () => void; onStatusChange: () => void }) {
-  const { accessToken } = useAuthStore();
   const [detail, setDetail] = useState<PharmacyDetail | null>(null);
   const [billing, setBilling] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [patching, setPatching] = useState(false);
 
-  useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } })
-      .then(r => r.json()).then(setDetail).finally(() => setLoading(false));
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}/billing`, { headers: { Authorization: `Bearer ${accessToken}` } })
-      .then(r => r.json()).then(setBilling).catch(console.error);
-  }, [id, accessToken]);
+  const refetchDetail = () =>
+    api.get<PharmacyDetail>(`/api/v1/super-admin/pharmacies/${id}`).then(({ data }) => setDetail(data));
+  const refetchBilling = () =>
+    api.get(`/api/v1/super-admin/pharmacies/${id}/billing`).then(({ data }) => setBilling(data)).catch(() => {});
 
+  useEffect(() => {
+    refetchDetail().finally(() => setLoading(false));
+    refetchBilling();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const handleToggle = async () => {
     if (!detail) return;
     const next = detail.subscription_status === 'suspended' ? 'active' : 'suspended';
     setPatching(true);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ subscription_status: next }),
-    });
-    if (res.ok) { const u = await res.json(); setDetail(d => d ? { ...d, ...u } : d); onStatusChange(); }
-    setPatching(false);
+    try {
+      const { data } = await api.patch(`/api/v1/super-admin/pharmacies/${id}`, { subscription_status: next });
+      setDetail(d => d ? { ...d, ...data } : d);
+      onStatusChange();
+      toast.success(next === 'suspended' ? 'Pharmacy suspended' : 'Pharmacy activated');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? 'Failed to update status');
+    } finally {
+      setPatching(false);
+    }
   };
 
   const panelStyle = {
@@ -296,19 +359,20 @@ function PharmacyDetailDrawer({ id, onClose, onStatusChange }: { id: string; onC
                     <Globe className="w-4 h-4" style={{ color: 'var(--sa-success)' }} /> Billing & Subscription
                   </h3>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const amt = prompt('Enter manual payment amount (e.g. 5000):');
                       if (!amt) return;
                       const note = prompt('Enter reference note:');
                       if (!note) return;
-                      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}/manual-payment`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-                        body: JSON.stringify({ amount: parseFloat(amt), reference_note: note }),
-                      }).then(() => {
-                        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}/billing`, { headers: { Authorization: `Bearer ${accessToken}` } })
-                          .then(r => r.json()).then(setBilling);
-                      });
+                      try {
+                        await api.post(`/api/v1/super-admin/pharmacies/${id}/manual-payment`, {
+                          amount: parseFloat(amt), reference_note: note,
+                        });
+                        await refetchBilling();
+                        toast.success('Payment recorded');
+                      } catch (err: any) {
+                        toast.error(err?.response?.data?.detail ?? 'Failed to record payment');
+                      }
                     }}
                     className="text-xs text-white px-2 py-1 rounded-lg font-medium transition-colors"
                     style={{ background: 'var(--sa-accent)' }}
@@ -367,19 +431,21 @@ function PharmacyDetailDrawer({ id, onClose, onStatusChange }: { id: string; onC
                   <GitBranch className="w-4 h-4" style={{ color: '#a78bfa' }} /> Branches
                 </h3>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const branchName = prompt('Enter new branch name:');
                     if (!branchName) return;
                     const code = prompt('Enter branch code (e.g. BR-001):');
                     if (!code) return;
-                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}/branches`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-                      body: JSON.stringify({ name: branchName, code, is_main: false }),
-                    }).then(() => {
-                      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } })
-                        .then(r => r.json()).then(setDetail);
-                    });
+                    try {
+                      await api.post(`/api/v1/super-admin/pharmacies/${id}/branches`, {
+                        name: branchName, code, is_main: false,
+                      });
+                      await refetchDetail();
+                      onStatusChange();
+                      toast.success('Branch created');
+                    } catch (err: any) {
+                      toast.error(err?.response?.data?.detail ?? 'Failed to create branch');
+                    }
                   }}
                   className="text-xs text-white px-2 py-1 rounded-lg font-medium"
                   style={{ background: '#7c3aed' }}
@@ -515,9 +581,17 @@ function PharmacyCard({
         </div>
       </div>
 
-      {/* Plan badge */}
-      <div className="mb-3">
+      {/* Status + plan badges */}
+      <div className="flex items-center gap-2 mb-3">
         <StatusBadge status={pharmacy.subscription_status} />
+        {pharmacy.plan_name && (
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+            style={{ color: 'var(--sa-accent)', background: 'var(--sa-accent-muted)' }}
+          >
+            {pharmacy.plan_name}
+          </span>
+        )}
       </div>
 
       {/* Stats row */}
@@ -872,9 +946,8 @@ export function PharmacyGrid({
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-24 gap-3">
-          <div className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--sa-accent)', borderTopColor: 'transparent' }} />
-          <span className="text-sm" style={{ color: 'var(--sa-text-muted)' }}>Loading pharmacies…</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="sa-skeleton h-44" />)}
         </div>
       ) : paginated.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-3">

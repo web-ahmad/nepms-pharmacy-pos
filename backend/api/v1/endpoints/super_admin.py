@@ -95,6 +95,7 @@ class PharmacyCreateRequest(BaseModel):
     subscription_status: str = "trial"
     admin_username: str
     admin_password: str
+    plan_id: Optional[str] = None
 
     @field_validator("subscription_status")
     @classmethod
@@ -130,6 +131,12 @@ def _pharmacy_stats(pharmacy: Pharmacy, db: Session) -> dict:
         Branch.is_deleted == False,
     ).all()
 
+    from models.billing import PharmacySubscription, SubscriptionPlan
+    subscription = db.query(PharmacySubscription).filter_by(pharmacy_id=pharmacy.id).first()
+    plan = None
+    if subscription:
+        plan = db.query(SubscriptionPlan).filter_by(id=subscription.plan_id).first()
+
     return {
         "id": pharmacy.id,
         "name": pharmacy.name,
@@ -139,7 +146,11 @@ def _pharmacy_stats(pharmacy: Pharmacy, db: Session) -> dict:
         "created_at": pharmacy.created_at.isoformat() if pharmacy.created_at else None,
         "staff_count": staff_count,
         "branch_count": len(branches),
-        "branches": [{"id": b.id, "name": b.name, "code": b.code} for b in branches],
+        # Main/head-office branch is created automatically and shouldn't clutter
+        # the card's branch list — it's already represented by the pharmacy itself.
+        "branches": [{"id": b.id, "name": b.name, "code": b.code} for b in branches if not b.is_main],
+        "plan_id": plan.id if plan else None,
+        "plan_name": plan.name if plan else None,
     }
 
 
@@ -174,6 +185,16 @@ def create_pharmacy(
     """
     from models.users import Tenant, User, UserBranch, Role
     from core.security import get_password_hash
+    from models.billing import SubscriptionPlan, PharmacySubscription
+    from dateutil.relativedelta import relativedelta
+
+    plan = None
+    if body.plan_id:
+        plan = db.query(SubscriptionPlan).filter(
+            SubscriptionPlan.id == body.plan_id, SubscriptionPlan.is_deleted == False
+        ).first()
+        if not plan:
+            raise HTTPException(status_code=400, detail="Selected plan was not found")
 
     # 1. Create legacy Tenant for backward compatibility
     tenant_id = str(uuid.uuid4())
@@ -202,6 +223,23 @@ def create_pharmacy(
     )
     db.add(pharmacy)
     db.flush()
+
+    # 2b. Create the initial subscription for the selected plan
+    if plan:
+        period_start = datetime.utcnow()
+        period_end = period_start + (
+            relativedelta(years=1) if plan.billing_cycle == "yearly" else relativedelta(months=1)
+        )
+        db.add(PharmacySubscription(
+            id=str(uuid.uuid4()),
+            pharmacy_id=pharmacy.id,
+            plan_id=plan.id,
+            status=body.subscription_status,
+            current_period_start=period_start,
+            current_period_end=period_end,
+        ))
+        db.flush()
+
     # 3. Create default Main Branch
     from models.users import Branch
     main_branch = Branch(

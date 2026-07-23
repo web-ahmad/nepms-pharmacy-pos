@@ -1,5 +1,9 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
 import { format, subDays } from 'date-fns';
-import { Calendar } from 'lucide-react';
+import { Calendar, Check, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DateRange } from '../services/dashboard.api';
 
 interface DashboardFilterProps {
@@ -7,8 +11,27 @@ interface DashboardFilterProps {
   onChange: (range: DateRange) => void;
 }
 
+const PRESETS = [
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'last7', label: 'Last 7 Days' },
+  { key: 'last30', label: 'Last 30 Days' },
+  { key: 'all', label: 'All Time' },
+];
+
 export default function DashboardFilter({ dateRange, onChange }: DashboardFilterProps) {
-  
+  const [open, setOpen] = useState(false);
+  const [activeKey, setActiveKey] = useState('today');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const handleSelect = (rangeType: string) => {
     const today = new Date();
     let from_date: string | undefined = undefined;
@@ -37,7 +60,9 @@ export default function DashboardFilter({ dateRange, onChange }: DashboardFilter
         break;
     }
 
+    setActiveKey(rangeType);
     onChange({ from_date, to_date });
+    setOpen(false);
   };
 
   const getActiveLabel = () => {
@@ -48,22 +73,38 @@ export default function DashboardFilter({ dateRange, onChange }: DashboardFilter
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative group">
-        <button className="flex items-center gap-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
-          <Calendar size={16} className="text-zinc-500" />
-          {getActiveLabel()}
-        </button>
-        
-        {/* Simple dropdown */}
-        <div className="absolute right-0 mt-1 hidden w-40 flex-col rounded-md border border-zinc-200 bg-white p-1 shadow-lg group-hover:flex dark:border-zinc-700 dark:bg-zinc-800 z-50">
-          <button onClick={() => handleSelect('today')} className="rounded-sm px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400">Today</button>
-          <button onClick={() => handleSelect('yesterday')} className="rounded-sm px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400">Yesterday</button>
-          <button onClick={() => handleSelect('last7')} className="rounded-sm px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400">Last 7 Days</button>
-          <button onClick={() => handleSelect('last30')} className="rounded-sm px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400">Last 30 Days</button>
-          <button onClick={() => handleSelect('all')} className="rounded-sm px-3 py-2 text-left text-sm hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400">All Time</button>
-        </div>
-      </div>
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
+      >
+        <Calendar size={16} className="text-emerald-600 dark:text-emerald-400" />
+        {getActiveLabel()}
+        <ChevronDown size={14} className={`text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute right-0 z-50 mt-1.5 w-44 rounded-lg border border-zinc-200 bg-white p-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            {PRESETS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => handleSelect(p.key)}
+                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:text-zinc-300 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
+              >
+                {p.label}
+                {activeKey === p.key && <Check size={14} className="text-emerald-600 dark:text-emerald-400" />}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

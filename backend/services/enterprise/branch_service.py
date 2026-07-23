@@ -170,6 +170,32 @@ class BranchService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Branch code '{data.code}' already exists in this pharmacy.",
             )
+
+        # Enforce the subscribed plan's branch limit (counts all branches,
+        # including the main/head-office one, since that's what the super-admin
+        # "Up to N branches" figure represents). The main branch only exists as a
+        # legacy `Branch` row (not `PharmacyBranch`), so count against the legacy
+        # table scoped by tenant_id — the same source `_pharmacy_stats` uses.
+        from models.billing import PharmacySubscription, SubscriptionPlan
+        from models.users import Branch as LegacyBranch
+        subscription = db.query(PharmacySubscription).filter_by(pharmacy_id=pharmacy_id).first()
+        if subscription:
+            plan = db.query(SubscriptionPlan).filter_by(id=subscription.plan_id).first()
+            max_branches = (plan.features_limits or {}).get("max_branches") if plan else None
+            if max_branches is not None:
+                current_count = db.query(func.count(LegacyBranch.id)).filter(
+                    LegacyBranch.tenant_id == scope.tenant_id,
+                    LegacyBranch.is_deleted == False,
+                ).scalar() or 0
+                if current_count >= max_branches:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=(
+                            f"Branch limit reached: the \"{plan.name}\" plan allows up to "
+                            f"{max_branches} branch(es). Upgrade the plan to add more."
+                        ),
+                    )
+
         branch = branch_repo.create_branch(db, data, pharmacy_id, scope.tenant_id)
         
         # --- AUTO-LINK POS DATA START ---

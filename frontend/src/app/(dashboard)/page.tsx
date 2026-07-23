@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { LayoutDashboard, Boxes } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { DateRange } from '@/features/dashboard/services/dashboard.api';
 import DashboardFilter from '@/features/dashboard/components/DashboardFilter';
@@ -28,21 +30,31 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-full flex-col space-y-6 pb-8">
-      
+
       {/* Header Area */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Overview
-          </h2>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Welcome back, {user?.username}. Here's what's happening today.
-          </p>
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-emerald-700 shadow-lg shadow-emerald-200/50 dark:shadow-emerald-900/30">
+            <LayoutDashboard className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              Overview
+            </h2>
+            <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+              Welcome back, {user?.username}. Here's what's happening today.
+            </p>
+          </div>
         </div>
-        
+
         {/* Only show Date Filter if the role makes sense for it (most do) */}
         <DashboardFilter dateRange={dateRange} onChange={setDateRange} />
-      </div>
+      </motion.div>
 
       {/* Conditionally Render Based on Role and Permissions */}
       
@@ -63,7 +75,10 @@ export default function DashboardPage() {
       {/* Inventory Overview */}
       {(hasPermission('inventory:view') || hasFullAccess || isInventoryManager) && (
         <section>
-          <h3 className="mb-4 text-lg font-bold text-zinc-900 dark:text-zinc-50">Inventory Pulse</h3>
+          <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-zinc-900 dark:text-zinc-50">
+            <Boxes className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            Inventory Pulse
+          </h3>
           <InventoryOverview />
         </section>
       )}

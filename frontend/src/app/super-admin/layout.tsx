@@ -42,11 +42,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
       headers: { Authorization: `Bearer ${accessToken}` },
     })
       .then((res) => {
-        if (res.status === 200 || res.status === 401 === false) {
-          setAuthorized(res.ok);
-        } else {
-          setAuthorized(false);
-        }
+        setAuthorized(res.ok);
         setChecking(false);
       })
       .catch(() => {

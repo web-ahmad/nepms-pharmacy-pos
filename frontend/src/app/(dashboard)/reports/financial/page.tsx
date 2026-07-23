@@ -1,30 +1,17 @@
 "use client";
+import ReportPageShell from '@/features/reports/components/ReportPageShell';
+import { TrendingUp, BookOpen, Receipt, Percent, PieChart, CalendarCheck, RotateCcw } from 'lucide-react';
 
-import { useState } from 'react';
-import ReportFilters from '@/features/reports/components/ReportFilters';
-import ReportTable from '@/features/reports/components/ReportTable';
-import ExportEngine from '@/features/reports/components/ExportEngine';
-import { useReportQuery } from '@/features/reports/services/reports.api';
-import { DateRangeParams } from '@/features/reports/types';
+const TABS = [
+  { id: 'profit_and_loss',     label: 'Profit & Loss',       icon: TrendingUp,    description: 'Revenue, COGS, Gross Profit, Expenses, Net Profit' },
+  { id: 'daily_closing_report',label: 'Daily Closing',       icon: CalendarCheck, description: 'Daily net sales = gross - returns - discounts + tax' },
+  { id: 'gross_margin_analysis',label:'Gross Margins',       icon: PieChart,      description: 'Gross margin % breakdown by medicine category' },
+  { id: 'cash_book',           label: 'Cash Book',           icon: BookOpen,      description: 'All cash inflows and outflows (daybook)' },
+  { id: 'expenses_by_category',label: 'Expenses',            icon: Receipt,       description: 'Operational expenses broken down by category' },
+  { id: 'tax_summary',         label: 'Tax Summary (GST)',   icon: Percent,       description: 'Output vs input tax — net liability' },
+  { id: 'refund_rate_analysis',label: 'Refund Rate',         icon: RotateCcw,     description: 'Return rate % by category — quality insights' },
+];
 
 export default function FinancialReportPage() {
-  const [params, setParams] = useState<DateRangeParams>({
-    start_date: '',
-    end_date: ''
-  });
-
-  const { data, isLoading } = useReportQuery('/api/v1/reports/financial/profit-and-loss', params);
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Profit & Loss Statement</h2>
-        <ExportEngine endpoint="/api/v1/reports/financial/profit-and-loss" params={params} filename="profit_and_loss_report" />
-      </div>
-
-      <ReportFilters onFilterChange={setParams} />
-      
-      <ReportTable data={data!} isLoading={isLoading} />
-    </div>
-  );
+  return <ReportPageShell title="Financial Reports" icon={TrendingUp} accent="violet" tabs={TABS} />;
 }

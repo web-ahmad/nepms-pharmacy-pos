@@ -1959,3 +1959,29 @@ preferred_batch_id: None
 warehouse_id: None
 Found active batches count: 1
   Batch 1: ap-1 (qty: 40, reserved: 0, status: Active, expiry: 2026-08-07)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'fb661464-9d0e-4f9c-a50a-186526545cdd'
+branch_id: 'd494da8d-5f21-465d-a6c9-3484866778e1'
+medicine_id: 'db1e857e-3acd-47d0-b86c-2a14518bb586'
+quantity_required: 3
+user_id: 'c0bf5292-3a81-4abc-b921-53bf7b82aa54'
+reference_id: '5cdb9f80-4e8c-4d67-8db1-8d8a46ea23cc'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: ap-1 (qty: 39, reserved: 0, status: Active, expiry: 2026-08-07)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'eb80bf46-375f-4a07-9cff-4cf2cfccabb7'
+branch_id: '932b0757-e9c0-40b3-9e56-1038df37d294'
+medicine_id: '4f62ae4a-5a9f-410a-9054-19e649ec855f'
+quantity_required: 10
+user_id: '507cb5ee-1d00-482c-900b-29c478073470'
+reference_id: 'f0bd5dae-c41b-4391-9bcf-8ed843bade42'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: PAN-0022026 (qty: 100, reserved: 0, status: Active, expiry: 2030-01-01)

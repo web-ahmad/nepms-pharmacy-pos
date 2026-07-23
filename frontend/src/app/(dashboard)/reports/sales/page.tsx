@@ -1,54 +1,25 @@
 "use client";
+import ReportPageShell from '@/features/reports/components/ReportPageShell';
+import { TrendingUp, BarChart3, Users, Tag, Ban, RotateCcw, Star, Clock, CalendarDays, CreditCard, FlaskConical, Crown, Percent, Pill } from 'lucide-react';
 
-import { useState } from 'react';
-import UniversalDataTable from '@/features/reports/components/UniversalDataTable';
-import { useDynamicReport } from '@/features/reports/api/dynamic-reports.api';
+const TABS = [
+  { id: 'sales_daily',           label: 'Daily Sales',        icon: CalendarDays,  description: 'Day-wise revenue, cash vs credit breakdown' },
+  { id: 'sales_monthly',         label: 'Monthly',            icon: BarChart3,     description: 'Month-over-month revenue summary' },
+  { id: 'sales_hourly',          label: 'Hourly Analysis',    icon: Clock,         description: 'Identify peak selling hours' },
+  { id: 'sales_category',        label: 'By Category',        icon: Tag,           description: 'Revenue grouped by medicine category' },
+  { id: 'sales_cashier',         label: 'By Cashier',         icon: Users,         description: 'Salesperson performance breakdown' },
+  { id: 'sales_by_medicine',     label: 'By Medicine',        icon: TrendingUp,    description: 'Per-medicine revenue, qty, profit' },
+  { id: 'sales_best_sellers',    label: 'Best Sellers',       icon: Star,          description: 'Top 50 medicines by quantity sold' },
+  { id: 'sales_payment_methods', label: 'Payment Methods',    icon: CreditCard,    description: 'Revenue split by Cash, Card, Credit, etc.' },
+  { id: 'sales_by_generic',      label: 'By Generic Name',    icon: FlaskConical,  description: 'Sales grouped by active ingredient / generic' },
+  { id: 'high_value_transactions',label: 'High Value Bills',  icon: Crown,         description: 'Top 100 highest-value transactions' },
+  { id: 'discount_impact',       label: 'Discount Impact',    icon: Percent,       description: 'Daily discount analysis — % revenue lost' },
+  { id: 'prescription_sales',    label: 'Rx Medicines',       icon: Pill,          description: 'Prescription-only medicines sales register' },
+  { id: 'sales_discounts',       label: 'Discounts Given',    icon: Tag,           description: 'All discount transactions by type' },
+  { id: 'sales_voided',          label: 'Voided Bills',       icon: Ban,           description: 'Cancelled / voided transactions' },
+  { id: 'sales_returns',         label: 'Returns & Refunds',  icon: RotateCcw,     description: 'Sales returns analysis' },
+];
 
 export default function SalesReportPage() {
-  const [reportType, setReportType] = useState('sales_daily'); 
-  
-  const { data, isLoading } = useDynamicReport(reportType);
-
-  const tabs = [
-    { id: 'sales_daily', label: 'Daily Sales' },
-    { id: 'sales_category', label: 'By Category' },
-    { id: 'sales_cashier', label: 'By Cashier' },
-    { id: 'sales_discounts', label: 'Discounts Given' },
-    { id: 'sales_voided', label: 'Voided Bills' },
-  ];
-
-  return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Sales Reports</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">Comprehensive breakdown of all sales metrics powered by the Dynamic Reporting Engine.</p>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 pb-4 dark:border-zinc-800">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setReportType(tab.id)}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              reportType === tab.id 
-                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' 
-                : 'bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      
-      {/* 
-        This single UniversalDataTable seamlessly renders ALL 5 reports 
-        without writing 5 different table components!
-      */}
-      <UniversalDataTable 
-        data={data || null} 
-        isLoading={isLoading} 
-        rowsPerPage={10} 
-      />
-    </div>
-  );
+  return <ReportPageShell title="Sales Reports" icon={TrendingUp} accent="emerald" tabs={TABS} />;
 }

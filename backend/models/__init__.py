@@ -84,9 +84,17 @@ __all__ = [
     "BranchNotificationSetting", "BranchBranding", "BranchPosConfig",
     "BranchSecuritySetting", "BranchBackupSetting",
     "BranchConfigAuditLog", "BranchHealthSnapshot",
+    # Platform (super-admin) — Plans/Coupons/Currency/Referral/Media/Settings
+    "SubscriptionPlan", "PharmacySubscription", "PaymentTransaction",
+    "PlatformCoupon", "PlatformCurrency", "ReferralProgramSettings",
+    "PharmacyReferral", "MediaAsset", "PlatformSettings",
 ]
 
 from .billing import SubscriptionPlan, PharmacySubscription, PaymentTransaction
+from .platform import (
+    PlatformCoupon, PlatformCurrency, ReferralProgramSettings,
+    PharmacyReferral, MediaAsset, PlatformSettings,
+)
 
 
 # Enterprise models — imported once here, enterprise/__init__ re-exports the same objects

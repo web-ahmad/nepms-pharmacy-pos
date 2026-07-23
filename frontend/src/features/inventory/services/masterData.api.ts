@@ -35,3 +35,16 @@ export const useCreateMasterData = (masterType: string) => {
     }
   });
 };
+
+export const useDeleteMasterData = (masterType: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/api/v1/master-data/${masterType}/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['master-data', masterType] });
+    }
+  });
+};

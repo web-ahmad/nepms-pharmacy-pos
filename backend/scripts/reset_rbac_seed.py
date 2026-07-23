@@ -265,7 +265,7 @@ _TENANT_MODULES: List[tuple] = [
     ("permissions",            ["view", "manage"]),
 
     # ── Settings (Tenant-facing) ──────────────────────────────────────────────
-    ("settings",               ["view", "company", "invoice", "tax", "crm",
+    ("settings",               ["view", "update", "company", "invoice", "tax", "crm",
                                 "inventory", "hr", "pos",
                                 "security", "api", "modules"]),
 

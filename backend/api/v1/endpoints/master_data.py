@@ -63,3 +63,15 @@ def create_master_data(master_type: str, data: MasterDataCreate, db: Session = D
     except IntegrityError:
         db.rollback()
         return JSONResponse(status_code=400, content={"error": f"{data.name} already exists."})
+
+@router.delete("/{master_type}/{item_id}")
+def delete_master_data(master_type: str, item_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    model_name = MASTER_TYPE_MAPPING.get(master_type)
+    if not model_name:
+        raise HTTPException(status_code=400, detail="Invalid master data type")
+
+    repo = get_master_repo(model_name)
+    deleted = repo.remove(db, id=item_id, tenant_id=current_user.tenant_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Item not found")
+    return {"message": "Deleted successfully"}

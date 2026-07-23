@@ -423,3 +423,55 @@ input[type=number] {
 .sa-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .sa-scrollbar::-webkit-scrollbar-thumb { background: var(--sa-border-strong); border-radius: 4px; }
 .sa-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--sa-text-faint); }
+
+/* SA skeleton (token-aware shimmer for loading states) */
+@keyframes sa-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.sa-skeleton {
+  background: linear-gradient(90deg, var(--sa-surface-raised) 25%, var(--sa-surface-hover) 50%, var(--sa-surface-raised) 75%);
+  background-size: 200% 100%;
+  animation: sa-shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.75rem;
+}
+
+/* SA modal backdrop */
+.sa-backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* ── SA Green theme (scoped override for pages that opt in, e.g. Plans) ──── */
+.sa-theme-green {
+  --sa-accent:             #10b981;
+  --sa-accent-hover:       #059669;
+  --sa-accent-muted:       rgba(16, 185, 129, 0.14);
+  --sa-accent-muted-hover: rgba(16, 185, 129, 0.24);
+  --sa-accent-glow:        rgba(16, 185, 129, 0.35);
+}
+.sa-light .sa-theme-green {
+  --sa-accent:             #059669;
+  --sa-accent-hover:       #047857;
+  --sa-accent-muted:       rgba(5, 150, 105, 0.09);
+  --sa-accent-muted-hover: rgba(5, 150, 105, 0.16);
+  --sa-accent-glow:        rgba(5, 150, 105, 0.28);
+}
+
+/* Soft ambient glow used behind primary CTAs / highlighted cards */
+@keyframes sa-glow-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.sa-glow {
+  box-shadow: 0 0 0 1px var(--sa-accent-muted), 0 8px 24px -6px var(--sa-accent-glow, transparent);
+}
+
+/* Shake — used on invalid form submit */
+@keyframes sa-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+.sa-shake { animation: sa-shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }

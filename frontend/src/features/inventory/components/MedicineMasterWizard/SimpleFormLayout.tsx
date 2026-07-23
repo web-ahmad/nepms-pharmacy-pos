@@ -43,6 +43,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
   });
 
   const { register, handleSubmit, control, setValue, reset, formState: { errors, dirtyFields } } = methods;
+  const openingStockWatch = useWatch({ control, name: 'opening_stock' });
 
   useEffect(() => {
     if (initialData && isEdit) {
@@ -769,14 +770,17 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Batch Number</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
+                    Batch Number {!!openingStockWatch && openingStockWatch > 0 && <span className="text-red-500">*</span>}
+                  </label>
                   <input
                     type="text"
                     {...register('batch_number')}
                     placeholder="e.g., BATCH-001"
                     disabled={isEdit}
-                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
+                    className={`w-full border rounded-custom h-10 px-3 py-2 transition-all ${errors.batch_number ? 'border-red-500 ring-1 ring-red-500' : 'border-outline-variant'} ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
                   />
+                  {errors.batch_number && <p className="text-xs text-red-500 mt-1">{String(errors.batch_number.message)}</p>}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Mfg Date</label>
@@ -788,13 +792,16 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Expiry Date</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
+                    Expiry Date {!!openingStockWatch && openingStockWatch > 0 && <span className="text-red-500">*</span>}
+                  </label>
                   <input
                     type="date"
                     {...register('expiry_date')}
                     disabled={isEdit}
-                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all text-slate-600 ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
+                    className={`w-full border rounded-custom h-10 px-3 py-2 transition-all text-slate-600 ${errors.expiry_date ? 'border-red-500 ring-1 ring-red-500' : 'border-outline-variant'} ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
                   />
+                  {errors.expiry_date && <p className="text-xs text-red-500 mt-1">{String(errors.expiry_date.message)}</p>}
                 </div>
               </div>
             </section>

@@ -127,6 +127,14 @@ export const medicineSchema = z.object({
 .refine(data => data.sale_price === 0 || data.purchase_price <= data.sale_price, {
   message: "Purchase Price cannot exceed Sale Price",
   path: ["purchase_price"]
+})
+.refine(data => !data.opening_stock || data.opening_stock === 0 || (!!data.batch_number && data.batch_number.trim().length > 0), {
+  message: "Batch number is required when opening stock is greater than 0",
+  path: ["batch_number"]
+})
+.refine(data => !data.opening_stock || data.opening_stock === 0 || (!!data.expiry_date && data.expiry_date.trim().length > 0), {
+  message: "Expiry date is required when opening stock is greater than 0",
+  path: ["expiry_date"]
 });
 
 export type MedicineFormValues = z.infer<typeof medicineSchema>;

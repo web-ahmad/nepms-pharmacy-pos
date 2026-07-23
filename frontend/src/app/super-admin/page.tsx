@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuthStore } from '@/stores/auth-store';
+import { api } from '@/services/api';
 import {
   Globe, CheckCircle2, TrendingUp, XCircle,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { PharmacyGrid, CreatePharmacyModal } from './PharmacyGrid';
 import type { Pharmacy } from './PharmacyGrid';
 
@@ -52,7 +53,6 @@ function StatCard({
 // ── Main dashboard ─────────────────────────────────────────────────────────────
 
 export default function SuperAdminDashboard() {
-  const { accessToken } = useAuthStore();
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -61,15 +61,14 @@ export default function SuperAdminDashboard() {
   const fetchPharmacies = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        cache: 'no-store',
-      });
-      if (res.ok) setPharmacies(await res.json());
+      const { data } = await api.get<Pharmacy[]>('/api/v1/super-admin/pharmacies');
+      setPharmacies(data);
+    } catch {
+      // 401s are handled globally by the api client (logout + redirect to /login)
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => { fetchPharmacies(); }, [fetchPharmacies]);
 
@@ -77,16 +76,15 @@ export default function SuperAdminDashboard() {
     e.stopPropagation();
     const next = pharmacy.subscription_status === 'suspended' ? 'active' : 'suspended';
     setPatchingId(pharmacy.id);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${pharmacy.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ subscription_status: next }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      setPharmacies(ps => ps.map(p => p.id === pharmacy.id ? { ...p, ...updated } : p));
+    try {
+      const { data } = await api.patch(`/api/v1/super-admin/pharmacies/${pharmacy.id}`, { subscription_status: next });
+      setPharmacies(ps => ps.map(p => p.id === pharmacy.id ? { ...p, ...data } : p));
+      toast.success(`${pharmacy.name} ${next === 'suspended' ? 'suspended' : 'activated'}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? 'Failed to update pharmacy status');
+    } finally {
+      setPatchingId(null);
     }
-    setPatchingId(null);
   };
 
   const handleDelete = async (pharmacy: Pharmacy, e: React.MouseEvent) => {
@@ -94,20 +92,17 @@ export default function SuperAdminDashboard() {
     if (!confirm(`Are you sure you want to permanently delete ${pharmacy.name}? This action cannot be undone.`)) {
       return;
     }
-    
+
     setPatchingId(pharmacy.id);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/super-admin/pharmacies/${pharmacy.id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    
-    if (res.ok) {
+    try {
+      await api.delete(`/api/v1/super-admin/pharmacies/${pharmacy.id}`);
       setPharmacies(ps => ps.filter(p => p.id !== pharmacy.id));
-    } else {
-      const err = await res.json().catch(() => null);
-      alert(`Failed to delete pharmacy: ${err?.detail || res.statusText}`);
+      toast.success(`${pharmacy.name} deleted`);
+    } catch (err: any) {
+      toast.error(`Failed to delete pharmacy: ${err?.response?.data?.detail ?? 'Unknown error'}`);
+    } finally {
+      setPatchingId(null);
     }
-    setPatchingId(null);
   };
 
   // Derived stats

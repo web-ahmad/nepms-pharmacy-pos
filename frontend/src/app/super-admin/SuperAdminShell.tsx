@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/stores/auth-store';
 import {
   LayoutDashboard,
@@ -539,6 +540,7 @@ function TopBar({
 export function SuperAdminShell({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage('sa-sidebar-collapsed', false);
   const { theme } = useTheme();
+  const pathname = usePathname();
 
   // Apply sa-light class when in light mode so CSS vars flip
   const themeClass = theme === 'dark' ? '' : 'sa-light';
@@ -562,7 +564,17 @@ export function SuperAdminShell({ children }: { children: React.ReactNode }) {
           sidebarCollapsed={sidebarCollapsed}
         />
         <main className="flex-1 overflow-y-auto sa-scrollbar">
-          {children}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>

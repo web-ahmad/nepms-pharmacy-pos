@@ -1,19 +1,19 @@
 "use client";
+import ReportPageShell from '@/features/reports/components/ReportPageShell';
+import { Users, Trophy, BookOpen, CreditCard, Clock, FileText, Truck, Tag, Package } from 'lucide-react';
 
-import { Briefcase } from 'lucide-react';
+const TABS = [
+  { id: 'supplier_master',          label: 'Supplier Directory',  icon: Users,     description: 'Complete supplier list with contact, region, and balance' },
+  { id: 'supplier_ranking',         label: 'Rankings',            icon: Trophy,    description: 'Suppliers ranked by total purchase value' },
+  { id: 'supplier_ledger',          label: 'Ledger',              icon: BookOpen,  description: 'Chronological ledger entries — invoices, payments, returns' },
+  { id: 'supplier_outstanding',     label: 'Outstanding Payables',icon: CreditCard,description: 'Suppliers you currently owe money to' },
+  { id: 'supplier_invoice_aging',   label: 'Invoice Aging',       icon: Clock,     description: 'Overdue invoices by aging bucket (30/60/90+ days)' },
+  { id: 'supplier_payment_history', label: 'Payment History',     icon: FileText,  description: 'All payments made — method, reference, amount' },
+  { id: 'supplier_grn_summary',     label: 'GRN Summary',         icon: Truck,     description: 'Goods Received Notes by supplier and date' },
+  { id: 'purchases_returns',        label: 'Purchase Returns',    icon: Tag,       description: 'Items returned to suppliers with reason and status' },
+  { id: 'supplier_medicine_catalog',label: 'Price Catalog',       icon: Package,   description: 'Supplier medicine prices, discounts, bonus schemes, lead times' },
+];
 
 export default function SupplierReportsPage() {
-  return (
-    <div className="flex h-[80vh] flex-col items-center justify-center space-y-4 text-center animate-in fade-in duration-500">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-        <Briefcase size={32} />
-      </div>
-      <div>
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Supplier Reports</h2>
-        <p className="mt-2 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
-          Advanced tracking for Supplier Ledgers, Rankings, and Payments is under construction for Phase 2.
-        </p>
-      </div>
-    </div>
-  );
+  return <ReportPageShell title="Supplier Reports" icon={Users} accent="amber" tabs={TABS} />;
 }
