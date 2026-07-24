@@ -270,7 +270,8 @@ export default function PettyCashPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               if(window.confirm('Are you sure you want to void this expense?')) {
-                                voidVoucher(v.id);
+                                const reason = window.prompt('Reason for voiding this expense (optional):') || undefined;
+                                voidVoucher({ id: v.id, reason });
                               }
                             }}
                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"

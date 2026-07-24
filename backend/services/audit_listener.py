@@ -204,6 +204,43 @@ async def _handle_void(event: AuditEvent, db):
     _log_alert(db, event.id, "whatsapp", "sent" if success else "failed", pharmacy_id=pharmacy_id)
 
 
+async def _handle_expense_void(event: AuditEvent, db):
+    """Alert the owner when an expense is voided/deleted — but ONLY if the branch
+    has the 'expense_void' alert enabled, honoring its notify_via channel."""
+    meta = event.metadata_ or {}
+    pharmacy_id = getattr(event, 'pharmacy_id', None)
+
+    # Strict gate: _get_configs only returns rows where is_enabled == True.
+    configs = _get_configs(db, event.branch_id, "expense_void")
+    if not configs:
+        return  # alert disabled (or not configured) for this branch — do nothing
+
+    notify_via = (configs[0].notify_via or "whatsapp").lower()
+
+    msg = (
+        f"🚨 *Expense Voided*\n\n"
+        f"🧾 *Reference*: {meta.get('reference', '')}\n"
+        f"👤 *Staff*: {meta.get('staff_name', 'Unknown')}\n"
+        f"💰 *Amount*: PKR {float(meta.get('amount', 0)):.2f}\n"
+        f"🏷️ *Payee*: {meta.get('payee', '') or 'N/A'}\n"
+        f"📝 *Note*: {meta.get('description', '') or 'N/A'}\n"
+        f"🕒 *Time*: {event.created_at}"
+    )
+
+    # WhatsApp channel (whatsapp / both)
+    if notify_via in ("whatsapp", "both"):
+        image_url = await _capture_webcam_snapshot(event.id, event.branch_id)
+        if image_url:
+            _save_snapshot(db, event.id, event.branch_id, image_url, pharmacy_id=pharmacy_id)
+        success = await _send_whatsapp(db, event.branch_id, event.id, msg, image_url)
+        _log_alert(db, event.id, "whatsapp", "sent" if success else "failed", pharmacy_id=pharmacy_id)
+
+    # Dashboard channel (dashboard / both) — the AuditEvent itself surfaces in the
+    # dashboard feed; log the notification so it appears in Alert History too.
+    if notify_via in ("dashboard", "both"):
+        _log_alert(db, event.id, "dashboard", "sent", pharmacy_id=pharmacy_id)
+
+
 async def _handle_discount(event: AuditEvent, db):
     meta = event.metadata_ or {}
     pharmacy_id = getattr(event, 'pharmacy_id', None)
@@ -411,6 +448,7 @@ async def scan_inventory_flags(scan_interval_seconds: float = 3600.0):
 
 HANDLERS = {
     "void":           _handle_void,
+    "expense_void":   _handle_expense_void,
     "discount":       _handle_discount,
     "refund":         _handle_refund,
     "cash_variance":  _handle_cash_variance,

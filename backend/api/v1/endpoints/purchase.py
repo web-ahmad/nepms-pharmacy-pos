@@ -30,7 +30,12 @@ def create_supplier(
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     token_payload: dict = Depends(requires_permission("purchase:manage"))
 ):
-    return supplier_repo.create(db, obj_in=supplier_in, tenant_id=scope.tenant_id)
+    # Suppliers belong to a specific branch — refuse to create one in the
+    # tenant-wide "All Branches" view. branch_id is taken from the active
+    # X-Branch-Id (via scope), never from the client payload.
+    if not scope.branch_id:
+        raise HTTPException(status_code=400, detail="Select a specific branch before adding a supplier.")
+    return supplier_repo.create(db, obj_in=supplier_in, tenant_id=scope.tenant_id, branch_id=scope.branch_id)
 
 @router.get("/suppliers", response_model=List[SupplierResponse])
 def get_suppliers(
@@ -41,6 +46,10 @@ def get_suppliers(
 ):
     from models.purchase import Supplier
     query = db.query(Supplier).filter(Supplier.tenant_id == scope.tenant_id, Supplier.is_deleted == False)
+    # Branch-isolated: only the active branch's suppliers (or the whole tenant's
+    # in "All Branches" mode, where scope.branch_id is None).
+    if scope.branch_id:
+        query = query.filter(Supplier.branch_id == scope.branch_id)
     if region:
         query = query.filter(Supplier.region_name == region)
     return query.offset(skip).limit(limit).all()

@@ -97,20 +97,21 @@ def get_alert_config(
         q = q.filter(AlertConfig.branch_id == branch_id)
     rows = q.all()
 
+    owner_id = token_payload.get("sub", "system") if token_payload else "system"
+
+    DEFAULTS = [
+        {"event_type": "void",           "threshold_value": None,  "notify_via": "whatsapp", "description": "Sale voided at POS"},
+        {"event_type": "expense_void",   "threshold_value": None,  "notify_via": "whatsapp", "description": "Expense voided/deleted"},
+        {"event_type": "discount",       "threshold_value": 20.0,  "notify_via": "whatsapp", "description": "Discount applied above threshold %"},
+        {"event_type": "refund",         "threshold_value": None,  "notify_via": "whatsapp", "description": "Sale refund issued"},
+        {"event_type": "cash_variance",  "threshold_value": 50.0,  "notify_via": "whatsapp", "description": "Cash drawer short/over at shift close"},
+        {"event_type": "expired",        "threshold_value": None,  "notify_via": "whatsapp", "description": "Expired stock detected in inventory"},
+        {"event_type": "near_expiry",    "threshold_value": 30.0,  "notify_via": "whatsapp", "description": "Stock expiring within N days"},
+    ]
+
     # ── Auto-seed defaults if no configs exist yet for this branch ─────────
     if not rows:
-        # Determine owner from the token
-        owner_id = token_payload.get("sub", "system") if token_payload else "system"
         effective_branch = branch_id or "default"
-
-        DEFAULTS = [
-            {"event_type": "void",          "threshold_value": None,   "notify_via": "whatsapp", "description": "Sale voided at POS"},
-            {"event_type": "discount",       "threshold_value": 20.0,  "notify_via": "whatsapp", "description": "Discount applied above threshold %"},
-            {"event_type": "refund",         "threshold_value": None,   "notify_via": "whatsapp", "description": "Sale refund issued"},
-            {"event_type": "cash_variance",  "threshold_value": 50.0,  "notify_via": "whatsapp", "description": "Cash drawer short/over at shift close"},
-            {"event_type": "expired",        "threshold_value": None,   "notify_via": "whatsapp", "description": "Expired stock detected in inventory"},
-            {"event_type": "near_expiry",    "threshold_value": 30.0,  "notify_via": "whatsapp", "description": "Stock expiring within N days"},
-        ]
         for d in DEFAULTS:
             db.add(AlertConfig(
                 branch_id       = effective_branch,
@@ -122,6 +123,24 @@ def get_alert_config(
             ))
         db.commit()
         rows = db.query(AlertConfig).filter(AlertConfig.branch_id == effective_branch).all()
+    else:
+        # ── Backfill newly-added event types (e.g. expense_void) for branches
+        # that were seeded before the new alert existed. ──────────────────────
+        existing_types = {r.event_type for r in rows}
+        missing = [d for d in DEFAULTS if d["event_type"] not in existing_types]
+        if missing:
+            seed_branch = rows[0].branch_id
+            for d in missing:
+                db.add(AlertConfig(
+                    branch_id       = seed_branch,
+                    owner_id        = owner_id,
+                    event_type      = d["event_type"],
+                    is_enabled      = True,
+                    threshold_value = d["threshold_value"],
+                    notify_via      = d["notify_via"],
+                ))
+            db.commit()
+            rows = db.query(AlertConfig).filter(AlertConfig.branch_id == seed_branch).all()
 
     return [
         {

@@ -19,8 +19,12 @@ class ExpenseService:
         count = self.db.query(ExpenseVoucher).filter(ExpenseVoucher.tenant_id == tenant_id, ExpenseVoucher.reference.like('PC-%')).count()
         return f"PC-{count + 1:05d}"
 
-    def get_expenses(self, tenant_id: str, start_date: str = None, end_date: str = None, category_id: str = None):
+    def get_expenses(self, tenant_id: str, start_date: str = None, end_date: str = None, category_id: str = None, branch_id: str = None):
         query = self.db.query(ExpenseVoucher).options(joinedload(ExpenseVoucher.creator)).filter(ExpenseVoucher.tenant_id == tenant_id)
+        # Branch-isolated: only the active branch's expenses (or the whole tenant's
+        # in "All Branches" mode, where branch_id is None).
+        if branch_id:
+            query = query.filter(ExpenseVoucher.branch_id == branch_id)
         if start_date:
             query = query.filter(ExpenseVoucher.date >= start_date)
         if end_date:
@@ -55,11 +59,12 @@ class ExpenseService:
             return v_dict
         return None
 
-    def create_expense(self, tenant_id: str, user_id: str, data: ExpenseVoucherCreate, attachment_url: str = None):
+    def create_expense(self, tenant_id: str, user_id: str, data: ExpenseVoucherCreate, attachment_url: str = None, branch_id: str = None):
         reference = self._generate_reference(tenant_id)
-        
+
         voucher = ExpenseVoucher(
             tenant_id=tenant_id,
+            branch_id=branch_id,
             reference=reference,
             amount=data.amount,
             payee=data.payee,
@@ -86,7 +91,7 @@ class ExpenseService:
         
         return self.get_expense(tenant_id, voucher.id)
 
-    def create_petty_cash(self, tenant_id: str, user_id: str, data: ExpenseVoucherCreate, attachment_url: str = None):
+    def create_petty_cash(self, tenant_id: str, user_id: str, data: ExpenseVoucherCreate, attachment_url: str = None, branch_id: str = None):
         reference = self._generate_petty_cash_reference(tenant_id)
         
         # Get Operating Expenses Account ID (5030)
@@ -100,6 +105,7 @@ class ExpenseService:
         
         voucher = ExpenseVoucher(
             tenant_id=tenant_id,
+            branch_id=branch_id,
             reference=reference,
             amount=data.amount,
             payee=data.payee or "Petty Cash",
@@ -122,16 +128,68 @@ class ExpenseService:
         
         return self.get_expense(tenant_id, voucher.id)
 
-    def void_expense(self, tenant_id: str, user_id: str, voucher_id: str):
+    def void_expense(self, tenant_id: str, user_id: str, voucher_id: str,
+                     void_reason: str = None, active_branch_id: str = None):
         voucher = self.db.query(ExpenseVoucher).filter(ExpenseVoucher.tenant_id == tenant_id, ExpenseVoucher.id == voucher_id).first()
         if not voucher or voucher.status == "Void":
             return False
-            
+
         voucher.status = "Void"
         self.db.commit()
-        
-        # Assuming you have a way to void journal entries or create reverse entries
-        # For simplicity we just void the entry if we had a reference link, but we only have `reference`.
-        # You can implement reversing here if needed.
-        
+
+        # ── Audit Event ───────────────────────────────────────────────────────
+        # Mirror the Sale-Void flow exactly: write an audit_events row so it shows
+        # in the Audit Center's activity log AND the background listener fires a
+        # WhatsApp/dashboard alert IF the branch has the "expense_void" alert
+        # enabled. Never let an alerting/audit failure break the void itself.
+        try:
+            # Resolve a branch even for legacy vouchers that predate branch
+            # isolation (branch_id was nullable): fall back to the caller's active
+            # branch, then the tenant's main branch. Without this, the audit event
+            # would be silently skipped and never appear in the Audit Center.
+            branch_id = voucher.branch_id or active_branch_id
+            if not branch_id:
+                from models.users import Branch
+                main_branch = self.db.query(Branch).filter(
+                    Branch.tenant_id == tenant_id, Branch.is_main == True
+                ).first()
+                branch_id = main_branch.id if main_branch else None
+
+            if branch_id:
+                from models.audit import AuditEvent
+                from models.users import User as UserModel
+                staff = self.db.query(UserModel).filter(UserModel.id == user_id).first()
+                staff_name = (staff.full_name or staff.username) if staff else "Unknown"
+                self.db.add(AuditEvent(
+                    branch_id=str(branch_id),
+                    staff_id=str(user_id),
+                    event_type="expense_void",
+                    transaction_id=str(voucher.id),
+                    metadata_={
+                        "staff_name": staff_name,
+                        "reference": voucher.reference,
+                        "amount": float(voucher.amount or 0),
+                        "payee": voucher.payee or "",
+                        "description": voucher.description or "",
+                        "reason": void_reason or "No reason provided",
+                        # Full snapshot of the voided expense for the audit trail.
+                        "snapshot": {
+                            "id": str(voucher.id),
+                            "reference": voucher.reference,
+                            "amount": float(voucher.amount or 0),
+                            "payee": voucher.payee,
+                            "description": voucher.description,
+                            "category_id": voucher.category_id,
+                            "petty_cash_category_id": voucher.petty_cash_category_id,
+                            "payment_method": voucher.payment_method,
+                            "date": voucher.date.isoformat() if voucher.date else None,
+                        },
+                    },
+                    severity="medium",
+                ))
+                self.db.commit()
+        except Exception:
+            # The void already committed above — swallow alerting errors.
+            self.db.rollback()
+
         return True

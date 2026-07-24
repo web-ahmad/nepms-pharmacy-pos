@@ -4,7 +4,7 @@ import { useAlertConfigs, useUpdateAlertConfig, useGetWhatsappNumber, useSetWhat
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import {
   Loader2, Save, Bell, BellOff, MessageCircle, Smartphone,
-  Scissors, RefreshCw, DollarSign, Package, CalendarX, Clock, CheckCircle2,
+  Scissors, RefreshCw, DollarSign, Package, CalendarX, Clock, CheckCircle2, Receipt,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
@@ -18,6 +18,12 @@ const EVENT_META: Record<string, {
     label: 'Sale Void',
     description: 'Alert owner when a cashier voids a sale at the POS.',
     icon: Scissors, color: 'text-red-500',
+    hasThreshold: false, thresholdLabel: '', thresholdUnit: '',
+  },
+  expense_void: {
+    label: 'Expense Void',
+    description: 'Alert owner when a user voids or deletes an expense.',
+    icon: Receipt, color: 'text-rose-500',
     hasThreshold: false, thresholdLabel: '', thresholdUnit: '',
   },
   discount: {
@@ -98,7 +104,7 @@ export default function AlertConfigForm({ branchId }: { branchId?: string }) {
   }
 
   // Sort configs in a consistent order
-  const ORDER = ['void', 'discount', 'refund', 'cash_variance', 'expired', 'near_expiry'];
+  const ORDER = ['void', 'expense_void', 'discount', 'refund', 'cash_variance', 'expired', 'near_expiry'];
   const sorted = [...configs].sort((a: any, b: any) => {
     const ai = ORDER.indexOf(a.event_type);
     const bi = ORDER.indexOf(b.event_type);

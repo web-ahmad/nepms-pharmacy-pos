@@ -38,40 +38,68 @@ MASTER_TYPE_MAPPING = {
 }
 
 @router.get("/{master_type}", response_model=List[MasterDataResponse])
-def get_all_master_data(master_type: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_all_master_data(
+    master_type: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+):
     model_name = MASTER_TYPE_MAPPING.get(master_type)
     if not model_name:
         raise HTTPException(status_code=400, detail="Invalid master data type")
-    
+
     repo = get_master_repo(model_name)
-    return repo.get_all_active(db, tenant_id=current_user.tenant_id)
+    # Master data is branch-isolated — return only the active branch's rows
+    # (or the whole tenant's rows in "All Branches" mode).
+    return repo.get_all_active(db, tenant_id=scope.tenant_id, branch_id=scope.branch_id)
 
 @router.post("/{master_type}", response_model=MasterDataResponse)
-def create_master_data(master_type: str, data: MasterDataCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def create_master_data(
+    master_type: str,
+    data: MasterDataCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+):
     model_name = MASTER_TYPE_MAPPING.get(master_type)
     if not model_name:
         raise HTTPException(status_code=400, detail="Invalid master data type")
-    
+
+    # Master data belongs to a specific branch — refuse to create it in the
+    # tenant-wide "All Branches" view so it can never become an ambiguous
+    # cross-branch row.
+    if not scope.branch_id:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Select a specific branch before adding master data."},
+        )
+
     repo = get_master_repo(model_name)
-    # Check duplicate
-    existing = repo.get_by_name(db, data.name, tenant_id=current_user.tenant_id)
+    # Duplicate check is scoped to THIS branch — the same name may exist in another branch.
+    existing = repo.get_by_name(db, data.name, tenant_id=scope.tenant_id, branch_id=scope.branch_id)
     if existing:
-        return JSONResponse(status_code=400, content={"error": f"{data.name} already exists."})
-    
+        return JSONResponse(status_code=400, content={"error": f"{data.name} already exists in this branch."})
+
     try:
-        return repo.create(db, obj_in=data, tenant_id=current_user.tenant_id)
+        return repo.create(db, obj_in=data, tenant_id=scope.tenant_id, branch_id=scope.branch_id)
     except IntegrityError:
         db.rollback()
-        return JSONResponse(status_code=400, content={"error": f"{data.name} already exists."})
+        return JSONResponse(status_code=400, content={"error": f"{data.name} already exists in this branch."})
 
 @router.delete("/{master_type}/{item_id}")
-def delete_master_data(master_type: str, item_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_master_data(
+    master_type: str,
+    item_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+):
     model_name = MASTER_TYPE_MAPPING.get(master_type)
     if not model_name:
         raise HTTPException(status_code=400, detail="Invalid master data type")
 
     repo = get_master_repo(model_name)
-    deleted = repo.remove(db, id=item_id, tenant_id=current_user.tenant_id)
+    deleted = repo.remove(db, id=item_id, tenant_id=scope.tenant_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Item not found")
     return {"message": "Deleted successfully"}

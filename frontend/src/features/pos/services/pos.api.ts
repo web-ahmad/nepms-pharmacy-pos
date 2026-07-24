@@ -4,12 +4,19 @@ import { CheckoutPayload, POSInvoiceResponse } from '../types/pos';
 
 // ── Medicine Search ──────────────────────────────────────────────────────────
 
-export const useSearchMedicines = (searchTerm: string) => {
+export const useSearchMedicines = (searchTerm: string, branchId?: string | null) => {
   return useQuery({
-    queryKey: ['medicines', 'search', searchTerm],
+    // branchId in the key ensures switching branches (or All Branches) never
+    // serves a cached result scoped to a different branch.
+    queryKey: ['medicines', 'search', searchTerm, branchId],
     queryFn: async () => {
       if (!searchTerm || searchTerm.length < 2) return [];
-      const response = await api.get<any>(`/api/v1/inventory/medicines?search_term=${encodeURIComponent(searchTerm)}`);
+      // in_stock_only: a cashier can only sell what's physically on this
+      // branch's shelf — unlike Purchase Order search, items with zero stock
+      // in the active branch must not appear at all (not just be disabled).
+      const response = await api.get<any>(
+        `/api/v1/inventory/medicines?search_term=${encodeURIComponent(searchTerm)}&in_stock_only=true`
+      );
       return response.data.items || [];
     },
     enabled: searchTerm.length >= 2,

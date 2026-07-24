@@ -67,7 +67,9 @@ class PharmacyScope:
 
     Data Isolation Rules:
         L1 (Super Admin)     → No pharmacy data access at all
-        L2 (Pharmacy Owner)  → Filtered to pharmacy_id only (all branches)
+        L2 (Pharmacy Owner)  → Filtered to pharmacy_id, plus branch_id when the
+                                Owner has selected a specific branch (None/"all"
+                                → every branch combined)
         L3 (Branch Owner)    → Filtered to pharmacy_id + branch_id
         L4 (Staff)           → Filtered to pharmacy_id + branch_id
     """
@@ -93,7 +95,8 @@ class PharmacyScope:
         Narrow a SQLAlchemy query to the caller's data scope.
 
         L1 (Super Admin)     → HTTPException 403 — no pharmacy data
-        L2 (Pharmacy Owner)  → filter by pharmacy_id
+        L2 (Pharmacy Owner)  → filter by pharmacy_id, plus branch_id if a
+                                specific branch is selected
         L3/L4 (Branch level) → filter by pharmacy_id + branch_id
         """
         # L1: Super Admin must NOT access pharmacy business data
@@ -108,8 +111,10 @@ class PharmacyScope:
         elif hasattr(model, "tenant_id") and self.tenant_id:
             query = query.filter(model.tenant_id == self.tenant_id)
 
-        # L3/L4: also filter by branch_id when model has the column
-        if self.hierarchy_level >= 3 and self.branch_id:
+        # Filter by branch_id whenever one is selected (any hierarchy level —
+        # Owners can drill into a single branch too; branch_id is None when
+        # "All Branches" is selected, so this is a no-op in that case).
+        if self.branch_id:
             if hasattr(model, "branch_id"):
                 query = query.filter(model.branch_id == self.branch_id)
 
@@ -149,8 +154,8 @@ class PharmacyScope:
                 )
             return False
 
-        # Branch isolation for L3/L4
-        if self.hierarchy_level >= 3 and self.branch_id and obj_bid:
+        # Branch isolation whenever a specific branch is selected
+        if self.branch_id and obj_bid:
             if obj_bid != self.branch_id:
                 if raise_on_missing:
                     raise HTTPException(

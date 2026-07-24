@@ -1,13 +1,23 @@
-from sqlalchemy import Column, String, Boolean, Text
+from sqlalchemy import Column, String, Boolean, Text, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import declared_attr
 from .base import BaseModel
 
 # A unified mixin or base class for all simple master tables
 class MasterBaseModel(BaseModel):
     __abstract__ = True
-    
-    name = Column(String(255), nullable=False, index=True, unique=True)
+
+    name = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=True)
     status = Column(String(50), default="Active")
+    # Master data is isolated per branch — each branch is its own island. The
+    # same name can exist independently in different branches of one pharmacy.
+    branch_id = Column(String(36), ForeignKey("branches.id"), index=True, nullable=True)
+
+    @declared_attr
+    def __table_args__(cls):
+        # Unique per (name, tenant, branch): "Painkillers" can exist once in each
+        # branch without colliding, but not twice within the same branch.
+        return (UniqueConstraint('name', 'tenant_id', 'branch_id', name=f'uq_{cls.__tablename__}_name_tenant_branch'),)
 
 class MasterGeneric(MasterBaseModel):
     __tablename__ = "master_generics"

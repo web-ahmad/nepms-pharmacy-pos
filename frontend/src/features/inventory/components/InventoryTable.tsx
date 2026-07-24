@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useMedicines, useBatches } from '../services/inventory.api';
 import { useExpiryAlerts, useLowStockAlerts, useInventoryOverview } from '@/features/dashboard/services/dashboard.api';
@@ -27,6 +27,7 @@ import {
 
 export default function InventoryTable() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [adjustingMedicine, setAdjustingMedicine] = useState<Medicine | null>(null);
@@ -54,7 +55,16 @@ export default function InventoryTable() {
   const canEdit = canCreate;
   const canAdjust = hasPermission('inventory:manage');
 
-  const { data, isLoading } = useMedicines(searchTerm, page, 20, filters);
+  // Debounce search input so we don't fire a request on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const { data, isLoading } = useMedicines(debouncedSearchTerm, page, 20, filters, true);
 
   // Dashboard Metrics
   const { data: expiryAlerts } = useExpiryAlerts();
@@ -306,14 +316,18 @@ export default function InventoryTable() {
             </thead>
             <tbody className="divide-y divide-[#e2e8f0] bg-white">
               {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="p-8 text-center text-[#76777d]">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-t-2 border-[#0058be]"></div>
-                      <span className="text-[14px]">Loading clinical data...</span>
-                    </div>
-                  </td>
-                </tr>
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    {Array.from({ length: 7 }).map((__, j) => (
+                      <td key={j} className="px-4 py-3.5">
+                        <div
+                          className="h-4 rounded-md bg-gradient-to-r from-zinc-100 via-zinc-200 to-zinc-100 bg-[length:200%_100%] animate-[shimmer_1.4s_ease-in-out_infinite]"
+                          style={{ width: j === 0 ? '75%' : j === 6 ? '60%' : '50%' }}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))
               ) : data?.items?.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-[#76777d]">

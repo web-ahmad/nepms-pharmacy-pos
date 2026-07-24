@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Float, Integer, ForeignKey, Text, Date, DateTime
+from sqlalchemy import Column, String, Boolean, Float, Integer, ForeignKey, Text, Date, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from typing import Optional
 from datetime import datetime
@@ -8,6 +8,12 @@ from .base import BaseModel
 
 class Supplier(BaseModel):
     __tablename__ = "suppliers"
+    __table_args__ = (
+        # Suppliers are branch-isolated — each branch is its own island. The
+        # same supplier name may exist independently in different branches, but
+        # not twice within one branch.
+        UniqueConstraint('name', 'tenant_id', 'branch_id', name='uq_suppliers_name_tenant_branch'),
+    )
 
     name = Column(String(255), nullable=False)
     contact_person = Column(String(255))
@@ -20,6 +26,8 @@ class Supplier(BaseModel):
     opening_balance = Column(Float, default=0.0)
     current_balance = Column(Float, default=0.0)
     is_active = Column(Boolean, default=True)
+    # Owning branch — set from the active X-Branch-Id at creation time.
+    branch_id = Column(String(36), ForeignKey("branches.id"), index=True, nullable=True)
 
 class PurchaseOrder(BaseModel):
     __tablename__ = "purchase_orders"

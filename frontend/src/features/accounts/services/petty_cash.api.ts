@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth-store';
 
 export interface PettyCashCategory {
   id: string;
@@ -7,8 +8,12 @@ export interface PettyCashCategory {
 }
 
 export const usePettyCashCategories = () => {
+  // Categories are branch-isolated (backend scopes by the active X-Branch-Id).
+  // Key the cache by branch so the dropdown never shows another branch's list
+  // and refreshes instantly when the branch changes.
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['petty_cash_categories'],
+    queryKey: ['petty_cash_categories', branchId],
     queryFn: async (): Promise<PettyCashCategory[]> => {
       const res = await api.get('/api/v1/petty-cash-categories');
       return res.data;

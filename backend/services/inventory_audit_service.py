@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, and_
 from datetime import datetime, timezone
 import uuid
 from models.inventory import AuditSession, AuditItem, Medicine, Batch, StockAdjustment, StockMovement
@@ -23,9 +23,25 @@ def create_audit_session(db: Session, data: AuditSessionCreate, tenant_id: str, 
     db.add(session)
     db.flush()
 
-    # Populate audit items based on scope
-    query = db.query(Medicine, Batch).outerjoin(Batch, Medicine.id == Batch.medicine_id)
-    
+    # Populate audit items based on scope.
+    # Medicines are tenant-wide (shared catalog); physical stock (Batch) is
+    # branch-specific. The branch filter lives in the JOIN condition (not WHERE)
+    # so a medicine with no batch in THIS branch still surfaces as a zero-qty
+    # line to count, while batches belonging to OTHER branches never appear.
+    query = (
+        db.query(Medicine, Batch)
+        .outerjoin(
+            Batch,
+            and_(
+                Medicine.id == Batch.medicine_id,
+                Batch.branch_id == branch_id,
+                Batch.tenant_id == tenant_id,
+                Batch.is_deleted == False,
+            ),
+        )
+        .filter(Medicine.tenant_id == tenant_id, Medicine.is_deleted == False)
+    )
+
     if data.scope_type == "Category":
         from models.inventory import Category
         query = query.join(Category, Medicine.category_id == Category.id).filter(Category.name.ilike(f"%{data.scope_value}%"))
@@ -78,10 +94,13 @@ def create_audit_session(db: Session, data: AuditSessionCreate, tenant_id: str, 
     return session
 
 def get_audit_sessions(db: Session, tenant_id: str, branch_id: str):
-    return db.query(AuditSession).filter(
-        AuditSession.tenant_id == tenant_id,
-        AuditSession.branch_id == branch_id
-    ).order_by(AuditSession.created_at.desc()).all()
+    query = db.query(AuditSession).filter(AuditSession.tenant_id == tenant_id)
+    # A specific branch is selected → only that branch's sessions. In "All
+    # Branches" mode (owner-level, branch_id is None) show every branch's
+    # sessions for the tenant rather than accidentally matching NULL rows.
+    if branch_id:
+        query = query.filter(AuditSession.branch_id == branch_id)
+    return query.order_by(AuditSession.created_at.desc()).all()
 
 def get_audit_session(db: Session, session_id: str, tenant_id: str) -> AuditSession:
     return db.query(AuditSession).filter(
@@ -161,9 +180,22 @@ def sync_audit_session_items(db: Session, session_id: str, tenant_id: str):
     session = get_audit_session(db, session_id, tenant_id)
     if not session or session.status in ["Completed", "Under Review"]:
         return session
-    
-    query = db.query(Medicine, Batch).outerjoin(Batch, Medicine.id == Batch.medicine_id)
-    
+
+    # Same tenant-wide-catalog / branch-specific-stock scoping as create.
+    query = (
+        db.query(Medicine, Batch)
+        .outerjoin(
+            Batch,
+            and_(
+                Medicine.id == Batch.medicine_id,
+                Batch.branch_id == session.branch_id,
+                Batch.tenant_id == session.tenant_id,
+                Batch.is_deleted == False,
+            ),
+        )
+        .filter(Medicine.tenant_id == session.tenant_id, Medicine.is_deleted == False)
+    )
+
     if session.scope_type == "Category":
         from models.inventory import Category
         query = query.join(Category, Medicine.category_id == Category.id).filter(Category.name.ilike(f"%{session.scope_value}%"))

@@ -47,6 +47,7 @@ def list_or_search_medicines(
     status: Optional[str] = None,
     expiry: Optional[str] = None,
     warehouse_id: Optional[str] = None,
+    in_stock_only: bool = False,
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
@@ -71,10 +72,15 @@ def list_or_search_medicines(
         Medicine.tenant_id == scope.tenant_id
     ).distinct()
     
-    # Apply outer join when searching so all catalog items are findable.
-    # Otherwise, apply inner join so the default inventory list only shows items this branch carries.
+    # Apply outer join when searching so all catalog items are findable (e.g. Purchase
+    # Order/Stock Transfer pickers need to find items to STOCK regardless of current
+    # branch stock). Callers that want the branch's own inventory list — including
+    # while searching within it — pass in_stock_only=True to force the inner join,
+    # so items never carried in this branch don't appear at all.
+    # Otherwise (no search), always inner-join so the default inventory list only
+    # shows items this branch carries.
     if effective_branch_id:
-        if search_term:
+        if search_term and not in_stock_only:
             query = query.outerjoin(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == effective_branch_id, Batch.is_deleted == False))
         else:
             query = query.join(Batch, and_(Batch.medicine_id == Medicine.id, Batch.branch_id == effective_branch_id, Batch.is_deleted == False))

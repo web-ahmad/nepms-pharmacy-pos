@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Float, Integer, ForeignKey, Text, Date, Table
+from sqlalchemy import Column, String, Boolean, Float, Integer, ForeignKey, Text, Date, Table, UniqueConstraint
 from sqlalchemy.orm import relationship
 from typing import Optional
 from .base import BaseModel
@@ -20,6 +20,12 @@ class Category(BaseModel):
 
 class Medicine(BaseModel):
     __tablename__ = "medicines"
+    __table_args__ = (
+        # Unique per pharmacy tenant, not globally — two different pharmacies
+        # can both stock a product with the same barcode/SKU.
+        UniqueConstraint('barcode', 'tenant_id', name='uq_medicines_barcode_tenant'),
+        UniqueConstraint('sku', 'tenant_id', name='uq_medicines_sku_tenant'),
+    )
 
     name = Column(String(255), nullable=False, index=True)
     generic_name = Column(String(255), index=True)
@@ -42,7 +48,7 @@ class Medicine(BaseModel):
     rx_required = Column(Boolean, default=False)
     is_controlled = Column(Boolean, default=False)
     
-    barcode = Column(String(255), unique=True, index=True)
+    barcode = Column(String(255), index=True)
     
     cost_per_base_unit = Column(Float, default=0.0)
     margin_percent = Column(Float, default=0.0)
@@ -56,7 +62,7 @@ class Medicine(BaseModel):
     last_location = Column(String(100), nullable=True)
     
     therapeutic_class = Column(String(100))
-    sku = Column(String(100), unique=True, index=True)
+    sku = Column(String(100), index=True)
     
     trade_price = Column(Float, default=0.0)
     discount_percentage = Column(Float, default=0.0)

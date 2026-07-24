@@ -65,7 +65,7 @@ class SalesService:
             
             next_seq = max_num + 1
             invoice_num = f"{prefix}{next_seq:04d}"
-            total_amount = sum([(i.quantity * i.unit_price) - i.discount for i in checkout_in.items]) + checkout_in.tax_amount + checkout_in.adjustment_amount
+            total_amount = max(0.0, sum([(i.quantity * i.unit_price) - i.discount for i in checkout_in.items]) - checkout_in.discount_amount + checkout_in.tax_amount + checkout_in.adjustment_amount)
             
             # Enforce strict payment validation for Single Counter mode
             if workflow_mode == "SINGLE_COUNTER" and not checkout_in.hold_sale:

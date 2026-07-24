@@ -64,12 +64,15 @@ const MODULE_CARDS = [
 ];
 
 export default function ReportsHubPage() {
-  const { hasPermission } = useAuthStore();
+  const { hasPermission, branchId } = useAuthStore();
+  // branchId is undefined/null on "All Branches" — omit the param entirely in
+  // that case so the backend pools across branches, same convention ReportPageShell uses.
+  const branchParams = branchId ? { branch_id: branchId } : {};
 
-  const { data: kpiData, isLoading: isLoadingKpis } = useDynamicReport('executive_kpis');
-  const { data: salesTrendData, isLoading: isLoadingTrend } = useDynamicReport('sales_trend');
-  const { data: topMedsData, isLoading: isLoadingMeds } = useDynamicReport('top_medicines');
-  const { data: alertsData, isLoading: isLoadingAlerts } = useDynamicReport('recent_alerts');
+  const { data: kpiData, isLoading: isLoadingKpis } = useDynamicReport('executive_kpis', branchParams);
+  const { data: salesTrendData, isLoading: isLoadingTrend } = useDynamicReport('sales_trend', branchParams);
+  const { data: topMedsData, isLoading: isLoadingMeds } = useDynamicReport('top_medicines', branchParams);
+  const { data: alertsData, isLoading: isLoadingAlerts } = useDynamicReport('recent_alerts', branchParams);
 
   const getKpiIcon = (title: string) => {
     if (title.includes('Revenue')) return DollarSign;

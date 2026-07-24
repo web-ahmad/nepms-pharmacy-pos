@@ -3,10 +3,16 @@ import { api } from '@/services/api';
 import { Medicine, Batch, StockMovement, StockAdjustmentPayload } from '../types/inventory';
 import { useAuthStore } from '@/stores/auth-store';
 
-export const useMedicines = (search?: string, page = 1, limit = 20, filters?: { category?: string, status?: string, expiry?: string, warehouse_id?: string }) => {
+export const useMedicines = (
+  search?: string,
+  page = 1,
+  limit = 20,
+  filters?: { category?: string, status?: string, expiry?: string, warehouse_id?: string },
+  inStockOnly = false,
+) => {
   const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['medicines', branchId, search, page, limit, filters],
+    queryKey: ['medicines', branchId, search, page, limit, filters, inStockOnly],
     queryFn: async () => {
       const skip = (page - 1) * limit;
       let url = `/api/v1/inventory/medicines?skip=${skip}&limit=${limit}`;
@@ -15,8 +21,8 @@ export const useMedicines = (search?: string, page = 1, limit = 20, filters?: { 
       if (filters?.status) url += `&status=${encodeURIComponent(filters.status)}`;
       if (filters?.expiry) url += `&expiry=${encodeURIComponent(filters.expiry)}`;
       if (filters?.warehouse_id) url += `&warehouse_id=${encodeURIComponent(filters.warehouse_id)}`;
-      
-      
+      if (inStockOnly) url += `&in_stock_only=true`;
+
       const res = await api.get(url);
       if (res.data && Array.isArray(res.data.items)) {
         return { items: res.data.items, total: res.data.total || 0 };

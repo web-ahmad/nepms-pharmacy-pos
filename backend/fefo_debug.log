@@ -1985,3 +1985,55 @@ preferred_batch_id: None
 warehouse_id: None
 Found active batches count: 1
   Batch 1: PAN-0022026 (qty: 100, reserved: 0, status: Active, expiry: 2030-01-01)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'eb80bf46-375f-4a07-9cff-4cf2cfccabb7'
+branch_id: '932b0757-e9c0-40b3-9e56-1038df37d294'
+medicine_id: '4f62ae4a-5a9f-410a-9054-19e649ec855f'
+quantity_required: 3
+user_id: '507cb5ee-1d00-482c-900b-29c478073470'
+reference_id: 'a6e8f489-eaa3-4400-9ed0-a18b470cabc1'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: PAN-0022026 (qty: 90, reserved: 0, status: Active, expiry: 2030-01-01)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '05ff9a6a-46ac-46a9-ae89-79c499f140b5'
+branch_id: 'f2758a49-3621-4967-b3ef-9139e2630c51'
+medicine_id: '0154a98d-2c0d-4ab0-9f5a-e3367d7d49b5'
+quantity_required: 2
+user_id: 'ed54ae1b-9099-4257-b96d-944607bf4c3c'
+reference_id: '3c1cbd6a-507f-45d1-8a95-dbf1015e5be5'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 0
+RAISING ERROR: Insufficient stock. Short by 2
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'd4fe2f67-0b46-41ca-83ec-5aeb93ebfa90'
+branch_id: 'a5752a8d-5130-4a0c-b222-2b6cece867cd'
+medicine_id: 'b6997862-920d-40c9-8d9c-f373f79cb239'
+quantity_required: 2
+user_id: 'ed54ae1b-9099-4257-b96d-944607bf4c3c'
+reference_id: '2f3b6a57-0b9f-4595-85b2-e3f970663b4f'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: PE01 (qty: 200, reserved: 0, status: Active, expiry: 2027-11-10)
+
+--- FEFO ALLOCATION START ---
+tenant_id: 'eb80bf46-375f-4a07-9cff-4cf2cfccabb7'
+branch_id: '932b0757-e9c0-40b3-9e56-1038df37d294'
+medicine_id: '4f62ae4a-5a9f-410a-9054-19e649ec855f'
+quantity_required: 3
+user_id: '507cb5ee-1d00-482c-900b-29c478073470'
+reference_id: 'b459f54b-a3fd-4c3b-8ee9-bc50522c90e4'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: PAN-0022026 (qty: 87, reserved: 0, status: Active, expiry: 2030-01-01)

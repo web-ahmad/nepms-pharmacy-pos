@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth-store';
 
 export interface AuditItem {
   id: string;
@@ -41,8 +42,11 @@ export interface AuditSummary {
 }
 
 export const useAuditSessions = () => {
+  // branchId in the key so switching branch never serves another branch's
+  // audit list from cache (the request itself is branch-scoped via X-Branch-Id).
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['inventory', 'audit-sessions'],
+    queryKey: ['inventory', 'audit-sessions', branchId],
     queryFn: async () => {
       const res = await api.get<AuditSession[]>('/api/v1/inventory-audit/sessions');
       return res.data;
@@ -51,8 +55,9 @@ export const useAuditSessions = () => {
 };
 
 export const useAvailableRacks = () => {
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['inventory', 'audit-racks'],
+    queryKey: ['inventory', 'audit-racks', branchId],
     queryFn: async () => {
       const res = await api.get<string[]>('/api/v1/inventory-audit/racks');
       return res.data;

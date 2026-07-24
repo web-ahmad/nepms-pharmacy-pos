@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import shutil
@@ -23,10 +23,11 @@ def get_expenses(
     end_date: Optional[str] = None,
     category_id: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     svc = ExpenseService(db)
-    return svc.get_expenses(current_user.tenant_id, start_date, end_date, category_id)
+    return svc.get_expenses(scope.tenant_id, start_date, end_date, category_id, branch_id=scope.branch_id)
 
 @router.get("/{id}", response_model=ExpenseVoucherResponse)
 def get_expense(id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -46,10 +47,13 @@ def create_expense(
     description: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
+    if not scope.branch_id:
+        raise HTTPException(status_code=400, detail="Select a specific branch before recording an expense.")
     svc = ExpenseService(db)
-    
+
     attachment_url = None
     if file:
         ext = file.filename.split('.')[-1] if '.' in file.filename else ''
@@ -67,8 +71,8 @@ def create_expense(
         description=description,
         date=None # Using default now
     )
-    
-    return svc.create_expense(current_user.tenant_id, current_user.id, data, attachment_url)
+
+    return svc.create_expense(scope.tenant_id, current_user.id, data, attachment_url, branch_id=scope.branch_id)
 
 @router.post("/petty-cash", response_model=ExpenseVoucherResponse)
 def create_petty_cash(
@@ -79,10 +83,13 @@ def create_petty_cash(
     date: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
+    if not scope.branch_id:
+        raise HTTPException(status_code=400, detail="Select a specific branch before recording petty cash.")
     svc = ExpenseService(db)
-    
+
     attachment_url = None
     if file:
         ext = file.filename.split('.')[-1] if '.' in file.filename else ''
@@ -109,13 +116,30 @@ def create_petty_cash(
         description=description,
         date=parsed_date
     )
-    
-    return svc.create_petty_cash(current_user.tenant_id, current_user.id, amount, petty_cash_category_id, payee, description, parsed_date.date(), attachment_url)
+
+    # NOTE: pass the built `data` object — the previous call passed 8 loose
+    # positional args to a 4-param method, which raised TypeError -> HTTP 500.
+    return svc.create_petty_cash(scope.tenant_id, current_user.id, data, attachment_url, branch_id=scope.branch_id)
 
 @router.post("/{id}/void")
-def void_expense(id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def void_expense(
+    id: str,
+    payload: Optional[dict] = Body(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+):
+    # Optional void reason from the request body (falls back gracefully if absent
+    # so the existing no-body call keeps working).
+    reason = None
+    if payload:
+        reason = payload.get("void_reason") or payload.get("reason")
+
     svc = ExpenseService(db)
-    success = svc.void_expense(current_user.tenant_id, current_user.id, id)
+    success = svc.void_expense(
+        current_user.tenant_id, current_user.id, id,
+        void_reason=reason, active_branch_id=scope.branch_id,
+    )
     if not success:
         raise HTTPException(status_code=400, detail="Could not void expense")
     return {"message": "Expense voided successfully"}

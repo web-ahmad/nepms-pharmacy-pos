@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth-store';
 
 export interface MasterDataRecord {
   id: string;
@@ -12,8 +13,13 @@ export interface MasterDataRecord {
 }
 
 export const useMasterData = (masterType: string) => {
+  // Master data (generics/categories/manufacturers) is branch-isolated: each
+  // branch is its own island. The cache is keyed by both tenant AND branch so
+  // switching branch (or pharmacy account) never serves another branch's list.
+  const tenantId = useAuthStore((s) => s.tenantId);
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['master-data', masterType],
+    queryKey: ['master-data', masterType, tenantId, branchId],
     queryFn: async () => {
       const res = await api.get(`/api/v1/master-data/${masterType}`);
       return res.data as MasterDataRecord[];

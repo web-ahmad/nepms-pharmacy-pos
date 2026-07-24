@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, desc, Date, cast, String, extract
+from sqlalchemy import func, case, desc, Date, cast, String, extract, select, and_
 from datetime import datetime, timedelta, date
 from typing import Dict, Any, List, Optional
 
@@ -136,6 +136,27 @@ class DynamicReportEngine:
                 query = query.filter(func.date(date_col) <= params.end_date)
         return query
 
+    def _stock_col(self, params: DateRangeParams):
+        """
+        Medicine.current_stock is a tenant-wide column_property (sums every
+        branch's batches — see models/inventory.py). When a specific branch is
+        selected, compute stock scoped to that branch instead; otherwise fall
+        back to the tenant-wide total (correct for the "All Branches" view).
+        """
+        if params and params.branch_id:
+            return (
+                select(func.coalesce(func.sum(Batch.current_quantity), 0))
+                .where(
+                    Batch.medicine_id == Medicine.id,
+                    Batch.branch_id == params.branch_id,
+                    Batch.status == 'Active',
+                    Batch.is_deleted == False,
+                )
+                .correlate_except(Batch)
+                .scalar_subquery()
+            )
+        return Medicine.current_stock
+
     def _resolve_pharmacy_id(self, tenant_id: str) -> Optional[str]:
         """
         AuditEvent/AlertHistory are scoped by `pharmacy_id` (the SaaS Pharmacy.id),
@@ -262,19 +283,28 @@ class DynamicReportEngine:
             .filter(*self._sale_filters(tenant_id, params)).scalar() or 0
         net_profit = revenue - cogs
         
-        # 3. Low Stock Items
-        low_stock_count = self.db.query(func.count(Medicine.id)).filter(
+        # 3. Low Stock Items — only count medicines this branch actually
+        # carries (has a batch record here); a medicine never stocked in this
+        # branch at all shouldn't perpetually read as "low stock".
+        stock_col = self._stock_col(params)
+        low_stock_query = self.db.query(func.count(Medicine.id)).filter(
             Medicine.tenant_id == tenant_id,
-            Medicine.current_stock <= Medicine.min_stock_level
-        ).scalar() or 0
-        
+            stock_col <= Medicine.min_stock_level
+        )
+        if params and params.branch_id:
+            low_stock_query = low_stock_query.filter(
+                Medicine.batches.any(and_(Batch.branch_id == params.branch_id, Batch.is_deleted == False))
+            )
+        low_stock_count = low_stock_query.scalar() or 0
+
         # 4. Expiring Soon (Next 90 Days)
         threshold = date.today() + timedelta(days=90)
         expiring_count = self.db.query(func.count(Batch.id)).filter(
             Batch.tenant_id == tenant_id,
             Batch.expiry_date <= threshold,
             Batch.expiry_date >= date.today(),
-            Batch.current_quantity > 0
+            Batch.current_quantity > 0,
+            *([Batch.branch_id == params.branch_id] if params and params.branch_id else [])
         ).scalar() or 0
 
         # Note: We can add historical comparison logic here for the 'change' percentage later.
@@ -360,8 +390,11 @@ class DynamicReportEngine:
         # Expiry Alerts
         threshold = date.today() + timedelta(days=30)
         expiring = self.db.query(Medicine.name, Batch.expiry_date).select_from(Batch).join(Medicine)\
-            .filter(Batch.tenant_id == tenant_id, Batch.expiry_date <= threshold, Batch.current_quantity > 0).limit(3).all()
-            
+            .filter(
+                Batch.tenant_id == tenant_id, Batch.expiry_date <= threshold, Batch.current_quantity > 0,
+                *([Batch.branch_id == params.branch_id] if params and params.branch_id else [])
+            ).limit(3).all()
+
         for row in expiring:
             days = (row.expiry_date - date.today()).days
             status = 'critical' if days <= 15 else 'warning'
@@ -370,10 +403,18 @@ class DynamicReportEngine:
                 "message": f"{row.name} expiring in {days} days",
                 "status": status
             })
-            
-        # Low Stock Alerts
-        low_stock = self.db.query(Medicine.name, Medicine.current_stock, Medicine.min_stock_level)\
-            .filter(Medicine.tenant_id == tenant_id, Medicine.current_stock <= Medicine.min_stock_level).limit(3).all()
+
+        # Low Stock Alerts — only for medicines this branch actually carries
+        # (has a batch record here); never alert on catalog items the branch
+        # has simply never stocked.
+        stock_col = self._stock_col(params)
+        low_stock_query = self.db.query(Medicine.name, stock_col.label('current_stock'), Medicine.min_stock_level)\
+            .filter(Medicine.tenant_id == tenant_id, stock_col <= Medicine.min_stock_level)
+        if params and params.branch_id:
+            low_stock_query = low_stock_query.filter(
+                Medicine.batches.any(and_(Batch.branch_id == params.branch_id, Batch.is_deleted == False))
+            )
+        low_stock = low_stock_query.limit(3).all()
             
         for row in low_stock:
             rows.append({
@@ -397,176 +438,15 @@ class DynamicReportEngine:
 
     def _strategy_inventory_valuation(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """Standard Inventory Valuation Report for UniversalDataTable"""
+        stock_col = self._stock_col(params)
         query = self.db.query(
             Medicine.name.label('medicine_name'),
             Category.name.label('category'),
-            Medicine.current_stock.label('current_stock'),
+            stock_col.label('current_stock'),
             Medicine.cost_per_base_unit.label('unit_cost'),
-            (Medicine.current_stock * Medicine.cost_per_base_unit).label('total_value')
+            (stock_col * Medicine.cost_per_base_unit).label('total_value')
         ).outerjoin(Category, Medicine.category_id == Category.id)\
-         .filter(Medicine.tenant_id == tenant_id, Medicine.current_stock > 0)\
-         .order_by(desc('total_value')).all()
-         
-        return {
-            "metadata": {
-                "report_id": "inventory_valuation",
-                "title": "Inventory Valuation",
-                "columns": [
-                    {"key": "medicine_name", "label": "Medicine Name", "type": "string"},
-                    {"key": "category", "label": "Category", "type": "string"},
-                    {"key": "current_stock", "label": "Stock Qty", "type": "number"},
-                    {"key": "unit_cost", "label": "Unit Cost", "type": "currency"},
-                    {"key": "total_value", "label": "Total Value", "type": "currency"},
-                ]
-            },
-            "rows": [dict(r._mapping) for r in query]
-        }
-
-    def _strategy_profit_and_loss(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
-        """Standard P&L Report"""
-        # Calculate Total Revenue
-        sales_rev = self.db.query(func.sum(Sale.total_amount)).filter(
-            *self._sale_filters(tenant_id, params)
-        ).scalar() or 0.0
-
-        # Calculate COGS
-        cogs = self.db.query(func.sum(SaleItem.cost_price * SaleItem.quantity)).join(Sale).filter(
-            *self._sale_filters(tenant_id, params)
-        ).scalar() or 0.0
-
-        # Calculate Total Expenses
-        expenses = self.db.query(func.sum(ExpenseVoucher.amount)).filter(
-            ExpenseVoucher.tenant_id == tenant_id, ExpenseVoucher.status == 'Approved'
-        ).scalar() or 0.0
-
-        gross_profit = sales_rev - cogs
-        net_profit = gross_profit - expenses
-
-        return {
-            "metadata": {
-                "report_id": "profit_and_loss",
-                "title": "Profit & Loss (P&L) Statement",
-                "columns": [
-                    {"key": "metric", "label": "Financial Metric", "type": "string"},
-                    {"key": "amount", "label": "Amount", "type": "currency"}
-                ]
-            },
-            "rows": [
-                {"metric": "Total Sales Revenue", "amount": sales_rev},
-                {"metric": "Cost of Goods Sold (COGS)", "amount": cogs},
-                {"metric": "Gross Profit", "amount": gross_profit},
-                {"metric": "Total Operational Expenses", "amount": expenses},
-                {"metric": "Net Profit", "amount": net_profit}
-            ]
-        }
-
-
-    def _strategy_sales_trend(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
-        """Returns 30-Day Revenue Trend for Line Chart"""
-        end_date = datetime.now().date()
-        start_date = end_date - timedelta(days=30)
-        
-        # Aggregate sales by date
-        trend_query = self.db.query(
-            func.date(Sale.created_at).label('date'),
-            func.sum(Sale.total_amount).label('sales')
-        ).filter(
-            *self._sale_filters(tenant_id, params),
-            Sale.created_at >= start_date
-        ).group_by(func.date(Sale.created_at)).order_by(func.date(Sale.created_at)).all()
-
-        rows = []
-        for row in trend_query:
-            rows.append({
-                "date": row.date.strftime("%b %d"),
-                "sales": float(row.sales)
-            })
-
-        return {
-            "metadata": {
-                "report_id": "sales_trend",
-                "title": "30-Day Revenue Trend",
-                "columns": [
-                    {"key": "date", "label": "Date", "type": "string"},
-                    {"key": "sales", "label": "Sales", "type": "currency"},
-                ]
-            },
-            "rows": rows
-        }
-
-    def _strategy_top_medicines(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
-        """Returns Top 5 Selling Medicines for Bar Chart"""
-        query = self.db.query(
-            Medicine.name.label('name'),
-            func.sum(SaleItem.quantity).label('qty')
-        ).select_from(SaleItem).join(Sale).join(Medicine)\
-         .filter(*self._sale_filters(tenant_id, params))\
-         .group_by(Medicine.name).order_by(desc('qty')).limit(5).all()
-
-        return {
-            "metadata": {
-                "report_id": "top_medicines",
-                "title": "Top Selling Medicines",
-                "columns": [
-                    {"key": "name", "label": "Medicine Name", "type": "string"},
-                    {"key": "qty", "label": "Quantity Sold", "type": "number"},
-                ]
-            },
-            "rows": [dict(r._mapping) for r in query]
-        }
-
-    def _strategy_recent_alerts(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
-        """Returns recent critical business alerts (Expiry, Low Stock)"""
-        rows = []
-        
-        # Expiry Alerts
-        threshold = date.today() + timedelta(days=30)
-        expiring = self.db.query(Medicine.name, Batch.expiry_date).select_from(Batch).join(Medicine)\
-            .filter(Batch.tenant_id == tenant_id, Batch.expiry_date <= threshold, Batch.current_quantity > 0).limit(3).all()
-            
-        for row in expiring:
-            days = (row.expiry_date - date.today()).days
-            status = 'critical' if days <= 15 else 'warning'
-            rows.append({
-                "type": "Expiry",
-                "message": f"{row.name} expiring in {days} days",
-                "status": status
-            })
-            
-        # Low Stock Alerts
-        low_stock = self.db.query(Medicine.name, Medicine.current_stock, Medicine.min_stock_level)\
-            .filter(Medicine.tenant_id == tenant_id, Medicine.current_stock <= Medicine.min_stock_level).limit(3).all()
-            
-        for row in low_stock:
-            rows.append({
-                "type": "Stock",
-                "message": f"{row.name} stock below reorder level ({row.current_stock} left)",
-                "status": "warning"
-            })
-
-        return {
-            "metadata": {
-                "report_id": "recent_alerts",
-                "title": "Critical Business Alerts",
-                "columns": [
-                    {"key": "type", "label": "Alert Type", "type": "string"},
-                    {"key": "message", "label": "Description", "type": "string"},
-                    {"key": "status", "label": "Status", "type": "badge"},
-                ]
-            },
-            "rows": rows
-        }
-
-    def _strategy_inventory_valuation(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
-        """Standard Inventory Valuation Report for UniversalDataTable"""
-        query = self.db.query(
-            Medicine.name.label('medicine_name'),
-            Category.name.label('category'),
-            Medicine.current_stock.label('current_stock'),
-            Medicine.cost_per_base_unit.label('unit_cost'),
-            (Medicine.current_stock * Medicine.cost_per_base_unit).label('total_value')
-        ).outerjoin(Category, Medicine.category_id == Category.id)\
-         .filter(Medicine.tenant_id == tenant_id, Medicine.current_stock > 0)\
+         .filter(Medicine.tenant_id == tenant_id, stock_col > 0)\
          .order_by(desc('total_value')).all()
          
         return {
@@ -758,7 +638,8 @@ class DynamicReportEngine:
             Batch.tenant_id == tenant_id,
             Batch.current_quantity > 0,
             Batch.expiry_date >= date.today(),
-            Batch.expiry_date <= threshold
+            Batch.expiry_date <= threshold,
+            *([Batch.branch_id == params.branch_id] if params and params.branch_id else [])
         ).order_by(Batch.expiry_date).all()
 
         return {
@@ -787,7 +668,8 @@ class DynamicReportEngine:
         ).select_from(Batch).join(Medicine).filter(
             Batch.tenant_id == tenant_id,
             Batch.current_quantity > 0,
-            Batch.expiry_date < date.today()
+            Batch.expiry_date < date.today(),
+            *([Batch.branch_id == params.branch_id] if params and params.branch_id else [])
         ).order_by(Batch.expiry_date).all()
 
         return {
@@ -807,16 +689,24 @@ class DynamicReportEngine:
 
     def _strategy_inventory_low_stock(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """Low Stock / Reorder Level"""
+        stock_col = self._stock_col(params)
         query = self.db.query(
             Medicine.name.label('medicine_name'),
             Category.name.label('category'),
-            Medicine.current_stock,
+            stock_col.label('current_stock'),
             Medicine.min_stock_level,
-            case((Medicine.current_stock == 0, 'Out of Stock'), else_='Low Stock').label('status')
+            case((stock_col == 0, 'Out of Stock'), else_='Low Stock').label('status')
         ).outerjoin(Category, Medicine.category_id == Category.id).filter(
             Medicine.tenant_id == tenant_id,
-            Medicine.current_stock <= Medicine.min_stock_level
-        ).order_by(Medicine.current_stock).all()
+            stock_col <= Medicine.min_stock_level
+        )
+        if params and params.branch_id:
+            # Only medicines this branch actually carries — never flag a
+            # catalog item the branch has simply never stocked.
+            query = query.filter(
+                Medicine.batches.any(and_(Batch.branch_id == params.branch_id, Batch.is_deleted == False))
+            )
+        query = query.order_by(stock_col).all()
 
         return {
             "metadata": {
@@ -1254,16 +1144,17 @@ class DynamicReportEngine:
             .filter(*self._sale_filters(tenant_id, params), Sale.created_at >= cutoff_date)\
             .distinct().subquery()
 
+        stock_col = self._stock_col(params)
         query = self.db.query(
             Medicine.name.label('medicine_name'),
             Category.name.label('category'),
-            Medicine.current_stock.label('current_stock'),
+            stock_col.label('current_stock'),
             Medicine.cost_per_base_unit.label('unit_cost'),
-            (Medicine.current_stock * Medicine.cost_per_base_unit).label('locked_value'),
+            (stock_col * Medicine.cost_per_base_unit).label('locked_value'),
         ).outerjoin(Category, Medicine.category_id == Category.id)\
          .filter(
             Medicine.tenant_id == tenant_id,
-            Medicine.current_stock > 0,
+            stock_col > 0,
             ~Medicine.id.in_(sold_ids)
          ).order_by(desc('locked_value')).all()
 
@@ -1293,7 +1184,10 @@ class DynamicReportEngine:
             (Batch.current_quantity * Batch.purchase_price).label('batch_value'),
             Batch.status,
         ).select_from(Batch).join(Medicine)\
-         .filter(Batch.tenant_id == tenant_id, Batch.current_quantity > 0)\
+         .filter(
+            Batch.tenant_id == tenant_id, Batch.current_quantity > 0,
+            *([Batch.branch_id == params.branch_id] if params and params.branch_id else [])
+         )\
          .order_by(Batch.expiry_date).all()
 
         return {
@@ -1927,18 +1821,26 @@ class DynamicReportEngine:
 
     def _strategy_inventory_reorder_suggestions(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """Reorder Suggestions - Items at or below reorder level"""
+        stock_col = self._stock_col(params)
         query = self.db.query(
             Medicine.name.label('medicine_name'),
             Category.name.label('category'),
-            Medicine.current_stock,
+            stock_col.label('current_stock'),
             Medicine.min_stock_level.label('reorder_level'),
             Medicine.cost_per_base_unit.label('unit_cost'),
         ).outerjoin(Category, Medicine.category_id == Category.id)\
          .filter(
             Medicine.tenant_id == tenant_id,
             Medicine.is_active == True,
-            Medicine.current_stock <= Medicine.min_stock_level,
-         ).order_by(Medicine.current_stock).all()
+            stock_col <= Medicine.min_stock_level,
+         )
+        if params and params.branch_id:
+            # Only suggest reordering items this branch actually carries —
+            # never a catalog item the branch has simply never stocked.
+            query = query.filter(
+                Medicine.batches.any(and_(Batch.branch_id == params.branch_id, Batch.is_deleted == False))
+            )
+        query = query.order_by(stock_col).all()
 
         rows = []
         for r in query:
@@ -1967,11 +1869,12 @@ class DynamicReportEngine:
 
     def _strategy_inventory_category_wise(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """Stock Valuation by Category"""
+        stock_col = self._stock_col(params)
         query = self.db.query(
             Category.name.label('category'),
             func.count(Medicine.id).label('total_medicines'),
-            func.sum(Medicine.current_stock).label('total_stock_qty'),
-            func.sum(Medicine.current_stock * Medicine.cost_per_base_unit).label('stock_value'),
+            func.sum(stock_col).label('total_stock_qty'),
+            func.sum(stock_col * Medicine.cost_per_base_unit).label('stock_value'),
         ).select_from(Medicine)\
          .outerjoin(Category, Medicine.category_id == Category.id)\
          .filter(Medicine.tenant_id == tenant_id, Medicine.is_active == True)\
@@ -2001,12 +1904,13 @@ class DynamicReportEngine:
          .filter(*self._sale_filters(tenant_id, params))\
          .group_by(SaleItem.medicine_id).subquery()
 
+        stock_col = self._stock_col(params)
         query = self.db.query(
             Medicine.name.label('medicine_name'),
             Category.name.label('category'),
-            Medicine.current_stock,
+            stock_col.label('current_stock'),
             Medicine.cost_per_base_unit.label('unit_cost'),
-            (Medicine.current_stock * Medicine.cost_per_base_unit).label('stock_value'),
+            (stock_col * Medicine.cost_per_base_unit).label('stock_value'),
             sold.c.cogs,
         ).outerjoin(sold, sold.c.medicine_id == Medicine.id)\
          .outerjoin(Category, Medicine.category_id == Category.id)\
@@ -2057,6 +1961,7 @@ class DynamicReportEngine:
             Batch.tenant_id == tenant_id,
             Batch.current_quantity > 0,
             Batch.expiry_date != None,
+            *([Batch.branch_id == params.branch_id] if params and params.branch_id else [])
          ).group_by(func.strftime('%Y-%m', Batch.expiry_date))\
           .order_by('expiry_month').all()
 

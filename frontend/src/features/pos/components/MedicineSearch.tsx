@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchMedicines } from '../services/pos.api';
 import { usePOSStore } from '../store/pos-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { POSMedicine } from '../types/pos';
 import { Search, Package, Plus, Loader2 } from 'lucide-react';
 
@@ -11,8 +12,9 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeGenericFilter, setActiveGenericFilter] = useState<string | null>(null);
   const [selectedMedForBatch, setSelectedMedForBatch] = useState<POSMedicine | null>(null);
-  
-  const { data: medicines, isLoading, isError } = useSearchMedicines(debouncedSearch);
+
+  const branchId = useAuthStore((s) => s.branchId);
+  const { data: medicines, isLoading, isError } = useSearchMedicines(debouncedSearch, branchId);
   const addItem = usePOSStore((state) => state.addItem);
 
   // Clear filter if user typed something different from the active filter
@@ -128,7 +130,7 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
 
         {!isLoading && medicines?.length === 0 && searchTerm.length >= 2 && (
           <div className="text-center text-sm text-outline p-4">
-            No active items found.
+            No in-stock items found in this branch.
           </div>
         )}
 

@@ -21,14 +21,16 @@ def get_available_racks(
     current_user: User = Depends(get_current_user),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
-    """Fetch all unique rack/shelf locations from medicines table."""
+    """Fetch all unique rack/shelf locations from medicines table (this tenant only)."""
     from sqlalchemy import distinct
     shelves = db.query(distinct(Medicine.shelf)).filter(
+        Medicine.tenant_id == scope.tenant_id,
         Medicine.shelf != None,
         Medicine.shelf != '',
         Medicine.is_deleted == False
     ).all()
     last_locs = db.query(distinct(Medicine.last_location)).filter(
+        Medicine.tenant_id == scope.tenant_id,
         Medicine.last_location != None,
         Medicine.last_location != '',
         Medicine.is_deleted == False
@@ -52,11 +54,19 @@ def create_session(
     current_user: User = Depends(get_current_user),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
+    # A physical stock count is inherently branch-specific — you count the
+    # shelves of one branch. Refuse to start one in "All Branches" mode so the
+    # session can never be populated with pooled cross-branch stock.
+    if not scope.branch_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Select a specific branch before starting a physical audit."
+        )
     session = inventory_audit_service.create_audit_session(
         db=db,
         data=data,
         tenant_id=scope.tenant_id,
-        branch_id=tenant_context.branch_id,
+        branch_id=scope.branch_id,
         user_id=current_user.id
     )
     return _format_session_response(session)
@@ -70,7 +80,7 @@ def get_sessions(
     sessions = inventory_audit_service.get_audit_sessions(
         db=db,
         tenant_id=scope.tenant_id,
-        branch_id=tenant_context.branch_id
+        branch_id=scope.branch_id
     )
     return [_format_session_response(s) for s in sessions]
 

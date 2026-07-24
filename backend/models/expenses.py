@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, ForeignKey, DateTime, Date, Boolean, Text
+from sqlalchemy import Column, String, Float, ForeignKey, DateTime, Date, Boolean, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
@@ -46,6 +46,11 @@ class ExpenseVoucher(BaseModel):
 
 class PettyCashCategory(BaseModel):
     __tablename__ = "petty_cash_categories"
+    __table_args__ = (
+        # Branch-isolated: the same category name may exist independently in
+        # different branches, but not twice within one branch.
+        UniqueConstraint('name', 'tenant_id', 'branch_id', name='uq_petty_cash_categories_name_tenant_branch'),
+    )
 
     branch_id = Column(String(36), ForeignKey("branches.id"), nullable=True)
     name = Column(String)

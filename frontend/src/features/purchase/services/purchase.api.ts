@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/auth-store';
 import { 
   Supplier, SupplierLedger, PurchaseOrder, GRN, PurchaseInvoice, SupplierPayment,
   CreateSupplierPayload, CreatePOPayload, CreateGRNPayload, CreateInvoicePayload, CreatePaymentPayload,
@@ -10,8 +11,13 @@ import {
 
 // --- Suppliers ---
 export const useSuppliers = () => {
+  // Suppliers are branch-isolated: each branch is its own island. Key the cache
+  // by tenant AND branch so switching branch (or pharmacy account) immediately
+  // shows that branch's own supplier list rather than a stale one.
+  const tenantId = useAuthStore((s) => s.tenantId);
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['suppliers'],
+    queryKey: ['suppliers', 'list', tenantId, branchId],
     queryFn: async () => {
       const res = await api.get('/api/v1/purchase/suppliers');
       return res.data as Supplier[];
