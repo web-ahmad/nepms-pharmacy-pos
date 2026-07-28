@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { useDynamicReport } from '@/features/reports/api/dynamic-reports.api';
 import UniversalDataTable from '@/features/reports/components/UniversalDataTable';
+import { useSettings, resolveAssetUrl } from '@/features/settings/services/settings.api';
 
 const MODULE_CARDS = [
   {
@@ -65,6 +66,9 @@ const MODULE_CARDS = [
 
 export default function ReportsHubPage() {
   const { hasPermission, branchId } = useAuthStore();
+  const { data: companySettings } = useSettings();
+  const companyLogo = resolveAssetUrl(companySettings?.company_settings?.logo_url);
+  const companyName = companySettings?.company_settings?.name || '';
   // branchId is undefined/null on "All Branches" — omit the param entirely in
   // that case so the backend pools across branches, same convention ReportPageShell uses.
   const branchParams = branchId ? { branch_id: branchId } : {};
@@ -86,11 +90,18 @@ export default function ReportsHubPage() {
 
       {/* Page header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">Analytics Hub</h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            71 live reports across 9 modules — real-time data
-          </p>
+        <div className="flex items-center gap-4">
+          {companyLogo && (
+            <img src={companyLogo} alt={companyName || 'Company logo'} className="h-12 w-12 rounded-xl border border-zinc-200 object-contain p-1 dark:border-zinc-800" />
+          )}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+              {companyName ? `${companyName} — Analytics Hub` : 'Analytics Hub'}
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              71 live reports across 9 modules — real-time data
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />

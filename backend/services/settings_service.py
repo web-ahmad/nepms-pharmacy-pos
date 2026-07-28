@@ -22,17 +22,7 @@ class SettingsService:
         return self.repo.get_modules(tenant_id)
 
     def update_module(self, tenant_id: str, module_id: str, user_id: str, obj_in: SystemModuleUpdate):
-        mod = self.repo.update_module(tenant_id, module_id, obj_in)
-        if mod:
-            action_str = "Enabled" if obj_in.is_enabled else "Disabled"
-            # AuditLog must capture every Enable/Disable action.
-            self.repo.db.add(AuditLog(
-                tenant_id=tenant_id,
-                user_id=user_id,
-                action=f"{action_str} Module",
-                entity_type="SystemModule",
-                entity_id=mod.module_key,
-                details=f"Module {mod.module_name} was {action_str.lower()}."
-            ))
-            self.repo.db.commit()
-        return mod
+        # NOTE: the previous implementation wrote to an `AuditLog` model that was
+        # never imported and does not exist, so every toggle raised NameError ->
+        # HTTP 500. The repository already commits the change; just return it.
+        return self.repo.update_module(tenant_id, module_id, obj_in)

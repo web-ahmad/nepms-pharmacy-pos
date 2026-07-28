@@ -6,6 +6,7 @@ import DateRangeBar, { DateRange } from './DateRangeBar';
 import ReportChartPanel from './ReportChartPanel';
 import { useDynamicReport } from '@/features/reports/api/dynamic-reports.api';
 import { useAuthStore } from '@/stores/auth-store';
+import { useSettings, resolveAssetUrl } from '@/features/settings/services/settings.api';
 
 export type ReportTab = {
   id: string;
@@ -74,6 +75,9 @@ export default function ReportPageShell({
   const [activeTab, setActiveTab] = useState(tabs[0].id);
   const [dateRange, setDateRange] = useState<DateRange>({ start_date: '', end_date: '' });
   const { branchId } = useAuthStore();
+  const { data: companySettings } = useSettings();
+  const company = companySettings?.company_settings || {};
+  const companyLogo = resolveAssetUrl(company.logo_url);
 
   // Always include active branch so franchise branches only see their own data
   const params = {
@@ -87,8 +91,37 @@ export default function ReportPageShell({
 
   return (
     <div className="space-y-0 animate-in fade-in duration-300">
-      {/* Hero header */}
-      <div className={`-mx-6 -mt-6 md:-mx-8 md:-mt-8 mb-6 bg-gradient-to-br ${gradientClass} px-6 py-7 md:px-8`}>
+      {/* Print-only company header — shows business identity on the printout */}
+      <div className="hidden print:block mb-4 border-b-2 border-black pb-3 text-black">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {companyLogo && <img src={companyLogo} alt="Logo" className="h-16 w-auto object-contain" />}
+            <div>
+              <h1 className="text-lg font-bold uppercase">{company.name || 'Company'}</h1>
+              {(company.address || company.city || company.country) && (
+                <p className="text-[11px]">{[company.address, company.city, company.country].filter(Boolean).join(', ')}</p>
+              )}
+              {(company.phone || company.email) && (
+                <p className="text-[11px]">{[company.phone, company.email].filter(Boolean).join('  ·  ')}</p>
+              )}
+              {(company.tax_number || company.registration_number) && (
+                <p className="text-[11px]">
+                  {company.tax_number ? `NTN/Tax: ${company.tax_number}` : ''}
+                  {company.tax_number && company.registration_number ? '   ' : ''}
+                  {company.registration_number ? `Reg #: ${company.registration_number}` : ''}
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="text-right text-[11px]">
+            <p className="text-sm font-bold">{title} — {currentTab.label}</p>
+            <p>Printed: {new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero header (hidden on print) */}
+      <div className={`print:hidden -mx-6 -mt-6 md:-mx-8 md:-mt-8 mb-6 bg-gradient-to-br ${gradientClass} px-6 py-7 md:px-8`}>
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
             <TitleIcon className="h-5 w-5 text-white" />

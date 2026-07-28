@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePurchaseInvoiceDetails, useSupplierDetails, useCreateSupplierPayment } from '@/features/purchase/services/purchase.api';
 import { ArrowLeft, Printer, Download, CreditCard, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { useSettings, useInvoiceTemplate, resolveAssetUrl } from '@/features/settings/services/settings.api';
 
 export default function InvoiceDetailPage() {
   const params = useParams();
@@ -20,6 +21,21 @@ export default function InvoiceDetailPage() {
   const [payNotes, setPayNotes] = useState('');
 
   const { data: invoice, isLoading } = usePurchaseInvoiceDetails(id);
+
+  // Invoice-template config for the printed document (colour + logo + identity).
+  const { data: settings } = useSettings();
+  const template = useInvoiceTemplate();
+  const company = settings?.company_settings || {};
+  const accent = template.header_color || '#2563eb';
+  const companyName = company.name || 'NEPMS Pharmacy';
+  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || 'National Electronic Pharmacy Management System';
+  const companyLogo = template.show_logo ? resolveAssetUrl(company.logo_url) : '';
+  const onAccent = (() => {
+    const h = accent.replace('#', '');
+    if (h.length < 6) return '#ffffff';
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#111827' : '#ffffff';
+  })();
 
   const { data: supplier } = useSupplierDetails(invoice?.supplier_id || 'new');
   const paymentMutation = useCreateSupplierPayment();
@@ -61,6 +77,52 @@ export default function InvoiceDetailPage() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
+    // Template-driven letterhead (Modern / Classic / Minimal)
+    const puLogo = (h: number) => companyLogo ? `<img src="${companyLogo}" alt="Logo" style="height:${h}px;width:auto;max-width:${Math.round(h * 3.2)}px;object-fit:contain;" />` : '';
+    const invNo = invoice.invoice_number || 'N/A';
+    let invHeader: string;
+    if (template.template === 'classic') {
+      invHeader = `
+        <div style="text-align:center;margin-bottom:36px;">
+          ${companyLogo ? `<div style="margin-bottom:8px;">${puLogo(60)}</div>` : ''}
+          <div style="font-size:28px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">${companyName}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px;">${companyAddress}</div>
+          <div style="display:inline-block;margin-top:12px;padding:6px 26px;border-radius:999px;background:${accent};color:${onAccent};font-size:15px;font-weight:800;letter-spacing:0.14em;">INVOICE</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:6px;font-family:monospace;">${invNo}</div>
+          <div style="height:2px;background:${accent};margin-top:16px;"></div>
+        </div>`;
+    } else if (template.template === 'minimal') {
+      invHeader = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:16px;border-bottom:3px solid ${accent};margin-bottom:36px;">
+          <div style="display:flex;align-items:center;gap:16px;">
+            ${puLogo(46)}
+            <div>
+              <div style="font-size:24px;font-weight:800;color:${accent};letter-spacing:-0.5px;">${companyName}</div>
+              <div style="font-size:11px;color:#94a3b8;">${companyAddress}</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:26px;font-weight:800;color:#1e293b;">INVOICE</div>
+            <div style="font-size:12px;color:#94a3b8;font-family:monospace;">${invNo}</div>
+          </div>
+        </div>`;
+    } else {
+      invHeader = `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:20px;background:${accent};color:${onAccent};border-radius:12px;padding:20px 26px;margin-bottom:36px;">
+          <div style="display:flex;align-items:center;gap:16px;">
+            ${companyLogo ? `<div style="background:#fff;border-radius:8px;padding:5px;display:flex;">${puLogo(46)}</div>` : ''}
+            <div>
+              <div style="font-size:25px;font-weight:800;">${companyName}</div>
+              <div style="font-size:11px;opacity:0.85;">${companyAddress}</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:27px;font-weight:800;letter-spacing:0.04em;">INVOICE</div>
+            <div style="font-size:12px;opacity:0.85;font-family:monospace;">${invNo}</div>
+          </div>
+        </div>`;
+    }
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -69,10 +131,12 @@ export default function InvoiceDetailPage() {
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1a1a1a; background: white; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid #2563eb; }
+          .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid ${accent}; }
+          .header-left { display: flex; align-items: center; gap: 16px; }
+          .header-logo { height: 56px; width: auto; max-width: 180px; object-fit: contain; }
           .company-name { font-size: 28px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; }
           .company-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
-          .invoice-title { font-size: 32px; font-weight: 800; color: #2563eb; text-align: right; }
+          .invoice-title { font-size: 32px; font-weight: 800; color: ${accent}; text-align: right; }
           .invoice-number { font-size: 14px; color: #64748b; text-align: right; margin-top: 4px; font-family: monospace; }
           .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
           .meta-box { padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
@@ -110,16 +174,7 @@ export default function InvoiceDetailPage() {
         </style>
       </head>
       <body>
-        <div class="header">
-          <div>
-            <div class="company-name">NEPMS Pharmacy</div>
-            <div class="company-sub">National Electronic Pharmacy Management System</div>
-          </div>
-          <div>
-            <div class="invoice-title">INVOICE</div>
-            <div class="invoice-number">Rs {invoice.invoice_number || 'N/A'}</div>
-          </div>
-        </div>
+        ${invHeader}
 
         <div class="meta-grid">
           <div class="meta-box">

@@ -13,7 +13,7 @@ from services.prescription_service import PrescriptionService
 from dependencies.module_guard import require_module
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
-router = APIRouter(dependencies=[Depends(require_module("digital_rx"))])
+router = APIRouter(dependencies=[Depends(require_module("prescriptions"))])
 
 # ── Permission guards ─────────────────────────────────────────────────────────
 # No role-name comparisons. All checks use requires_permission("module:action").

@@ -29,7 +29,7 @@ from schemas.hr import (
 )
 from services.hr_service import HRService
 
-router = APIRouter(dependencies=[Depends(require_module("employees"))])
+router = APIRouter(dependencies=[Depends(require_module("hr"))])
 
 class PayloadUser:
     def __init__(self, payload: dict):

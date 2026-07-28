@@ -22,23 +22,25 @@ router = APIRouter(dependencies=[Depends(require_module("customers"))])
 
 @router.get("/customers", response_model=List[CustomerResponse])
 def get_customers(
-    search: str = None, 
-    skip: int = 0, 
+    search: str = None,
+    skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = CRMService(db)
-    return service.get_customers(search, skip, limit)
+    return service.get_customers(search, skip, limit, tenant_id=scope.tenant_id, branch_id=scope.branch_id)
 
 @router.get("/customers/{customer_id}", response_model=CustomerResponse)
 def get_customer(
     customer_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = CRMService(db)
-    return service.get_customer(customer_id)
+    return service.get_customer(customer_id, tenant_id=scope.tenant_id, branch_id=scope.branch_id)
 
 @router.post("/customers", response_model=CustomerResponse)
 def create_customer(
@@ -47,28 +49,34 @@ def create_customer(
     current_user: User = Depends(get_current_user),
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
+    # A customer belongs to a specific branch — branch_id comes from the active
+    # X-Branch-Id (scope), never the client payload.
+    if not scope.branch_id:
+        raise HTTPException(status_code=400, detail="Select a specific branch before adding a customer.")
     service = CRMService(db)
-    return service.create_customer(customer, scope.tenant_id)
+    return service.create_customer(customer, scope.tenant_id, branch_id=scope.branch_id)
 
 @router.put("/customers/{customer_id}", response_model=CustomerResponse)
 def update_customer(
     customer_id: str,
     customer: CustomerUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = CRMService(db)
-    return service.update_customer(customer_id, customer)
+    return service.update_customer(customer_id, customer, tenant_id=scope.tenant_id, branch_id=scope.branch_id)
 
 @router.patch("/customers/{customer_id}/status", response_model=CustomerResponse)
 def update_customer_status(
     customer_id: str,
     status_update: CustomerStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     service = CRMService(db)
-    customer = service.get_customer(customer_id)
+    customer = service.get_customer(customer_id, tenant_id=scope.tenant_id, branch_id=scope.branch_id)
     if status_update.status.lower() == 'active':
         customer.is_active = True
     else:

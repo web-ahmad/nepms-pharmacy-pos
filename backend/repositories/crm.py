@@ -9,11 +9,24 @@ class CustomerRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_by_id(self, customer_id: str) -> Optional[Customer]:
-        return self.db.query(Customer).filter(Customer.id == customer_id).first()
+    def _scope(self, query, tenant_id: Optional[str], branch_id: Optional[str]):
+        # Customers are branch-isolated. Always scope by tenant; add the branch
+        # filter when a specific branch is active (None = "All Branches" view).
+        if tenant_id:
+            query = query.filter(Customer.tenant_id == tenant_id)
+        if branch_id:
+            query = query.filter(Customer.branch_id == branch_id)
+        return query
 
-    def get_all(self, search: Optional[str] = None, skip: int = 0, limit: int = 100) -> List[Customer]:
+    def get_by_id(self, customer_id: str, tenant_id: Optional[str] = None, branch_id: Optional[str] = None) -> Optional[Customer]:
+        query = self.db.query(Customer).filter(Customer.id == customer_id)
+        query = self._scope(query, tenant_id, branch_id)
+        return query.first()
+
+    def get_all(self, search: Optional[str] = None, skip: int = 0, limit: int = 100,
+                tenant_id: Optional[str] = None, branch_id: Optional[str] = None) -> List[Customer]:
         query = self.db.query(Customer)
+        query = self._scope(query, tenant_id, branch_id)
         if search:
             query = query.filter(
                 or_(
@@ -25,10 +38,11 @@ class CustomerRepository:
             )
         return query.order_by(Customer.full_name).offset(skip).limit(limit).all()
 
-    def create(self, customer: CustomerCreate, tenant_id: str) -> Customer:
+    def create(self, customer: CustomerCreate, tenant_id: str, branch_id: Optional[str] = None) -> Customer:
         db_customer = Customer(
             **customer.model_dump(),
-            tenant_id=tenant_id
+            tenant_id=tenant_id,
+            branch_id=branch_id,
         )
         self.db.add(db_customer)
         self.db.flush()

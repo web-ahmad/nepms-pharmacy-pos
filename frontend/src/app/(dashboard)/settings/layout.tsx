@@ -7,16 +7,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Blocks, Building2, Receipt, Percent,
   MonitorSmartphone, GitBranch, Boxes, Heart, Users2,
-  Stethoscope, SlidersHorizontal,
+  Stethoscope, SlidersHorizontal, FileText,
 } from 'lucide-react';
 
 type NavItem = { name: string; href: string; icon: any; exact?: boolean };
 
 const NAV_ITEMS: NavItem[] = [
   { name: 'General', href: '/settings', icon: Settings, exact: true },
-  { name: 'Company & Branch', href: '/settings/company', icon: Building2 },
+  { name: 'Company', href: '/settings/company', icon: Building2 },
   { name: 'Tax', href: '/settings/tax', icon: Percent },
   { name: 'Invoice & Receipt', href: '/settings/invoice', icon: Receipt },
+  { name: 'Invoice Template', href: '/settings/invoice-template', icon: FileText },
   { name: 'POS', href: '/settings/pos', icon: MonitorSmartphone },
   { name: 'Branches', href: '/settings/branches', icon: GitBranch },
   { name: 'Inventory', href: '/settings/inventory', icon: Boxes },

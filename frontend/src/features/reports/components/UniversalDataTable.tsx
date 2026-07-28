@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Activity, FileText, FileSpreadsheet, Printer } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
+import { useSettings, resolveAssetUrl, useInvoiceTemplate } from '@/features/settings/services/settings.api';
 
 export interface DynamicColumn {
   key: string;
@@ -44,7 +45,19 @@ const BADGE_COLORS: Record<string, string> = {
 
 export default function UniversalDataTable({ data, isLoading, rowsPerPage = 10, showSummary = true }: UniversalDataTableProps) {
   const { user, branchId } = useAuthStore();
-  const pharmacyName = user?.pharmacy_name || 'NEPMS Pharmacy';
+  // Company identity from Settings → Company (falls back to the tenant name).
+  const { data: companySettings } = useSettings();
+  const company = companySettings?.company_settings || {};
+  const pharmacyName = company.name || user?.pharmacy_name || 'NEPMS Pharmacy';
+  // Invoice-template config drives the printed header colour + logo visibility.
+  const template = useInvoiceTemplate();
+  const accent = template.header_color || '#1e293b';
+  const companyLogo = template.show_logo ? resolveAssetUrl(company.logo_url) : '';
+  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ');
+  const companyContact = [company.phone, company.email].filter(Boolean).join('  |  ');
+  const companyTax = company.tax_number
+    ? `NTN/Tax: ${company.tax_number}${company.registration_number ? `   Reg #: ${company.registration_number}` : ''}`
+    : (company.registration_number ? `Reg #: ${company.registration_number}` : '');
 
   // Match BranchSwitcher logic exactly:
   // - Find currently selected branch (by branchId), else fallback to main branch
@@ -232,30 +245,107 @@ export default function UniversalDataTable({ data, isLoading, rowsPerPage = 10, 
       return `<tfoot><tr><td class="sr tot">Total</td>${cells}</tr></tfoot>`;
     })() : '';
 
+    // Escape user-entered company values so they can't break the print HTML.
+    const esc = (s: any) => String(s ?? '').replace(/[&<>"]/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string
+    ));
+
+    // ── Template-driven letterhead (Modern / Classic / Minimal) ───────────────
+    const onAccent = (() => {
+      const h = accent.replace('#', '');
+      if (h.length < 6) return '#ffffff';
+      const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+      return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? '#111827' : '#ffffff';
+    })();
+    const reportTitle = esc(data.metadata.title);
+    const recordsCount = sortedRows.length.toLocaleString();
+    const logoImg = (h: number) => companyLogo
+      ? `<img src="${esc(companyLogo)}" alt="Logo" style="height:${h}px;width:auto;max-width:${Math.round(h * 3.2)}px;object-fit:contain;" />`
+      : '';
+    const idLines = [
+      companyAddress ? `<div>${esc(companyAddress)}</div>` : '',
+      companyContact ? `<div>${esc(companyContact)}</div>` : '',
+      companyTax ? `<div>${esc(companyTax)}</div>` : '',
+    ].join('');
+
+    let headerHTML: string;
+    if (template.template === 'classic') {
+      headerHTML = `
+        <div style="text-align:center;">
+          ${companyLogo ? `<div style="margin-bottom:6px;">${logoImg(52)}</div>` : ''}
+          <div style="font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-0.01em;">${esc(pharmacyName)}</div>
+          <div style="font-size:10px;color:#64748b;margin-top:3px;line-height:1.55;">${idLines}</div>
+          <div style="display:inline-block;margin-top:10px;padding:4px 20px;border-radius:999px;background:${accent};color:${onAccent};font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;">${reportTitle}</div>
+          <div style="font-size:9px;color:#94a3b8;margin-top:5px;">${esc(branchLabel)} &middot; ${recordsCount} records</div>
+        </div>
+        <div style="height:2px;background:${accent};border-radius:2px;margin:12px 0 14px;"></div>`;
+    } else if (template.template === 'minimal') {
+      headerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:8px;border-bottom:2px solid ${accent};margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            ${logoImg(40)}
+            <div>
+              <div style="font-size:19px;font-weight:800;color:${accent};line-height:1.05;">${esc(pharmacyName)}</div>
+              <div style="font-size:9px;color:#94a3b8;margin-top:2px;">${esc(companyAddress || branchLabel)}</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:15px;font-weight:700;color:#0f172a;letter-spacing:0.03em;">${reportTitle}</div>
+            <div style="font-size:9px;color:#94a3b8;">${esc(branchLabel)} &middot; ${recordsCount} records</div>
+          </div>
+        </div>`;
+    } else {
+      // modern — accent band
+      headerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:20px;background:${accent};color:${onAccent};border-radius:10px;padding:14px 18px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:14px;">
+            ${companyLogo ? `<div style="background:#fff;border-radius:8px;padding:4px;display:flex;">${logoImg(40)}</div>` : ''}
+            <div>
+              <div style="font-size:21px;font-weight:800;line-height:1.05;">${esc(pharmacyName)}</div>
+              <div style="font-size:10px;opacity:0.85;">${esc(companyAddress)}</div>
+              ${companyContact ? `<div style="font-size:9px;opacity:0.75;">${esc(companyContact)}</div>` : ''}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:16px;font-weight:800;letter-spacing:0.05em;">${reportTitle}</div>
+            <div style="font-size:10px;opacity:0.85;">${esc(branchLabel)} &middot; ${recordsCount} records</div>
+          </div>
+        </div>`;
+    }
+
     const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>${data.metadata.title} — ${pharmacyName}</title>
+  <title>${esc(data.metadata.title)} — ${esc(pharmacyName)}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', Arial, Helvetica, sans-serif; font-size: 11px; color: #111; background: #fff; padding: 20px 24px; }
 
     /* ── Letterhead ── */
-    .letterhead { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 12px; border-bottom: 3px solid #1e293b; margin-bottom: 4px; }
-    .pharmacy-name { font-size: 22px; font-weight: 800; color: #1e293b; line-height: 1.1; }
-    .branch-name { font-size: 12px; color: #475569; margin-top: 3px; font-weight: 500; }
-    .print-meta { text-align: right; font-size: 10px; color: #64748b; line-height: 1.7; }
-    .print-meta strong { color: #1e293b; font-size: 11px; }
+    .letterhead { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+    .lh-logo { height: 58px; width: auto; max-width: 200px; object-fit: contain; flex-shrink: 0; }
+    .lh-id { min-width: 0; }
+    .pharmacy-name { font-size: 23px; font-weight: 800; color: #0f172a; line-height: 1.05; letter-spacing: -0.01em; }
+    .branch-name { display: inline-block; margin-top: 6px; font-size: 9.5px; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 2px 9px; border-radius: 999px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .lh-contact { margin-top: 7px; font-size: 9.5px; color: #64748b; line-height: 1.65; }
+    /* meta card */
+    .print-meta { flex-shrink: 0; min-width: 200px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #f8fafc; }
+    .print-meta .row { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 5px 12px; }
+    .print-meta .row + .row { border-top: 1px solid #edf1f6; }
+    .print-meta .k { color: #64748b; font-weight: 700; text-transform: uppercase; font-size: 8px; letter-spacing: 0.06em; }
+    .print-meta .v { color: #0f172a; font-weight: 700; font-size: 10px; }
+    /* brand rule under the letterhead */
+    .brand-rule { height: 3px; border-radius: 2px; margin: 14px 0 0; background: ${accent}; }
 
     /* ── Report Title Bar ── */
-    .report-title-bar { background: #1e293b; color: #fff; padding: 8px 12px; margin: 12px 0 0 0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .report-title-bar { background: ${accent}; color: #fff; padding: 8px 12px; margin: 12px 0 0 0; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center; }
     .report-title-bar h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.02em; }
     .report-title-bar span { font-size: 10px; opacity: 0.75; }
 
     /* ── Table ── */
     table { width: 100%; border-collapse: collapse; }
-    thead tr { background: #334155; color: #fff; }
+    thead tr { background: ${accent}; color: #fff; }
     thead th { padding: 7px 10px; text-align: left; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; border-right: 1px solid #475569; }
     thead th.num { text-align: right; }
     thead th.sr { width: 32px; text-align: center; color: #94a3b8; }
@@ -282,8 +372,8 @@ export default function UniversalDataTable({ data, isLoading, rowsPerPage = 10, 
       body { padding: 6px 10px; font-size: 10px; }
       @page { margin: 10mm 8mm; size: A4 portrait; }
       tbody tr:hover { background: inherit !important; }
-      .report-title-bar { background: #1e293b !important; color: #fff !important; }
-      thead tr { background: #334155 !important; color: #fff !important; }
+      .report-title-bar { background: ${accent} !important; color: #fff !important; }
+      thead tr { background: ${accent} !important; color: #fff !important; }
       tfoot tr { background: #0f172a !important; color: #fff !important; }
       tbody tr.alt { background: #f8fafc !important; }
       table { font-size: 9px; }
@@ -295,25 +385,8 @@ export default function UniversalDataTable({ data, isLoading, rowsPerPage = 10, 
 </head>
 <body>
 
-  <!-- Letterhead -->
-  <div class="letterhead">
-    <div>
-      <div class="pharmacy-name">${pharmacyName}</div>
-      <div class="branch-name">&#x1F3E5;&ensp;${branchLabel}</div>
-    </div>
-    <div class="print-meta">
-      <div><strong>Date</strong>&ensp;${dateStr}</div>
-      <div><strong>Time</strong>&ensp;${timeStr}</div>
-      <div><strong>Printed by</strong>&ensp;${user?.full_name || user?.username || 'Staff'}</div>
-      <div><strong>Records</strong>&ensp;${sortedRows.length.toLocaleString()}</div>
-    </div>
-  </div>
-
-  <!-- Report Title Bar -->
-  <div class="report-title-bar">
-    <h1>${data.metadata.title}</h1>
-    <span>${sortedRows.length.toLocaleString()} records</span>
-  </div>
+  <!-- Template-driven letterhead (Modern / Classic / Minimal) -->
+  ${headerHTML}
 
   <!-- Data Table -->
   <table>

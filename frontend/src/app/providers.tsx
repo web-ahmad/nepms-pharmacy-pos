@@ -25,6 +25,7 @@ import { ReactNode, useState } from 'react';
 import { ModuleProvider } from '@/lib/modules';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from 'react-hot-toast';
+import AppPreferencesApplier from '@/components/AppPreferencesApplier';
 
 export default function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -43,6 +44,7 @@ export default function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <ModuleProvider>
+          <AppPreferencesApplier />
           {children}
           <Toaster position="top-right" />
         </ModuleProvider>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { MonitorSmartphone } from 'lucide-react';
+import { MonitorSmartphone, Store, Monitor } from 'lucide-react';
 import { useSettings, useUpdateSettings } from '@/features/settings/services/settings.api';
 import {
   SettingsPageHeader, SettingsCard, SettingsField, SettingsInput, SettingsSelect,
@@ -10,6 +10,7 @@ import {
 } from '@/features/settings/components/SettingsUI';
 
 const defaultPos = {
+  workflow_mode: 'SINGLE_COUNTER',
   enable_barcode_scanner: true,
   default_payment_mode: 'Cash',
   allow_partial_payment: false,
@@ -47,7 +48,32 @@ export default function POSSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <SettingsPageHeader icon={MonitorSmartphone} title="POS" description="Checkout behavior, discounts, and payment defaults." />
+      <SettingsPageHeader icon={MonitorSmartphone} title="POS" description="Workflow mode, checkout behavior, discounts, and payment defaults." />
+
+      {/* POS Workflow Mode (moved here from General) */}
+      <SettingsCard icon={Store} title="POS Workflow Mode" description="Toggle between Single Counter (Instant) and Dual Counter (Cashier Portal)." delay={0.03} accent="blue">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-bold text-zinc-900 dark:text-white">Enable Cashier Portal (Dual Counter)</p>
+            <p className="text-xs text-zinc-500 mt-0.5">Orders are sent to a dedicated Cashier for payment verification.</p>
+          </div>
+          <button
+            onClick={() => setForm({ ...form, workflow_mode: form.workflow_mode === 'SINGLE_COUNTER' ? 'DUAL_COUNTER' : 'SINGLE_COUNTER' })}
+            className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${
+              form.workflow_mode === 'DUAL_COUNTER' ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'
+            }`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${form.workflow_mode === 'DUAL_COUNTER' ? 'translate-x-8' : 'translate-x-1'}`} />
+          </button>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-3">
+          {form.workflow_mode === 'DUAL_COUNTER' ? (
+            <><Store size={16} className="text-blue-500" /><span>Currently set to <b>Dual Counter</b>. Order Takers cannot collect payments.</span></>
+          ) : (
+            <><Monitor size={16} className="text-zinc-500" /><span>Currently set to <b>Single Counter</b>. Order Takers collect payments instantly.</span></>
+          )}
+        </div>
+      </SettingsCard>
 
       <SettingsCard delay={0.05} accent="violet">
         <SettingsToggleRow

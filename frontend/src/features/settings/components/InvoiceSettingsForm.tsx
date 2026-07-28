@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Printer, Save, Loader2, Layout, Sliders, ToggleLeft, FileText, Settings2, Eye } from 'lucide-react';
-import { useInvoiceSettings, useUpdateInvoiceSettings } from '../services/settings.api';
+import { Printer, Save, Loader2, Layout, Sliders, ToggleLeft, FileText, Settings2, Eye, ImageIcon, Type, ImagePlus } from 'lucide-react';
+import Link from 'next/link';
+import { useInvoiceSettings, useUpdateInvoiceSettings, useSettings, resolveAssetUrl } from '../services/settings.api';
 
 export default function InvoiceSettingsForm() {
   const { data, isLoading } = useInvoiceSettings();
   const updateSettings = useUpdateInvoiceSettings();
+  const { data: companySettings } = useSettings();
+  const logoUrl = resolveAssetUrl(companySettings?.company_settings?.logo_url);
   
   const [saved, setSaved] = useState(false);
   const [formData, setFormData] = useState({
@@ -104,7 +107,7 @@ export default function InvoiceSettingsForm() {
     { name: 'show_drug_license', label: 'Drug License', desc: 'Show Pharmacy Drug License Number' },
     { name: 'show_ntn', label: 'Business NTN', desc: 'Show NTN number on Sale & Return invoices' },
     { name: 'show_footer_text', label: 'Footer Text', desc: 'Show bottom policy text' },
-    { name: 'show_logo', label: 'Pharmacy Logo', desc: 'Display business logo at top' },
+    // 'show_logo' is controlled by the "With Logo / Without Logo" header switch above.
   ];
 
   return (
@@ -240,17 +243,72 @@ export default function InvoiceSettingsForm() {
               {/* Business Identity */}
               <div className="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl p-4 space-y-3">
                 <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Business Identity (Appears on All Invoices)</p>
+
+                {/* Receipt header mode: logo vs typed name */}
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Pharmacy / Business Name</label>
-                  <input
-                    type="text"
-                    name="business_name"
-                    value={formData.business_name || ''}
-                    onChange={handleChange}
-                    placeholder="e.g. NEPMS Pharmacy"
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                  />
+                  <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Receipt Header</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, show_logo: true }))}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
+                        formData.show_logo
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-500/20 dark:border-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-300'
+                          : 'border-zinc-300 bg-white text-zinc-500 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900'
+                      }`}
+                    >
+                      <ImageIcon size={16} /> With Logo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, show_logo: false }))}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
+                        !formData.show_logo
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-2 ring-indigo-500/20 dark:border-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-300'
+                          : 'border-zinc-300 bg-white text-zinc-500 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900'
+                      }`}
+                    >
+                      <Type size={16} /> Without Logo
+                    </button>
+                  </div>
                 </div>
+
+                {formData.show_logo ? (
+                  // With Logo → name hidden; logo comes from Company settings.
+                  <div className="flex items-center gap-3 rounded-xl border border-dashed border-indigo-200 bg-white px-3 py-2.5 dark:border-indigo-900/40 dark:bg-zinc-900">
+                    {logoUrl ? (
+                      <>
+                        <img src={logoUrl} alt="Company logo" className="h-10 w-10 rounded-lg object-contain" />
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Logo from <span className="font-semibold text-zinc-700 dark:text-zinc-200">Company Profile</span> will print at the top.
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100 text-zinc-400 dark:bg-zinc-800">
+                          <ImagePlus size={18} />
+                        </div>
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                          No logo uploaded yet.{' '}
+                          <Link href="/settings/company" className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Upload one in Company Profile →</Link>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  // Without Logo → show the typed business name.
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Pharmacy / Business Name</label>
+                    <input
+                      type="text"
+                      name="business_name"
+                      value={formData.business_name || ''}
+                      onChange={handleChange}
+                      placeholder="e.g. NEPMS Pharmacy"
+                      className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 mb-1.5">Address</label>
                   <input
@@ -373,7 +431,7 @@ export default function InvoiceSettingsForm() {
             Live Preview
           </h4>
           <div className="flex-1 w-full flex items-start justify-center overflow-y-auto">
-            <LiveReceiptPreview formData={formData} />
+            <LiveReceiptPreview formData={formData} logoUrl={logoUrl} />
           </div>
         </div>
 
@@ -382,7 +440,7 @@ export default function InvoiceSettingsForm() {
   );
 }
 
-function LiveReceiptPreview({ formData }: { formData: any }) {
+function LiveReceiptPreview({ formData, logoUrl }: { formData: any; logoUrl?: string }) {
   // Dummy invoice data for preview purposes
   const dummyInvoice = {
     invoice_number: "INV-A1B2C3",
@@ -406,9 +464,15 @@ function LiveReceiptPreview({ formData }: { formData: any }) {
   return (
     <div className={`${formData.paper_size === '58mm' ? 'w-[58mm] min-w-[58mm] max-w-[58mm]' : 'w-[80mm] min-w-[80mm] max-w-[80mm]'} bg-white text-zinc-900 p-4 border border-zinc-300 shadow-md font-mono text-[11px] leading-relaxed dark:bg-white dark:text-zinc-900 scale-90 transform-origin-top transition-all duration-300`}>
       
-      {/* Header */}
+      {/* Header — With Logo shows the company logo; Without Logo shows the typed name */}
       <div className="text-center space-y-1 mb-4">
-        {formData.show_logo !== false && (
+        {formData.show_logo !== false ? (
+          logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="mx-auto mb-1 max-h-14 w-auto object-contain" />
+          ) : (
+            <h3 className="text-sm font-bold tracking-wide uppercase text-zinc-400">[ Company Logo ]</h3>
+          )
+        ) : (
           <h3 className="text-sm font-bold tracking-wide uppercase">
             {formData.business_name || 'NEPMS Pharmacy'}
           </h3>

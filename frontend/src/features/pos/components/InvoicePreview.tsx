@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { CheckCircle2, ClipboardList } from 'lucide-react';
-import { useInvoiceSettings } from '@/features/settings/services/settings.api';
+import { useInvoiceSettings, useInvoiceTemplate } from '@/features/settings/services/settings.api';
 import { usePrintReceipt } from '../services/pos.api';
 import PrintableReceipt from '@/components/invoice/PrintableReceipt';
+import A4Invoice from '@/components/invoice/A4Invoice';
 
 interface InvoicePreviewProps {
   invoice: any;
@@ -13,6 +14,8 @@ interface InvoicePreviewProps {
 
 export default function InvoicePreview({ invoice, onNewSale, skipPrint = false }: InvoicePreviewProps) {
   const { data: invoiceSettings } = useInvoiceSettings();
+  const template = useInvoiceTemplate();
+  const isA4 = template.pos_paper === 'a4';
   const printReceiptMutation = usePrintReceipt();
 
   // Auto-print on every successful checkout/verification.
@@ -65,10 +68,16 @@ export default function InvoicePreview({ invoice, onNewSale, skipPrint = false }
         </p>
       </div>
 
-      {/* Right Side: Thermal Receipt — ALWAYS renders as a full paid invoice (ONLY VISIBLE ON PRINT) */}
+      {/* Printed document — thermal receipt or A4 invoice per Invoice Template setting */}
       <div className="hidden print:flex items-center justify-center w-full">
-        <PrintableReceipt invoice={invoice} settings={invoiceSettings} />
+        {isA4
+          ? <A4Invoice invoice={invoice} type="sale" />
+          : <PrintableReceipt invoice={invoice} settings={invoiceSettings} />}
       </div>
+
+      {isA4 && (
+        <style>{`@media print { @page { size: A4; margin: 10mm; } }`}</style>
+      )}
     </div>
   );
 }

@@ -89,6 +89,53 @@ export const useBulkUpdateModules = () => {
   });
 };
 
+// ── Invoice / Document Template ──────────────────────────────────────────────
+// Stored in the (previously unused) TenantSettings.invoice_settings JSON column,
+// separate from the thermal-receipt InvoiceSettings table (useInvoiceSettings).
+export type InvoiceTemplateStyle = 'classic' | 'modern' | 'minimal';
+export interface InvoiceTemplateConfig {
+  template: InvoiceTemplateStyle;
+  header_color: string;   // header/accent colour used across printed documents
+  show_logo: boolean;     // show the company logo on documents
+  pos_paper: 'thermal' | 'a4'; // default paper for POS invoices
+}
+export const DEFAULT_INVOICE_TEMPLATE: InvoiceTemplateConfig = {
+  template: 'modern',
+  header_color: '#1e293b',
+  show_logo: true,
+  pos_paper: 'thermal',
+};
+
+/** Read the active invoice-template config (with defaults filled in). */
+export const useInvoiceTemplate = (): InvoiceTemplateConfig => {
+  const { data } = useSettings();
+  return { ...DEFAULT_INVOICE_TEMPLATE, ...((data?.invoice_settings as Partial<InvoiceTemplateConfig>) || {}) };
+};
+
+// Resolve a stored logo path (e.g. "/storage/logos/x.png") to an absolute URL.
+export const BACKEND_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace('/api/v1', '');
+export const resolveAssetUrl = (url?: string | null): string => {
+  if (!url) return '';
+  return url.startsWith('http') ? url : `${BACKEND_ORIGIN}${url}`;
+};
+
+export const useUploadLogo = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.post('/api/v1/settings/logo', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data as { logo_url: string };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+};
+
 export const useWhatsAppQR = () => {
   return useQuery({
     queryKey: ['settings', 'whatsapp', 'qr'],

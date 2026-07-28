@@ -18,22 +18,23 @@ class CRMService:
         self.db = db
         self.repo = CustomerRepository(db)
 
-    def get_customers(self, search: str = None, skip: int = 0, limit: int = 100):
-        return self.repo.get_all(search, skip, limit)
+    def get_customers(self, search: str = None, skip: int = 0, limit: int = 100,
+                      tenant_id: str = None, branch_id: str = None):
+        return self.repo.get_all(search, skip, limit, tenant_id=tenant_id, branch_id=branch_id)
 
-    def get_customer(self, customer_id: str):
-        customer = self.repo.get_by_id(customer_id)
+    def get_customer(self, customer_id: str, tenant_id: str = None, branch_id: str = None):
+        customer = self.repo.get_by_id(customer_id, tenant_id=tenant_id, branch_id=branch_id)
         if not customer:
             raise HTTPException(status_code=404, detail="Customer not found")
         return customer
 
-    def create_customer(self, customer_in: CustomerCreate, tenant_id: str):
-        customer = self.repo.create(customer_in, tenant_id)
+    def create_customer(self, customer_in: CustomerCreate, tenant_id: str, branch_id: str = None):
+        customer = self.repo.create(customer_in, tenant_id, branch_id=branch_id)
         self.db.commit()
         return customer
 
-    def update_customer(self, customer_id: str, customer_in: CustomerUpdate):
-        customer = self.get_customer(customer_id)
+    def update_customer(self, customer_id: str, customer_in: CustomerUpdate, tenant_id: str = None, branch_id: str = None):
+        customer = self.get_customer(customer_id, tenant_id=tenant_id, branch_id=branch_id)
         updated = self.repo.update(customer, customer_in)
         self.db.commit()
         return updated

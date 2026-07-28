@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/services/api';
-import { 
+import { useAuthStore } from '@/stores/auth-store';
+import {
   Customer, CustomerLedger, CustomerPayment,
   CreateCustomerPayload, CustomerPaymentPayload, LoyaltyRedeemPayload,
   LoyaltyTransaction, CustomerWallet, WalletTransactionCreate, WalletTransaction,
@@ -10,8 +11,12 @@ import { Sale } from '@/features/sales/types/sales';
 
 // --- Customers ---
 export const useCustomers = (search: string = '') => {
+  // Customers are branch-isolated (backend scopes by the active X-Branch-Id).
+  // branchId in the key so switching branch shows that branch's own list and
+  // never serves another branch's customers from cache.
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['customers', search],
+    queryKey: ['customers', branchId, search],
     queryFn: async () => {
       const res = await api.get(`/api/v1/crm/customers?search=${search}`);
       return res.data as Customer[];
@@ -20,8 +25,9 @@ export const useCustomers = (search: string = '') => {
 };
 
 export const useCustomerDetails = (id: string) => {
+  const branchId = useAuthStore((s) => s.branchId);
   return useQuery({
-    queryKey: ['customers', id],
+    queryKey: ['customers', branchId, id],
     queryFn: async () => {
       if (id === 'new') return null;
       const res = await api.get(`/api/v1/crm/customers/${id}`);

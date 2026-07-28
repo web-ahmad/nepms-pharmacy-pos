@@ -62,38 +62,38 @@ export const NAV_ITEMS = [
   { label: 'Dashboard',       href: '/',                          icon: LayoutDashboard, permission: 'dashboard:view',           moduleKey: 'dashboard' },
   // ── POS & Sales ──────────────────────────────────────────────────────────────
   { label: 'POS Terminal',    href: '/pos',                       icon: ShoppingCart,    permission: 'pos:create',              moduleKey: 'pos' },
-  { label: 'Cashier Portal',  href: '/pos/cashier',               icon: Wallet,          permission: 'cashier:view',            moduleKey: 'pos' },
-  { label: 'Sales History',   href: '/sales',                     icon: FileText,        permission: 'sales:view',              moduleKey: 'pos' },
+  { label: 'Cashier Portal',  href: '/pos/cashier',               icon: Wallet,          permission: 'cashier:view',            moduleKey: 'cashier' },
+  { label: 'Sales History',   href: '/sales',                     icon: FileText,        permission: 'sales:view',              moduleKey: 'sales' },
   // ── Inventory ─────────────────────────────────────────────────────────────────
-  { label: 'Add Medicine',    href: '/inventory/medicines/add',   icon: PlusCircle,      permission: 'medicines:create',        moduleKey: 'inventory' },
+  { label: 'Add Medicine',    href: '/inventory/medicines/add',   icon: PlusCircle,      permission: 'medicines:create',        moduleKey: 'add_medicine' },
   { label: 'Inventory Core',  href: '/inventory',                 icon: Package,         permission: 'inventory:view',          moduleKey: 'inventory' },
-  { label: 'Low Stock Alerts',href: '/inventory/low-stock',       icon: AlertTriangle,   permission: 'inventory:view',          moduleKey: 'inventory' },
-  { label: 'Physical Audit',  href: '/inventory/audit',           icon: ClipboardList,   permission: 'physical_audit:view',     moduleKey: 'inventory' },
+  { label: 'Low Stock Alerts',href: '/inventory/low-stock',       icon: AlertTriangle,   permission: 'inventory:view',          moduleKey: 'low_stock' },
+  { label: 'Physical Audit',  href: '/inventory/audit',           icon: ClipboardList,   permission: 'physical_audit:view',     moduleKey: 'physical_audit' },
   // ── Purchase ──────────────────────────────────────────────────────────────────
-  { label: 'Purchases',       href: '/purchase',                  icon: ShoppingBag,     permission: 'purchase:view',           moduleKey: 'purchase_orders' },
+  { label: 'Purchases',       href: '/purchase',                  icon: ShoppingBag,     permission: 'purchase:view',           moduleKey: 'purchases' },
   // ── Finance ───────────────────────────────────────────────────────────────────
-  { label: 'Expenses',        href: '/expenses',                  icon: ClipboardList,   permission: 'expenses:view',           moduleKey: 'journals' },
-  { label: 'Accounting',      href: '/accounts',                  icon: DollarSign,      permission: 'accounting:view',         moduleKey: 'journals' },
+  { label: 'Expenses',        href: '/expenses',                  icon: ClipboardList,   permission: 'expenses:view',           moduleKey: 'expenses' },
+  { label: 'Accounting',      href: '/accounts',                  icon: DollarSign,      permission: 'accounting:view',         moduleKey: 'accounting' },
   // ── CRM ───────────────────────────────────────────────────────────────────────
   { label: 'Customers',       href: '/customers',                 icon: Users,           permission: 'customers:view',          moduleKey: 'customers' },
-  { label: 'Marketing',       href: '/marketing',                 icon: Megaphone,       permission: 'marketing:view',          moduleKey: 'customers' },
+  { label: 'Marketing',       href: '/marketing',                 icon: Megaphone,       permission: 'marketing:view',          moduleKey: 'marketing' },
   // ── Clinical ──────────────────────────────────────────────────────────────────
-  { label: 'Prescriptions',   href: '/prescriptions',             icon: Stethoscope,     permission: 'prescriptions:view',      moduleKey: 'digital_rx' },
+  { label: 'Prescriptions',   href: '/prescriptions',             icon: Stethoscope,     permission: 'prescriptions:view',      moduleKey: 'prescriptions' },
   // ── Analytics & Reports ───────────────────────────────────────────────────────
   { label: 'Analytics',       href: '/analytics',                 icon: Activity,        permission: 'analytics:view',          moduleKey: 'analytics' },
   { label: 'Reports',         href: '/reports',                   icon: PieChart,        permission: 'reports:view',            moduleKey: 'reports' },
   // ── HR ────────────────────────────────────────────────────────────────────────
-  { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',                 moduleKey: 'employees' },
+  { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',                 moduleKey: 'hr' },
   // ── Org ───────────────────────────────────────────────────────────────────────
   { label: 'Branches',        href: '/branches',                  icon: Building2,       permission: 'branches:view',           moduleKey: null },
   // ── Compliance & Audit ────────────────────────────────────────────────────────
-  { label: 'Compliance',      href: '/compliance',                icon: ClipboardList,   permission: 'compliance:view',         moduleKey: null },
-  { label: 'Audit Center',    href: '/audit',                     icon: ShieldCheck,     permission: 'audit:view',              moduleKey: null },
+  { label: 'Compliance',      href: '/compliance',                icon: ClipboardList,   permission: 'compliance:view',         moduleKey: 'compliance' },
+  { label: 'Audit Center',    href: '/audit',                     icon: ShieldCheck,     permission: 'audit:view',              moduleKey: 'audit_center' },
   // ── System ────────────────────────────────────────────────────────────────────
-  { label: 'Notifications',   href: '/notifications',             icon: Bell,            permission: 'notifications:view',      moduleKey: null },
+  { label: 'Notifications',   href: '/notifications',             icon: Bell,            permission: 'notifications:view',      moduleKey: 'notifications' },
   { label: 'System',          href: '/system',                    icon: Monitor,         permission: 'system_health:view',      moduleKey: null },
-  { label: 'Users & Roles',   href: '/users',                     icon: Users,           permission: 'users:view',              moduleKey: null },
-  { label: 'Roles',           href: '/roles',                     icon: ShieldAlert,     permission: 'roles:view',              moduleKey: null },
+  { label: 'Users & Roles',   href: '/users',                     icon: Users,           permission: 'users:view',              moduleKey: 'users' },
+  { label: 'Roles',           href: '/roles',                     icon: ShieldAlert,     permission: 'roles:view',              moduleKey: 'roles' },
   { label: 'Settings',        href: '/settings',                  icon: Settings,        permission: 'settings:view',           moduleKey: null },
 ];
 
@@ -108,10 +108,17 @@ export function Sidebar() {
 
   const isSuperAdmin = useIsSuperAdmin();
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const { isModuleEnabled } = useModules();
 
   const visibleItems = NAV_ITEMS.filter((item) => {
     // 1. RBAC check using the helper
     if (item.permission && !isSuperAdmin && !hasPermission(item.permission)) {
+      return false;
+    }
+    // 2. Module gate: if this link belongs to a module that the tenant has
+    // disabled in Settings → Modules, hide it immediately. Super Admin (L1) is
+    // unaffected (module context is empty for them, so this always allows).
+    if (item.moduleKey && !isModuleEnabled(item.moduleKey)) {
       return false;
     }
     return true;
@@ -141,8 +148,9 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                style={isActive ? { color: 'var(--brand)', backgroundColor: 'var(--brand-soft)' } : undefined}
                 className={`group flex items-center justify-between rounded-md px-2 py-2 text-sm font-medium transition-colors ${isActive
-                    ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                    ? 'font-semibold'
                     : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-50'
                   }`}
                 title={isCollapsed ? item.label : undefined}

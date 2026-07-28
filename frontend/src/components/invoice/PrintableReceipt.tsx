@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSettings, resolveAssetUrl } from '@/features/settings/services/settings.api';
 
 export interface PrintableReceiptProps {
   invoice: any;
@@ -8,6 +9,11 @@ export interface PrintableReceiptProps {
 }
 
 export default function PrintableReceipt({ invoice, settings, type = 'sale' }: PrintableReceiptProps) {
+  // Company logo lives in company_settings; pull it here so every receipt
+  // consumer shows it automatically once uploaded in Settings → Company.
+  const { data: companySettings } = useSettings();
+  const logoUrl = resolveAssetUrl(companySettings?.company_settings?.logo_url);
+
   if (!invoice) return null;
 
   const isReturn = type === 'return';
@@ -39,7 +45,12 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
               ⟵ RETURN INVOICE ⟶
             </p>
           )}
-          {settings?.show_logo !== false && (
+          {/* Header mode: "With Logo" (show_logo) prints the company logo and
+              hides the name; "Without Logo" prints the business name. Falls back
+              to the name if logo mode is on but no logo was uploaded. */}
+          {settings?.show_logo !== false && logoUrl ? (
+            <img src={logoUrl} alt="Logo" className="mx-auto mb-1 max-h-16 w-auto object-contain" />
+          ) : (
             <h3 className="text-sm font-bold tracking-wide uppercase">{businessName}</h3>
           )}
           <p className="text-[10px] text-zinc-600">{businessAddress}</p>

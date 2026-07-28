@@ -8,6 +8,7 @@ import InventoryAuditTable from '@/features/audit/components/InventoryAuditTable
 import PrebuiltReportsSection from '@/features/audit/components/PrebuiltReportsSection';
 import AlertConfigForm from '@/features/audit/components/AlertConfigForm';
 import AuditEventsTable from '@/features/audit/components/AuditEventsTable';
+import WhatsAppIntegrationCard from '@/features/audit/components/WhatsAppIntegrationCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   ShieldAlert, ShieldCheck, Activity, BarChart3, Settings2,
@@ -143,8 +144,11 @@ export default function AuditDashboardPage() {
                 Alert Configurations
               </h3>
               <p className="text-sm text-zinc-500 mt-1">
-                Control which events trigger real-time WhatsApp alerts and configure thresholds.
+                Link WhatsApp, control which events trigger real-time alerts, and configure thresholds.
               </p>
+            </div>
+            <div className="mb-6">
+              <WhatsAppIntegrationCard />
             </div>
             <AlertConfigForm branchId={branchId || undefined} />
           </div>

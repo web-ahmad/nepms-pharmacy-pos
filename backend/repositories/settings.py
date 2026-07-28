@@ -45,50 +45,73 @@ class SettingsRepository:
         self.db.refresh(settings)
         return settings
 
+    # The canonical list of REAL, toggleable modules — these are exactly the
+    # module keys the app's sidebar/routes actually gate on (see NAV_ITEMS
+    # `moduleKey`). Anything not here (batches, grn, trial_balance, leaves, …)
+    # was seeded historically but gates nothing, so it must never be shown.
+    # (key, display name, category)
+    CANONICAL_MODULES = [
+        # One module per sidebar link, so each can be hidden independently.
+        # (key, display name, category) — Settings is intentionally NOT here:
+        # it stays always-visible so an admin can never lock themselves out.
+        ("dashboard",      "Dashboard",        "Core"),
+        ("reports",        "Reports",          "Core"),
+        ("analytics",      "Analytics",        "Core"),
+        ("pos",            "POS Terminal",     "Sales"),
+        ("cashier",        "Cashier Portal",   "Sales"),
+        ("sales",          "Sales History",    "Sales"),
+        ("add_medicine",   "Add Medicine",     "Inventory"),
+        ("inventory",      "Inventory Core",   "Inventory"),
+        ("low_stock",      "Low Stock Alerts", "Inventory"),
+        ("physical_audit", "Physical Audit",   "Inventory"),
+        ("purchases",      "Purchases",        "Purchase"),
+        ("expenses",       "Expenses",         "Finance"),
+        ("accounting",     "Accounting",       "Finance"),
+        ("customers",      "Customers",        "CRM"),
+        ("marketing",      "Marketing",        "CRM"),
+        ("prescriptions",  "Prescriptions",    "Clinical"),
+        ("hr",             "HR & Payroll",     "HR"),
+        ("compliance",     "Compliance",       "Compliance"),
+        ("audit_center",   "Audit Center",     "Compliance"),
+        ("notifications",  "Notifications",    "System"),
+        ("users",          "Users & Roles",    "System"),
+        ("roles",          "Roles",            "System"),
+    ]
+
     def get_modules(self, tenant_id: str):
-        # Automatically seed default modules if empty
-        modules = self.db.query(SystemModule).filter(SystemModule.tenant_id == tenant_id).all()
-        if not modules:
-            default_modules = [
-                SystemModule(tenant_id=tenant_id, module_key="dashboard", module_name="Dashboard", category="Core"),
-                SystemModule(tenant_id=tenant_id, module_key="reports", module_name="Reports", category="Core"),
-                SystemModule(tenant_id=tenant_id, module_key="analytics", module_name="Analytics", category="Core"),
-                SystemModule(tenant_id=tenant_id, module_key="audit", module_name="Audit Center", category="Core"),
-                SystemModule(tenant_id=tenant_id, module_key="medicines", module_name="Medicines", category="Inventory"),
-                SystemModule(tenant_id=tenant_id, module_key="inventory", module_name="Inventory", category="Inventory"),
-                SystemModule(tenant_id=tenant_id, module_key="batches", module_name="Batches", category="Inventory"),
-                SystemModule(tenant_id=tenant_id, module_key="stock_adjustments", module_name="Stock Adjustments", category="Inventory"),
-                SystemModule(tenant_id=tenant_id, module_key="suppliers", module_name="Suppliers", category="Purchase"),
-                SystemModule(tenant_id=tenant_id, module_key="purchase_orders", module_name="Purchase Orders", category="Purchase"),
-                SystemModule(tenant_id=tenant_id, module_key="grn", module_name="GRN", category="Purchase"),
-                SystemModule(tenant_id=tenant_id, module_key="purchase_invoices", module_name="Purchase Invoices", category="Purchase"),
-                SystemModule(tenant_id=tenant_id, module_key="supplier_payments", module_name="Supplier Payments", category="Purchase"),
-                SystemModule(tenant_id=tenant_id, module_key="pos", module_name="POS", category="Sales"),
-                SystemModule(tenant_id=tenant_id, module_key="sales", module_name="Sales", category="Sales"),
-                SystemModule(tenant_id=tenant_id, module_key="returns", module_name="Returns", category="Sales"),
-                SystemModule(tenant_id=tenant_id, module_key="customers", module_name="Customers", category="CRM"),
-                SystemModule(tenant_id=tenant_id, module_key="loyalty", module_name="Loyalty", category="CRM"),
-                SystemModule(tenant_id=tenant_id, module_key="customer_ledger", module_name="Customer Ledger", category="CRM"),
-                SystemModule(tenant_id=tenant_id, module_key="digital_rx", module_name="Digital Rx", category="Prescription"),
-                SystemModule(tenant_id=tenant_id, module_key="prescription_uploads", module_name="Prescription Uploads", category="Prescription"),
-                SystemModule(tenant_id=tenant_id, module_key="ocr_processing", module_name="OCR Processing", category="Prescription"),
-                SystemModule(tenant_id=tenant_id, module_key="chart_of_accounts", module_name="Chart Of Accounts", category="Accounting"),
-                SystemModule(tenant_id=tenant_id, module_key="journals", module_name="Journals", category="Accounting"),
-                SystemModule(tenant_id=tenant_id, module_key="ledger", module_name="Ledger", category="Accounting"),
-                SystemModule(tenant_id=tenant_id, module_key="trial_balance", module_name="Trial Balance", category="Accounting"),
-                SystemModule(tenant_id=tenant_id, module_key="profit_loss", module_name="Profit & Loss", category="Accounting"),
-                SystemModule(tenant_id=tenant_id, module_key="balance_sheet", module_name="Balance Sheet", category="Accounting"),
-                SystemModule(tenant_id=tenant_id, module_key="cash_book", module_name="Cash Book", category="Accounting"),
-                SystemModule(tenant_id=tenant_id, module_key="bank_book", module_name="Bank Book", category="Accounting"),
-                SystemModule(tenant_id=tenant_id, module_key="employees", module_name="Employees", category="HR"),
-                SystemModule(tenant_id=tenant_id, module_key="attendance", module_name="Attendance", category="HR"),
-                SystemModule(tenant_id=tenant_id, module_key="leaves", module_name="Leaves", category="HR"),
-                SystemModule(tenant_id=tenant_id, module_key="payroll", module_name="Payroll", category="HR"),
-            ]
-            self.db.add_all(default_modules)
+        """Reconcile the tenant's modules to the canonical set, then return only
+        those (in canonical order). Self-heals every tenant: adds any missing
+        real modules, fixes names/categories, and hides legacy sub-feature rows —
+        without deleting data. Existing enable/disable state is preserved."""
+        existing = {
+            m.module_key: m
+            for m in self.db.query(SystemModule).filter(SystemModule.tenant_id == tenant_id).all()
+        }
+
+        changed = False
+        for key, name, category in self.CANONICAL_MODULES:
+            mod = existing.get(key)
+            if mod is None:
+                self.db.add(SystemModule(
+                    tenant_id=tenant_id, module_key=key,
+                    module_name=name, category=category, is_enabled=True,
+                ))
+                changed = True
+            elif mod.module_name != name or mod.category != category:
+                mod.module_name = name
+                mod.category = category
+                changed = True
+        if changed:
             self.db.commit()
-            modules = self.db.query(SystemModule).filter(SystemModule.tenant_id == tenant_id).all()
-        return modules
+
+        canonical_keys = [k for k, _, _ in self.CANONICAL_MODULES]
+        order = {k: i for i, k in enumerate(canonical_keys)}
+        rows = self.db.query(SystemModule).filter(
+            SystemModule.tenant_id == tenant_id,
+            SystemModule.module_key.in_(canonical_keys),
+        ).all()
+        rows.sort(key=lambda r: order.get(r.module_key, 999))
+        return rows
 
     def update_module(self, tenant_id: str, module_id: str, obj_in: SystemModuleUpdate):
         mod = self.db.query(SystemModule).filter(SystemModule.tenant_id == tenant_id, SystemModule.id == module_id).first()

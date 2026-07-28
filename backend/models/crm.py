@@ -1,14 +1,22 @@
-from sqlalchemy import Column, String, Boolean, Float, Integer, ForeignKey, Text, Date, DateTime
+from sqlalchemy import Column, String, Boolean, Float, Integer, ForeignKey, Text, Date, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .base import BaseModel
 
 class Customer(BaseModel):
     __tablename__ = "customers"
+    __table_args__ = (
+        # Customers are branch-isolated — each branch is its own island. The same
+        # CNIC may exist independently in different branches, but not twice within
+        # one branch (NULL CNICs are allowed and treated as distinct).
+        UniqueConstraint('cnic', 'tenant_id', 'branch_id', name='uq_customers_cnic_tenant_branch'),
+    )
 
     full_name = Column(String(255), nullable=False)
     phone = Column(String(50), index=True)
-    cnic = Column(String(50), index=True, unique=True)
+    cnic = Column(String(50), index=True)
+    # Owning branch — set from the active X-Branch-Id at creation time.
+    branch_id = Column(String(36), ForeignKey("branches.id"), index=True, nullable=True)
     whatsapp = Column(String(50))
     email = Column(String(255))
     dob = Column(Date)

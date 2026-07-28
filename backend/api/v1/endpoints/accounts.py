@@ -24,7 +24,7 @@ from services.auto_posting_service import AutoPostingService
 from services.closing_service import ClosingService
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
-router = APIRouter(dependencies=[Depends(require_module("journals"))])
+router = APIRouter(dependencies=[Depends(require_module("accounting"))])
 
 def _is_accounting_admin(user: User) -> bool:
     if getattr(user, 'is_super_admin', False):
