@@ -143,7 +143,10 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
           manufacturing_date: data.manufacturing_date,
           expiry_date: data.expiry_date,
           current_stock: data.opening_stock,
-          mrp: data.mrp
+          mrp: data.mrp,
+          // Per-base-unit cost so the batch carries a real purchase price
+          // (drives Batch Value / Purchase Price in inventory reports).
+          purchase_price: costPerBaseUnit,
         } : undefined
       };
 
