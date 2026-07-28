@@ -111,7 +111,9 @@ def get_workflow_mode(
             return {"mode": db_settings.pos_settings.get("workflow_mode")}
     except Exception:
         pass
-    return {"mode": settings.POS_WORKFLOW_MODE}
+    # Default when a tenant hasn't chosen a mode: Single Counter (matches the
+    # POS settings UI default — order takers collect payments instantly).
+    return {"mode": "SINGLE_COUNTER"}
 
 @router.get("/pending-verification", response_model=List[SaleResponse])
 def get_pending_verification_sales(

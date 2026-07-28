@@ -79,14 +79,16 @@ class ExpenseService:
         self.db.commit()
         self.db.refresh(voucher)
         
-        # Auto-post to ledger immediately
+        # Auto-post to ledger immediately (branch_id so it shows in the branch's
+        # General Ledger / Cash Book — without it the entry is branch-less and hidden).
         self.auto_post.post_expense_voucher(
             tenant_id=tenant_id,
             user_id=user_id,
             reference=reference,
             amount=data.amount,
             category_id=data.category_id,
-            payment_method=data.payment_method
+            payment_method=data.payment_method,
+            branch_id=voucher.branch_id,
         )
         
         return self.get_expense(tenant_id, voucher.id)
@@ -124,7 +126,7 @@ class ExpenseService:
         self.db.refresh(voucher)
         
         # Auto Post to Ledger
-        self.auto_post.post_petty_cash(tenant_id, user_id, reference, voucher.amount, operating_expense_id)
+        self.auto_post.post_petty_cash(tenant_id, user_id, reference, voucher.amount, operating_expense_id, branch_id=voucher.branch_id)
         
         return self.get_expense(tenant_id, voucher.id)
 

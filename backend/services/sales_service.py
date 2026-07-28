@@ -33,10 +33,11 @@ class SalesService:
                     if branch:
                         branch_id = branch.id
 
-            from core.config import settings
             from services.settings_service import SettingsService
 
-            workflow_mode = settings.POS_WORKFLOW_MODE
+            # Default to Single Counter unless the tenant explicitly saved a mode
+            # (keeps checkout consistent with the /workflow-mode endpoint & the UI).
+            workflow_mode = "SINGLE_COUNTER"
             try:
                 db_settings = SettingsService(db).get_settings(tenant_id)
                 if db_settings and db_settings.pos_settings and db_settings.pos_settings.get("workflow_mode"):
