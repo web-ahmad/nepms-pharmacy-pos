@@ -43,7 +43,7 @@ const ACCENT: Record<Accent, { tile: string; on: string }> = {
   blue:    { tile: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',          on: 'bg-blue-600'    },
   indigo:  { tile: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',  on: 'bg-indigo-600'  },
   violet:  { tile: 'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',  on: 'bg-violet-600'  },
-  emerald: { tile: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', on: 'bg-emerald-600' },
+  emerald: { tile: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400', on: 'bg-[var(--brand)]' },
   amber:   { tile: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',      on: 'bg-amber-500'   },
   orange:  { tile: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',  on: 'bg-orange-500'  },
   green:   { tile: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',       on: 'bg-green-600'   },

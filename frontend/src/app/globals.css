@@ -4,10 +4,45 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Brand gradient utilities (driven by the accent picker) ─────────────────
+   Any element can opt into the app-wide accent gradient via these classes,
+   which read the runtime --brand / --brand-2 / --brand-fg vars. */
+.brand-surface {
+  background-image: linear-gradient(to right, var(--brand), var(--brand-2));
+  color: var(--brand-fg);
+}
+.brand-surface-br {
+  background-image: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: var(--brand-fg);
+}
+.brand-gradient-text {
+  background-image: linear-gradient(to right, var(--brand), var(--brand-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.brand-shadow {
+  box-shadow: 0 10px 24px -8px color-mix(in srgb, var(--brand) 55%, transparent);
+}
+.brand-text { color: var(--brand); }
+.brand-soft-bg { background-color: var(--brand-soft); }
+.brand-ring { box-shadow: 0 0 0 2px var(--brand-soft); }
+
 /* Brand accent (set at runtime by AppPreferencesApplier from user settings). */
 :root {
   --brand: #2563eb;
+  --brand-2: #1d4ed8;
   --brand-soft: rgba(37, 99, 235, 0.12);
+  --brand-strong: #1d4ed8;
+  --brand-fg: #ffffff;
+
+  /* Material "primary" family, indirected through runtime-overridable vars.
+     Because the theme block is `@theme inline`, referencing these vars (rather
+     than hard-coding hex) lets any subtree re-skin `primary` by overriding
+     --md-primary* locally (e.g. the POS terminal renders emerald-green). */
+  --md-primary: #00288e;
+  --md-primary-container: #1e40af;
+  --md-on-primary-container: #a8b8ff;
 }
 
 /* Interface preferences applied on the document root. */
@@ -88,7 +123,7 @@
   --color-secondary-fixed: #d3e4fe;
   --color-on-secondary-container: #54647a;
   --color-tertiary-fixed-dim: #89ceff;
-  --color-primary-container: #1e40af;
+  --color-primary-container: var(--md-primary-container);
   --color-on-tertiary: #ffffff;
   --color-inverse-primary: #b8c4ff;
   --color-on-tertiary-container: #68c4ff;
@@ -108,8 +143,8 @@
   --color-tertiary-container: #005074;
   --color-on-tertiary-fixed-variant: #004c6e;
   --color-surface-container-high: #e6e8ea;
-  --color-on-primary-container: #a8b8ff;
-  --color-primary: #00288e;
+  --color-on-primary-container: var(--md-on-primary-container);
+  --color-primary: var(--md-primary);
   --color-secondary: #505f76;
   --color-surface: #f7f9fb;
   --color-on-surface: #191c1e;

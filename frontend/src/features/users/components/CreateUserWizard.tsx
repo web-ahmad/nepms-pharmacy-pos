@@ -451,7 +451,7 @@ export function CreateUserWizard({ open, onClose }: Props) {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition-colors"
+                    className="flex items-center gap-2 rounded-xl bg-[var(--brand)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-strong)] disabled:opacity-60 transition-colors"
                   >
                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                     Create User

@@ -410,7 +410,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   type="text"
                   {...register('name')}
                   placeholder="e.g., Amoxicillin 250mg"
-                  className={`w-full border rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.name ? 'border-red-500' : 'border-outline-variant'}`}
+                  className={`w-full border rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all ${errors.name ? 'border-red-500' : 'border-outline-variant'}`}
                 />
               </div>
 
@@ -474,7 +474,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     <select
                       value={field.value || ''}
                       onChange={(e) => field.onChange(e.target.value || null)}
-                      className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 bg-white focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                      className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 bg-white focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                     >
                       <option value="">Select Supplier</option>
                       {suppliers.map((s) => (
@@ -495,7 +495,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="text"
                     {...register('brand_name')}
                     placeholder="e.g., Augmentin"
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   />
                 </div>
               )}
@@ -507,7 +507,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="text"
                     {...register('formula')}
                     placeholder="e.g., Amoxicillin 250mg + Clavulanic Acid"
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   />
                 </div>
               )}
@@ -519,7 +519,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="text"
                     {...register('barcode')}
                     placeholder="Scan or Enter Barcode"
-                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   />
                   {/* Scanner button */}
                   <div className="shrink-0 h-10 border-y border-outline-variant bg-slate-50 flex items-center justify-center border-l">
@@ -546,7 +546,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   {...register('description')}
                   rows={2}
                   placeholder="Additional details..."
-                  className="w-full border border-outline-variant rounded-custom px-3 py-2 min-h-[80px] focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  className="w-full border border-outline-variant rounded-custom px-3 py-2 min-h-[80px] focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                 />
               </div>
             </div>
@@ -566,7 +566,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Packaging Type <span className="text-red-500">*</span></label>
                   <select
                     {...register('packaging_type')}
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   >
                     <option value="Tablet / Capsule">Tablet / Capsule</option>
                     <option value="Syrup / Suspension">Syrup / Suspension</option>
@@ -588,7 +588,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="number"
                     min="1"
                     {...register('strips_per_box', { valueAsNumber: true })}
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   />
                 </div>
 
@@ -599,7 +599,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                       type="number"
                       min="1"
                       {...register('units_per_strip', { valueAsNumber: true })}
-                      className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                      className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                     />
                   </div>
                 )}
@@ -610,7 +610,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="text"
                     {...register('shelf')}
                     placeholder="e.g., A-12, Rack 3"
-                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   />
                 </div>
               </div>
@@ -645,7 +645,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     step="0.01"
                     min="0"
                     {...register('purchase_price', { valueAsNumber: true })}
-                    className="w-full border border-outline-variant rounded-r-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-r-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   />
                 </div>
               </div>
@@ -668,7 +668,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="number"
                     step="0.1"
                     {...register('margin_percent', { valueAsNumber: true })}
-                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   />
                   <span className="bg-slate-100 border border-l-0 border-outline-variant px-3 py-2 rounded-r-custom text-slate-500 text-sm font-bold">%</span>
                 </div>
@@ -682,7 +682,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     step="0.01"
                     min="0"
                     {...register('unit_sale_price', { valueAsNumber: true })}
-                    className="w-full border border-outline-variant rounded-r-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-bold text-emerald-deep"
+                    className="w-full border border-outline-variant rounded-r-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all font-bold text-emerald-deep"
                   />
                 </div>
               </div>
@@ -712,7 +712,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="text"
                     {...register('strength')}
                     placeholder={strengthPlaceholder}
-                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    className="w-full border border-outline-variant rounded-l-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                   />
                   {strengthSuffix && (
                     <span className="bg-slate-100 border border-l-0 border-outline-variant px-2 py-2 rounded-r-custom text-slate-400 text-[10px] uppercase font-bold">
@@ -728,7 +728,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   step="0.01"
                   min="0"
                   {...register('mrp', { valueAsNumber: true })}
-                  className={`w-full border rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all ${errors.mrp ? 'border-red-500' : 'border-outline-variant'}`}
+                  className={`w-full border rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all ${errors.mrp ? 'border-red-500' : 'border-outline-variant'}`}
                 />
               </div>
               <div>
@@ -737,7 +737,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                   type="number"
                   min="0"
                   {...register('tax_rate', { valueAsNumber: true })}
-                  className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  className="w-full border border-outline-variant rounded-custom h-10 px-3 py-2 focus:ring-[var(--brand-soft)] focus:border-[var(--brand)] transition-all"
                 />
               </div>
               <div>
@@ -769,7 +769,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     {...register('opening_stock', { valueAsNumber: true })}
                     placeholder="0"
                     disabled={isEdit}
-                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
+                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-[var(--brand-soft)] focus:border-[var(--brand)]'}`}
                   />
                 </div>
                 <div>
@@ -781,7 +781,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     {...register('batch_number')}
                     placeholder="e.g., BATCH-001"
                     disabled={isEdit}
-                    className={`w-full border rounded-custom h-10 px-3 py-2 transition-all ${errors.batch_number ? 'border-red-500 ring-1 ring-red-500' : 'border-outline-variant'} ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
+                    className={`w-full border rounded-custom h-10 px-3 py-2 transition-all ${errors.batch_number ? 'border-red-500 ring-1 ring-red-500' : 'border-outline-variant'} ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-[var(--brand-soft)] focus:border-[var(--brand)]'}`}
                   />
                   {errors.batch_number && <p className="text-xs text-red-500 mt-1">{String(errors.batch_number.message)}</p>}
                 </div>
@@ -791,7 +791,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="date"
                     {...register('manufacturing_date')}
                     disabled={isEdit}
-                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all text-slate-600 ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
+                    className={`w-full border border-outline-variant rounded-custom h-10 px-3 py-2 transition-all text-slate-600 ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-[var(--brand-soft)] focus:border-[var(--brand)]'}`}
                   />
                 </div>
                 <div>
@@ -802,7 +802,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                     type="date"
                     {...register('expiry_date')}
                     disabled={isEdit}
-                    className={`w-full border rounded-custom h-10 px-3 py-2 transition-all text-slate-600 ${errors.expiry_date ? 'border-red-500 ring-1 ring-red-500' : 'border-outline-variant'} ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-emerald-500 focus:border-emerald-500'}`}
+                    className={`w-full border rounded-custom h-10 px-3 py-2 transition-all text-slate-600 ${errors.expiry_date ? 'border-red-500 ring-1 ring-red-500' : 'border-outline-variant'} ${isEdit ? 'bg-slate-100 cursor-not-allowed' : 'focus:ring-[var(--brand-soft)] focus:border-[var(--brand)]'}`}
                   />
                   {errors.expiry_date && <p className="text-xs text-red-500 mt-1">{String(errors.expiry_date.message)}</p>}
                 </div>
@@ -827,7 +827,7 @@ export default function SimpleFormLayout({ initialData, medicineId, isEdit }: Si
                       type="checkbox"
                       checked={field.value === 'Active'}
                       onChange={(e) => field.onChange(e.target.checked ? 'Active' : 'Inactive')}
-                      className="w-5 h-5 rounded text-emerald-deep focus:ring-emerald-500 transition-all"
+                      className="w-5 h-5 rounded text-emerald-deep focus:ring-[var(--brand-soft)] transition-all"
                     />
                   )}
                 />

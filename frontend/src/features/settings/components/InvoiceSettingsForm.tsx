@@ -127,7 +127,7 @@ export default function InvoiceSettingsForm() {
           onClick={handleSave}
           disabled={updateSettings.isPending}
           className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white transition-all shadow-md ${
-            saved ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'
+            saved ? 'bg-emerald-500 hover:bg-[var(--brand)] shadow-emerald-500/20' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20'
           } disabled:opacity-50`}
         >
           {updateSettings.isPending ? <Loader2 size={18} className="animate-spin" /> : saved ? <Eye size={18} className="opacity-0 w-0 h-0" /> : <Save size={18} />}

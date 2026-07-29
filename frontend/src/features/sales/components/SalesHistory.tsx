@@ -156,7 +156,7 @@ export default function SalesHistory() {
         {/* Row 1: title + presets */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-gray-700">
-            <Filter size={15} className="text-[#006a43]" />
+            <Filter size={15} className="text-[var(--brand)]" />
             <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Search Filters</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -166,8 +166,8 @@ export default function SalesHistory() {
                 onClick={() => applyPreset(p.id)}
                 className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-all duration-150 ${
                   activePreset === p.id
-                    ? 'bg-[#006a43] border-[#006a43] text-white shadow-sm'
-                    : 'bg-white border-gray-200 text-gray-600 hover:border-[#006a43] hover:text-[#006a43]'
+                    ? 'bg-[var(--brand)] border-[var(--brand)] text-white shadow-sm'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-[var(--brand)] hover:text-[var(--brand)]'
                 }`}
               >
                 {p.label}
@@ -187,7 +187,7 @@ export default function SalesHistory() {
                 type="text" placeholder="SAL-XXXXX"
                 value={filters.invoice_id}
                 onChange={e => handleFilterChange('invoice_id', e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#006a43] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors placeholder:text-gray-400"
+                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[var(--brand)] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors placeholder:text-gray-400"
               />
             </div>
           </div>
@@ -199,7 +199,7 @@ export default function SalesHistory() {
               <input
                 type="date" value={filters.start_date}
                 onChange={e => handleFilterChange('start_date', e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#006a43] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors"
+                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[var(--brand)] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors"
               />
             </div>
           </div>
@@ -211,7 +211,7 @@ export default function SalesHistory() {
               <input
                 type="date" value={filters.end_date}
                 onChange={e => handleFilterChange('end_date', e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#006a43] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors"
+                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[var(--brand)] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors"
               />
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function SalesHistory() {
                 type="text" placeholder="Cashier username"
                 value={filters.cashier_id}
                 onChange={e => handleFilterChange('cashier_id', e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#006a43] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors placeholder:text-gray-400"
+                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[var(--brand)] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors placeholder:text-gray-400"
               />
             </div>
           </div>
@@ -235,7 +235,7 @@ export default function SalesHistory() {
           <button
             onClick={() => refetch()}
             disabled={isLoading || isFetching}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#006a43] hover:bg-[#005233] text-white rounded-xl text-[13px] font-bold transition-all duration-150 active:scale-95 disabled:opacity-60 shadow-sm"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white rounded-xl text-[13px] font-bold transition-all duration-150 active:scale-95 disabled:opacity-60 shadow-sm"
           >
             <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
             Search Invoices
@@ -260,7 +260,7 @@ export default function SalesHistory() {
               <tr>
                 <td colSpan={7} className="py-20 text-center">
                   <div className="inline-flex items-center gap-2.5 text-gray-400">
-                    <div className="w-5 h-5 rounded-full border-2 border-[#006a43] border-t-transparent animate-spin" />
+                    <div className="w-5 h-5 rounded-full border-2 border-[var(--brand)] border-t-transparent animate-spin" />
                     <span className="text-sm font-medium">Loading invoices…</span>
                   </div>
                 </td>
@@ -282,7 +282,7 @@ export default function SalesHistory() {
                   >
                     {/* Invoice No */}
                     <td className="py-3.5 px-5">
-                      <span className="font-bold text-gray-900 group-hover:text-[#006a43] transition-colors font-mono text-[13px]">
+                      <span className="font-bold text-gray-900 group-hover:text-[var(--brand)] transition-colors font-mono text-[13px]">
                         {sale.invoice_number}
                       </span>
                     </td>
@@ -314,7 +314,7 @@ export default function SalesHistory() {
                         <button
                           title="View Details"
                           onClick={() => setSelectedSaleId(sale.id)}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-[#006a43] hover:bg-[#e8f5ef] border border-transparent hover:border-emerald-200 transition-all"
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-[var(--brand)] hover:bg-[#e8f5ef] border border-transparent hover:border-emerald-200 transition-all"
                         ><Eye size={14} /></button>
                         <button
                           title="Reprint Invoice"
@@ -354,7 +354,7 @@ export default function SalesHistory() {
             <button
               onClick={() => setFilters(p => ({ ...p, page: p.page - 1 }))}
               disabled={filters.page <= 1}
-              className="p-2 rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-[#006a43] hover:text-[#006a43] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="p-2 rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-[var(--brand)] hover:text-[var(--brand)] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             ><ChevronLeft size={15} /></button>
             <span className="px-3 py-1.5 text-[12px] font-bold text-gray-700 bg-white border border-gray-200 rounded-lg">
               {filters.page} / {totalPages}
@@ -362,7 +362,7 @@ export default function SalesHistory() {
             <button
               onClick={() => setFilters(p => ({ ...p, page: p.page + 1 }))}
               disabled={filters.page >= totalPages}
-              className="p-2 rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-[#006a43] hover:text-[#006a43] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="p-2 rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-[var(--brand)] hover:text-[var(--brand)] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             ><ChevronRight size={15} /></button>
           </div>
         </div>
@@ -377,8 +377,8 @@ export default function SalesHistory() {
             {/* Drawer header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-[#f6faf8] shrink-0">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-[#006a43]/10">
-                  <Receipt size={18} className="text-[#006a43]" />
+                <div className="p-2 rounded-xl bg-[var(--brand)]/10">
+                  <Receipt size={18} className="text-[var(--brand)]" />
                 </div>
                 <div>
                   <h3 className="text-[16px] font-bold text-gray-900">Invoice Details</h3>
@@ -395,7 +395,7 @@ export default function SalesHistory() {
             <div className="flex-1 overflow-hidden">
               {isLoadingDetail ? (
                 <div className="h-full flex items-center justify-center">
-                  <div className="w-8 h-8 rounded-full border-2 border-[#006a43] border-t-transparent animate-spin" />
+                  <div className="w-8 h-8 rounded-full border-2 border-[var(--brand)] border-t-transparent animate-spin" />
                 </div>
               ) : isError ? (
                 <div className="flex flex-col items-center justify-center mt-16 space-y-2 px-6">
@@ -462,7 +462,7 @@ export default function SalesHistory() {
                           <span>{row.label}</span><span className="font-mono font-medium">{row.value}</span>
                         </div>
                       ))}
-                      <div className="flex justify-between text-[15px] font-extrabold text-[#006a43] pt-2 border-t border-emerald-200">
+                      <div className="flex justify-between text-[15px] font-extrabold text-[var(--brand)] pt-2 border-t border-emerald-200">
                         <span>Grand Total</span>
                         <span className="font-mono">Rs {saleDetail.total_amount?.toFixed(2)}</span>
                       </div>
@@ -478,7 +478,7 @@ export default function SalesHistory() {
                       {(saleDetail.status === 'Completed' || saleDetail.status === 'Partially Returned') && (
                         <button
                           onClick={() => setReturnSaleId(saleDetail.id)}
-                          className="flex-1 bg-[#006a43] hover:bg-[#005233] text-white px-4 py-3 rounded-xl font-bold text-[13px] transition flex items-center justify-center gap-2"
+                          className="flex-1 bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white px-4 py-3 rounded-xl font-bold text-[13px] transition flex items-center justify-center gap-2"
                         ><RotateCcw size={16} /> Return Items</button>
                       )}
                       {(saleDetail.status === 'Completed' || saleDetail.status === 'Pending Verification' || saleDetail.status === 'Pending') && (

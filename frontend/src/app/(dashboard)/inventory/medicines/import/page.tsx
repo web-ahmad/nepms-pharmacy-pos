@@ -625,7 +625,7 @@ export default function BulkImportMedicines() {
                       Cancel
                     </Button>
                     <Button
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20 font-bold px-8 py-6 h-auto text-base transition-all hover:scale-[1.02]"
+                      className="bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white shadow-lg shadow-emerald-500/20 font-bold px-8 py-6 h-auto text-base transition-all hover:scale-[1.02]"
                       disabled={tabCounts.valid === 0 || importMutation.isPending || !!progress}
                       onClick={handleImport}
                     >

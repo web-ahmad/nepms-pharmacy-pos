@@ -129,7 +129,7 @@ export default function SalarySetupPage() {
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors shadow-sm ${
                             isConfigured 
                               ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40 dark:text-emerald-400' 
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                              : 'bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white'
                           }`}
                         >
                           <Edit3 className="h-3.5 w-3.5" />

@@ -18,7 +18,7 @@ export default function ChartOfAccountsPage() {
           <button
             onClick={() => seedAccounts.mutate(undefined, { onSuccess: () => refetch() })}
             disabled={seedAccounts.isPending}
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+            className="flex items-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-strong)] disabled:opacity-60"
           >
             <Sparkles className="h-4 w-4" />
             {seedAccounts.isPending ? 'Seeding...' : 'Seed Default COA'}

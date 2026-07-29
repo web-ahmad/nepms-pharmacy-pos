@@ -78,7 +78,7 @@ function LowStockTray({ open, onClose, items }: LowStockTrayProps) {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-gray-900 truncate group-hover:text-[#006a43] transition-colors">
+                  <p className="text-[13px] font-semibold text-gray-900 truncate group-hover:text-[var(--brand)] transition-colors">
                     {item.medicine_name}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -209,7 +209,7 @@ function NearExpiryTray({ open, onClose, items }: ExpiryTrayProps) {
                   <Clock size={15} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-gray-900 truncate group-hover:text-[#006a43] transition-colors">
+                  <p className="text-[13px] font-semibold text-gray-900 truncate group-hover:text-[var(--brand)] transition-colors">
                     {item.medicine_name}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -399,7 +399,7 @@ export function TopNavigation() {
 
         {/* User + logout */}
         <div className="flex items-center gap-3 pl-3 ml-1 border-l border-zinc-200 dark:border-zinc-800">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#006a43]/10 text-[#006a43] font-bold text-sm shrink-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand)]/10 text-[var(--brand)] font-bold text-sm shrink-0">
             <UserIcon size={15} />
           </div>
           <div className="hidden md:block text-sm text-right">

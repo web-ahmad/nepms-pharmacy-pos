@@ -113,7 +113,7 @@ export default function ProfitLossView({ data, isLoading }: Props) {
         </div>
 
         {/* Net Profit */}
-        <div className={`flex items-center justify-between px-6 py-5 ${isProfit ? 'bg-gradient-to-r from-emerald-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}>
+        <div className={`flex items-center justify-between px-6 py-5 ${isProfit ? 'bg-gradient-to-r from-emerald-500 to-[var(--brand-2)]' : 'bg-gradient-to-r from-red-500 to-rose-600'}`}>
           <div>
             <p className="text-xs font-semibold text-white/70 uppercase tracking-wider">{isProfit ? 'Net Profit' : 'Net Loss'}</p>
             <p className="text-2xl font-bold font-mono text-white mt-0.5">{fmt(Math.abs(data.net_profit))}</p>

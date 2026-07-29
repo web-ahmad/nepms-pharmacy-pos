@@ -43,7 +43,7 @@ export default function ReturnLogs() {
       {/* ── FILTER PANEL ────────────────────────────────────────────── */}
       <div className="p-5 border-b border-gray-100 space-y-4">
         <div className="flex items-center gap-2">
-          <Filter size={15} className="text-[#006a43]" />
+          <Filter size={15} className="text-[var(--brand)]" />
           <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
             Search &amp; Filter Returns
           </span>
@@ -59,7 +59,7 @@ export default function ReturnLogs() {
                 type="date"
                 value={filters.start_date}
                 onChange={e => handleFilterChange('start_date', e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#006a43] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors"
+                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[var(--brand)] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors"
               />
             </div>
           </div>
@@ -73,7 +73,7 @@ export default function ReturnLogs() {
                 type="date"
                 value={filters.end_date}
                 onChange={e => handleFilterChange('end_date', e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#006a43] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors"
+                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[var(--brand)] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors"
               />
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function ReturnLogs() {
                 placeholder="Cashier username"
                 value={filters.cashier_id}
                 onChange={e => handleFilterChange('cashier_id', e.target.value)}
-                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[#006a43] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors placeholder:text-gray-400"
+                className="w-full pl-8 pr-3 py-2.5 bg-gray-50 border border-gray-200 focus:border-[var(--brand)] focus:bg-white rounded-xl text-[13px] text-gray-800 outline-none transition-colors placeholder:text-gray-400"
               />
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function ReturnLogs() {
           <button
             onClick={() => refetch()}
             disabled={isLoading || isFetching}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#006a43] hover:bg-[#005233] text-white rounded-xl text-[13px] font-bold transition-all duration-150 active:scale-95 disabled:opacity-60 shadow-sm"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white rounded-xl text-[13px] font-bold transition-all duration-150 active:scale-95 disabled:opacity-60 shadow-sm"
           >
             <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
             Fetch Logs
@@ -129,7 +129,7 @@ export default function ReturnLogs() {
               <tr>
                 <td colSpan={9} className="py-20 text-center">
                   <div className="inline-flex items-center gap-2.5 text-gray-400">
-                    <div className="w-5 h-5 rounded-full border-2 border-[#006a43] border-t-transparent animate-spin" />
+                    <div className="w-5 h-5 rounded-full border-2 border-[var(--brand)] border-t-transparent animate-spin" />
                     <span className="text-sm font-medium">Loading return logs…</span>
                   </div>
                 </td>
@@ -154,8 +154,8 @@ export default function ReturnLogs() {
                 >
                   {/* Return Number */}
                   <td className="py-3.5 px-4">
-                    <span className="flex items-center gap-1.5 font-bold text-gray-900 group-hover:text-[#006a43] transition-colors font-mono text-[13px]">
-                      <ArrowRightLeft size={12} className="text-[#006a43] shrink-0" />
+                    <span className="flex items-center gap-1.5 font-bold text-gray-900 group-hover:text-[var(--brand)] transition-colors font-mono text-[13px]">
+                      <ArrowRightLeft size={12} className="text-[var(--brand)] shrink-0" />
                       {log.return_number}
                     </span>
                   </td>
@@ -191,7 +191,7 @@ export default function ReturnLogs() {
                   </td>
 
                   {/* Refund Total */}
-                  <td className="py-3.5 px-4 text-right font-bold text-[#006a43] font-mono whitespace-nowrap">
+                  <td className="py-3.5 px-4 text-right font-bold text-[var(--brand)] font-mono whitespace-nowrap">
                     Rs {log.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
 
@@ -206,7 +206,7 @@ export default function ReturnLogs() {
                       <button
                         title="View Details"
                         onClick={() => setSelectedReturn(log)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-[#006a43] hover:bg-[#e8f5ef] border border-transparent hover:border-emerald-200 transition-all"
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-[var(--brand)] hover:bg-[#e8f5ef] border border-transparent hover:border-emerald-200 transition-all"
                       ><Eye size={14} /></button>
                       <button
                         title="Print Return Invoice"

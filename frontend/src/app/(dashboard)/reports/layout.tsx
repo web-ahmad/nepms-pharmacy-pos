@@ -122,15 +122,17 @@ function NavSection({ group, pathname }: { group: NavGroup; pathname: string }) 
               <Link
                 key={item.name}
                 href={item.href}
+                style={isActive ? { color: 'var(--brand)', backgroundColor: 'var(--brand-soft)', boxShadow: '0 0 0 1px var(--brand-soft)' } : undefined}
                 className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
                   isActive
-                    ? 'bg-gradient-to-r from-blue-50 to-blue-50/50 text-blue-700 shadow-sm ring-1 ring-blue-100 dark:from-blue-500/10 dark:to-blue-500/5 dark:text-blue-400 dark:ring-blue-900/30'
+                    ? 'shadow-sm'
                     : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-50'
                 }`}
               >
                 <Icon
+                  style={isActive ? { color: 'var(--brand)' } : undefined}
                   className={`h-[15px] w-[15px] flex-shrink-0 transition-colors ${
-                    isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300'
+                    isActive ? '' : 'text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300'
                   }`}
                 />
                 <span className="flex-1 truncate">{item.name}</span>
@@ -158,8 +160,8 @@ export default function ReportsLayout({ children }: { children: ReactNode }) {
         {/* Sidebar Header */}
         <div className="px-4 py-4 border-b border-zinc-100 dark:border-zinc-800/80 bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-900 dark:to-zinc-950">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg shadow-blue-200/50 dark:shadow-blue-900/30">
-              <BarChart3 className="h-4.5 w-4.5 text-white" />
+            <div className="brand-surface-br brand-shadow flex h-9 w-9 items-center justify-center rounded-xl">
+              <BarChart3 className="h-5 w-5 text-white" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-50">Reports Center</h2>

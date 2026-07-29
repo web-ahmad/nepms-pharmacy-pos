@@ -100,7 +100,7 @@ export default function PayrollSettingsPage() {
         </div>
         <button
           onClick={() => openModal()}
-          className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+          className="flex items-center gap-2 rounded-lg bg-[var(--brand)] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[var(--brand-strong)]"
         >
           <Plus size={14} /> Add Rule
         </button>
@@ -168,7 +168,7 @@ export default function PayrollSettingsPage() {
               {!currentRule && (
                 <div>
                   <label className="mb-1 block font-medium text-gray-700 dark:text-zinc-300">Employee</label>
-                  <select name="employee_id" required className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                  <select name="employee_id" required className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand-soft)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
                     <option value="">Select Employee...</option>
                     {employees.map(e => (
                       <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>
@@ -179,47 +179,47 @@ export default function PayrollSettingsPage() {
 
               <div>
                 <label className="mb-1 block font-medium text-gray-700 dark:text-zinc-300">Grace Period (Minutes)</label>
-                <input type="number" name="grace_period_mins" defaultValue={currentRule?.grace_period_mins || 15} required className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                <input type="number" name="grace_period_mins" defaultValue={currentRule?.grace_period_mins || 15} required className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-[var(--brand)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block font-medium text-gray-700 dark:text-zinc-300">OT Type</label>
-                  <select name="ot_type" defaultValue={currentRule?.ot_type || 'FIXED_AMOUNT'} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                  <select name="ot_type" defaultValue={currentRule?.ot_type || 'FIXED_AMOUNT'} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-[var(--brand)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
                     <option value="FIXED_AMOUNT">Fixed (Rs)</option>
                     <option value="PERCENTAGE">Percentage (%)</option>
                   </select>
                 </div>
                 <div>
                   <label className="mb-1 block font-medium text-gray-700 dark:text-zinc-300">OT Rate</label>
-                  <input type="number" step="any" name="ot_rate" defaultValue={currentRule?.ot_rate || 0} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                  <input type="number" step="any" name="ot_rate" defaultValue={currentRule?.ot_rate || 0} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-[var(--brand)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1 block font-medium text-gray-700 dark:text-zinc-300">UT Type</label>
-                  <select name="ut_type" defaultValue={currentRule?.ut_type || 'FIXED_AMOUNT'} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                  <select name="ut_type" defaultValue={currentRule?.ut_type || 'FIXED_AMOUNT'} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-[var(--brand)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
                     <option value="FIXED_AMOUNT">Fixed (Rs)</option>
                     <option value="PERCENTAGE">Percentage (%)</option>
                   </select>
                 </div>
                 <div>
                   <label className="mb-1 block font-medium text-gray-700 dark:text-zinc-300">UT Rate</label>
-                  <input type="number" step="any" name="ut_rate" defaultValue={currentRule?.ut_rate || 0} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                  <input type="number" step="any" name="ut_rate" defaultValue={currentRule?.ut_rate || 0} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-[var(--brand)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1 block font-medium text-gray-700 dark:text-zinc-300">Fixed Bonus (Monthly)</label>
-                <input type="number" step="any" name="bonus_amount" defaultValue={currentRule?.bonus_amount || 0} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-emerald-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                <input type="number" step="any" name="bonus_amount" defaultValue={currentRule?.bonus_amount || 0} className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2 outline-none focus:border-[var(--brand)] dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
               </div>
 
               <div className="mt-6 flex justify-end gap-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-lg px-4 py-2 font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800">
                   Cancel
                 </button>
-                <button type="submit" className="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700">
+                <button type="submit" className="rounded-lg bg-[var(--brand)] px-4 py-2 font-medium text-white hover:bg-[var(--brand-strong)]">
                   Save Rule
                 </button>
               </div>

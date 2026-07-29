@@ -92,7 +92,7 @@ export default function MarkCustomDateModal({ onClose }: Props) {
                   required
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
-                  className="w-full appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                  className="w-full appearance-none rounded-xl border border-zinc-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-soft)] dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                 >
                   <option value="">Select an employee...</option>
                   {employees?.filter(e => e.is_active).map(e => (
@@ -114,7 +114,7 @@ export default function MarkCustomDateModal({ onClose }: Props) {
                 max={new Date().toISOString().split('T')[0]}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-soft)] dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
               />
             </div>
 
@@ -126,7 +126,7 @@ export default function MarkCustomDateModal({ onClose }: Props) {
                 required
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-soft)] dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
               >
                 <option value="Present">Present</option>
                 <option value="Absent">Absent</option>
@@ -147,7 +147,7 @@ export default function MarkCustomDateModal({ onClose }: Props) {
                     type="time"
                     value={clockIn}
                     onChange={(e) => setClockIn(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                    className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-soft)] dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                   />
                 </div>
               </div>
@@ -161,7 +161,7 @@ export default function MarkCustomDateModal({ onClose }: Props) {
                     type="time"
                     value={clockOut}
                     onChange={(e) => setClockOut(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
+                    className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-10 pr-3 text-sm focus:border-[var(--brand)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-soft)] dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
                   />
                 </div>
               </div>
@@ -179,7 +179,7 @@ export default function MarkCustomDateModal({ onClose }: Props) {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+              className="rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-[var(--brand-strong)] disabled:opacity-50"
             >
               {isSubmitting ? 'Saving...' : 'Save Record'}
             </button>

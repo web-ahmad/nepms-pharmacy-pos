@@ -50,7 +50,7 @@ export default function AccountingFilterBar({
               placeholder="INV- / RET- / EXP- / PO-"
               value={searchRef}
               onChange={e => setSearchRef(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
+              className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[var(--brand)] dark:focus:border-[var(--brand)] rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
             />
           </div>
         </div>
@@ -64,7 +64,7 @@ export default function AccountingFilterBar({
               <select
                 value={selectedAccountId}
                 onChange={e => setSelectedAccountId(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100 appearance-none"
+                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[var(--brand)] dark:focus:border-[var(--brand)] rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100 appearance-none"
               >
                 <option value="">All Accounts</option>
                 {accountsList?.map(a => (
@@ -84,7 +84,7 @@ export default function AccountingFilterBar({
               type="date" 
               value={dateRange.start}
               onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
+              className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[var(--brand)] dark:focus:border-[var(--brand)] rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
             />
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function AccountingFilterBar({
               type="date" 
               value={dateRange.end}
               onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
+              className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[var(--brand)] dark:focus:border-[var(--brand)] rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
             />
           </div>
         </div>

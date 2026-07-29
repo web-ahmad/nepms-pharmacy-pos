@@ -476,9 +476,10 @@ class DynamicReportEngine:
             *self._sale_filters(tenant_id, params)
         ).scalar() or 0.0
 
-        # Calculate Total Expenses
+        # Calculate Total Expenses (branch-scoped like revenue/COGS above)
         expenses = self.db.query(func.sum(ExpenseVoucher.amount)).filter(
-            ExpenseVoucher.tenant_id == tenant_id, ExpenseVoucher.status == 'Approved'
+            ExpenseVoucher.tenant_id == tenant_id, ExpenseVoucher.status == 'Approved',
+            *([ExpenseVoucher.branch_id == params.branch_id] if params and params.branch_id else [])
         ).scalar() or 0.0
 
         gross_profit = sales_rev - cogs
@@ -908,7 +909,14 @@ class DynamicReportEngine:
             CashLedgerEntry.payment_mode,
             CashLedgerEntry.amount,
             CashLedgerEntry.notes
-        ).filter(CashLedgerEntry.tenant_id == tenant_id).order_by(desc(CashLedgerEntry.created_at)).all()
+        ).filter(CashLedgerEntry.tenant_id == tenant_id)
+        # Branch isolation: cash entries belong to a session which is branch-specific.
+        if params and params.branch_id:
+            from models.cash_register import CashSession
+            query = query.join(CashSession, CashLedgerEntry.session_id == CashSession.id).filter(
+                CashSession.branch_id == params.branch_id
+            )
+        query = query.order_by(desc(CashLedgerEntry.created_at)).all()
 
         return {
             "metadata": {
@@ -933,7 +941,8 @@ class DynamicReportEngine:
             func.count(ExpenseVoucher.id).label('voucher_count')
         ).select_from(ExpenseVoucher).join(ExpenseCategory, ExpenseVoucher.category_id == ExpenseCategory.id).filter(
             ExpenseVoucher.tenant_id == tenant_id,
-            ExpenseVoucher.status == 'Approved'
+            ExpenseVoucher.status == 'Approved',
+            *([ExpenseVoucher.branch_id == params.branch_id] if params and params.branch_id else [])
         ).group_by(ExpenseCategory.name).order_by(desc('total_amount')).all()
 
         return {

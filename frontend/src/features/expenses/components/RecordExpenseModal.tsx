@@ -59,7 +59,7 @@ export default function RecordExpenseModal({ onClose, expenseAccounts }: Props) 
                 required
                 value={formData.category_id}
                 onChange={e => setFormData(p => ({ ...p, category_id: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-emerald-500 outline-none transition-colors"
+                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-[var(--brand)] outline-none transition-colors"
               >
                 <option value="">Select Category</option>
                 {expenseAccounts.map(acc => (
@@ -75,7 +75,7 @@ export default function RecordExpenseModal({ onClose, expenseAccounts }: Props) 
                 required min="0" step="0.01"
                 value={formData.amount}
                 onChange={e => setFormData(p => ({ ...p, amount: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-emerald-500 outline-none transition-colors"
+                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-[var(--brand)] outline-none transition-colors"
                 placeholder="0.00"
               />
             </div>
@@ -85,7 +85,7 @@ export default function RecordExpenseModal({ onClose, expenseAccounts }: Props) 
               <select 
                 value={formData.payment_method}
                 onChange={e => setFormData(p => ({ ...p, payment_method: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-emerald-500 outline-none transition-colors"
+                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-[var(--brand)] outline-none transition-colors"
               >
                 <option value="Cash">Cash</option>
                 <option value="Bank">Bank Transfer</option>
@@ -98,7 +98,7 @@ export default function RecordExpenseModal({ onClose, expenseAccounts }: Props) 
                 type="text" 
                 value={formData.payee}
                 onChange={e => setFormData(p => ({ ...p, payee: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-emerald-500 outline-none transition-colors"
+                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-[var(--brand)] outline-none transition-colors"
                 placeholder="e.g. K-Electric"
               />
             </div>
@@ -109,7 +109,7 @@ export default function RecordExpenseModal({ onClose, expenseAccounts }: Props) 
                 rows={3}
                 value={formData.description}
                 onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-emerald-500 outline-none resize-none transition-colors"
+                className="w-full px-3 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-[var(--brand)] outline-none resize-none transition-colors"
                 placeholder="Details of expense..."
               />
             </div>
@@ -142,7 +142,7 @@ export default function RecordExpenseModal({ onClose, expenseAccounts }: Props) 
             form="expense-form"
             type="submit" 
             disabled={isCreating}
-            className="w-full px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-sm"
+            className="w-full px-6 py-3 bg-[var(--brand)] hover:bg-[var(--brand-strong)] disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all shadow-sm"
           >
             {isCreating ? 'Processing...' : 'Save & Auto-Post'}
           </button>

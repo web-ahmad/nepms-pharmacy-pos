@@ -243,7 +243,7 @@ export default function WizardLayout() {
                 ) : (
                   <Button 
                     type="submit" 
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[150px]"
+                    className="bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white min-w-[150px]"
                     disabled={createMedicineMutation.isPending}
                   >
                     {createMedicineMutation.isPending ? (

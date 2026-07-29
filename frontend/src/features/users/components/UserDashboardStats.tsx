@@ -93,7 +93,7 @@ export function UserDashboardStats() {
     { icon: <Smartphone size={20} />, label: 'Trusted Devices',      value: data.trusted_devices,       gradient: 'from-sky-500 to-cyan-600',        delay: 0.35 },
     { icon: <ShieldAlert size={20} />,label: 'Failed Logins Today',  value: data.failed_logins_today,   gradient: 'from-orange-500 to-red-600',      delay: 0.4,  alert: true },
     { icon: <AlertTriangle size={20}/>,label:'Blocked Devices',      value: data.blocked_devices,       gradient: 'from-rose-500 to-pink-600',       delay: 0.45, alert: true },
-    { icon: <FileCheck size={20} />,  label: 'Pending Approvals',    value: data.pending_approvals,     gradient: 'from-teal-500 to-emerald-600',    delay: 0.5,  alert: true },
+    { icon: <FileCheck size={20} />,  label: 'Pending Approvals',    value: data.pending_approvals,     gradient: 'from-teal-500 to-[var(--brand-2)]',    delay: 0.5,  alert: true },
     { icon: <UserX size={20} />,      label: 'Inactive',             value: data.inactive_users,        gradient: 'from-zinc-400 to-zinc-600',       delay: 0.55 },
   ];
 

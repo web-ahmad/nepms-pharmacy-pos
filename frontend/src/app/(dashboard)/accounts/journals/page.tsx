@@ -59,7 +59,7 @@ export default function JournalsPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => refetch()} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">↻ Refresh</button>
           <CreateJournalDialog>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-sm">
+            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white transition-colors shadow-sm">
               <Plus className="h-3.5 w-3.5" /> New Entry
             </button>
           </CreateJournalDialog>
@@ -84,7 +84,7 @@ export default function JournalsPage() {
                 placeholder="INV- / RET- / EXP-"
                 value={searchRef}
                 onChange={e => setSearchRef(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
+                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[var(--brand)] dark:focus:border-[var(--brand)] rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
               />
             </div>
           </div>
@@ -97,7 +97,7 @@ export default function JournalsPage() {
               <select
                 value={selectedAccountId}
                 onChange={e => setSelectedAccountId(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100 appearance-none"
+                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[var(--brand)] dark:focus:border-[var(--brand)] rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100 appearance-none"
               >
                 <option value="">All Accounts</option>
                 {accounts?.map(a => (
@@ -116,7 +116,7 @@ export default function JournalsPage() {
                 type="date" 
                 value={dateRange.start}
                 onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
+                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[var(--brand)] dark:focus:border-[var(--brand)] rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
               />
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function JournalsPage() {
                 type="date" 
                 value={dateRange.end}
                 onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
+                className="w-full pl-8 pr-3 py-2 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 focus:border-[var(--brand)] dark:focus:border-[var(--brand)] rounded-xl text-[13px] outline-none transition-colors dark:text-zinc-100"
               />
             </div>
           </div>

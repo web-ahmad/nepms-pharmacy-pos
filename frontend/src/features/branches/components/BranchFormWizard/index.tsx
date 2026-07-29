@@ -506,7 +506,7 @@ export function BranchFormWizard({
                 type="button"
                 onClick={handleSubmit(onSubmit as any)}
                 disabled={isPending}
-                className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                className="flex items-center gap-2 px-6 py-2.5 text-sm font-medium rounded-xl bg-[var(--brand)] text-white hover:bg-[var(--brand-strong)] disabled:opacity-60 disabled:cursor-not-allowed transition"
               >
                 {isPending ? (
                   <><Loader2 size={16} className="animate-spin" /> Creating…</>

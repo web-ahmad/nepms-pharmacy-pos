@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchMedicines } from '../services/pos.api';
+import toast from 'react-hot-toast';
+import { useSearchMedicines, usePosConfig } from '../services/pos.api';
 import { usePOSStore } from '../store/pos-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { POSMedicine } from '../types/pos';
@@ -16,6 +17,19 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
   const branchId = useAuthStore((s) => s.branchId);
   const { data: medicines, isLoading, isError } = useSearchMedicines(debouncedSearch, branchId);
   const addItem = usePOSStore((state) => state.addItem);
+  const posConfig = usePosConfig();
+
+  // Warn (but don't block) when adding stock that expires soon.
+  const warnIfNearExpiry = (batch: any) => {
+    if (!posConfig.show_expiry_warning || !batch?.expiry_date) return;
+    const days = Math.ceil((new Date(batch.expiry_date).getTime() - Date.now()) / 86400000);
+    if (days <= 30) {
+      toast(days < 0
+        ? `⚠️ EXPIRED batch ${batch.batch_number || ''}`
+        : `⚠️ Near expiry: ${days} day(s) left (${batch.batch_number || 'batch'})`,
+        { icon: '⚠️', style: { background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' } });
+    }
+  };
 
   // Clear filter if user typed something different from the active filter
   useEffect(() => {
@@ -45,8 +59,9 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
       if (medicine.batches && medicine.batches.length > 0) {
         if (medicine.batches.length === 1) {
           // Auto-select if only 1 batch
+          warnIfNearExpiry(medicine.batches[0]);
           addItem(medicine, 1, medicine.batches[0]);
-          setSearchTerm(''); 
+          setSearchTerm('');
           setActiveGenericFilter(null);
           searchInputRef.current?.focus();
         } else {
@@ -66,6 +81,7 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
 
   const handleBatchSelect = (batch: any) => {
     if (selectedMedForBatch) {
+      warnIfNearExpiry(batch);
       addItem(selectedMedForBatch, 1, batch);
       setSelectedMedForBatch(null);
       setSearchTerm('');

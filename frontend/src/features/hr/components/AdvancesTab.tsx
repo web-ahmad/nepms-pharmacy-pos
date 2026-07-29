@@ -48,7 +48,7 @@ export function AdvancesTab() {
             columns={exportColumns} 
             fileName="advance_salaries"
           />
-          <Button onClick={() => setIsModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={() => setIsModalOpen(true)} className="bg-[var(--brand)] hover:bg-[var(--brand-strong)]">
             Issue Advance
           </Button>
         </div>

@@ -214,7 +214,7 @@ export default function PurchaseRequestDetailPage() {
                     whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     onClick={() => setConfirmAction('approve')}
                     disabled={approveReq.isPending}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-green-200 hover:shadow-green-300 transition-all duration-200 disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--brand)] to-emerald-500 px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-green-200 hover:shadow-green-300 transition-all duration-200 disabled:opacity-50"
                   >
                     {approveReq.isPending ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
                     Approve
@@ -417,7 +417,7 @@ export default function PurchaseRequestDetailPage() {
                   onClick={confirmAction === 'approve' ? handleApprove : handleReject}
                   className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all duration-200 ${
                     confirmAction === 'approve'
-                      ? 'bg-gradient-to-r from-green-600 to-emerald-500 shadow-sm shadow-green-200'
+                      ? 'bg-gradient-to-r from-[var(--brand)] to-emerald-500 shadow-sm shadow-green-200'
                       : 'bg-gradient-to-r from-red-600 to-rose-500 shadow-sm shadow-red-200'
                   }`}
                 >

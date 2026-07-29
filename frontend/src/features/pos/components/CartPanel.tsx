@@ -1,8 +1,10 @@
 import { usePOSStore } from '../store/pos-store';
+import { usePosConfig } from '../services/pos.api';
 import { Trash2, Plus, Minus, ChevronUp, ChevronDown } from 'lucide-react';
 
 export default function CartPanel({ onHoldSale }: { onHoldSale?: () => void }) {
   const { cartItems, updateItemQuantity, updateItemDiscount, removeItem, subtotal, totalDiscount, taxAmount, finalTotal, clearCart } = usePOSStore();
+  const posConfig = usePosConfig();
 
   return (
     <div className="flex h-full flex-col">
@@ -208,12 +210,14 @@ export default function CartPanel({ onHoldSale }: { onHoldSale?: () => void }) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button 
-            onClick={onHoldSale}
-            className="flex-1 bg-surface-container-highest text-on-surface font-title-md py-3 rounded-lg hover:bg-outline-variant transition-colors active:scale-95"
-          >
-            Hold Sale (F8)
-          </button>
+          {posConfig.allow_hold_sale && (
+            <button
+              onClick={onHoldSale}
+              className="flex-1 bg-surface-container-highest text-on-surface font-title-md py-3 rounded-lg hover:bg-outline-variant transition-colors active:scale-95"
+            >
+              Hold Sale (F8)
+            </button>
+          )}
           <div className="flex-1 bg-primary text-on-primary rounded-lg flex items-center justify-between px-4 py-2">
             <span className="font-title-md text-body-sm opacity-80">Total</span>
             <span className="font-headline-lg text-title-md tracking-tight">Rs {finalTotal.toFixed(2)}</span>

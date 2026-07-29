@@ -115,6 +115,33 @@ def get_workflow_mode(
     # POS settings UI default — order takers collect payments instantly).
     return {"mode": "SINGLE_COUNTER"}
 
+
+@router.get("/pos-config")
+def get_pos_config(
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope)
+):
+    """POS behaviour flags for the terminal (readable by any POS user, not just
+    those with settings:view). Merged with sensible defaults."""
+    from services.settings_service import SettingsService
+    defaults = {
+        "enable_barcode_scanner": True,
+        "default_payment_mode": "Cash",
+        "allow_partial_payment": False,
+        "allow_credit_sale": True,
+        "enable_discounts": True,
+        "max_discount_percent": 20,
+        "enable_prescription_requirement": False,
+        "allow_hold_sale": True,
+        "show_expiry_warning": True,
+    }
+    try:
+        db_settings = SettingsService(db).get_settings(scope.tenant_id)
+        saved = db_settings.pos_settings if (db_settings and db_settings.pos_settings) else {}
+        return {**defaults, **{k: v for k, v in saved.items() if k in defaults}}
+    except Exception:
+        return defaults
+
 @router.get("/pending-verification", response_model=List[SaleResponse])
 def get_pending_verification_sales(
     db: Session = Depends(get_db),

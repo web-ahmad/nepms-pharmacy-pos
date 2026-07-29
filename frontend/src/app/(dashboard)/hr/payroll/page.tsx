@@ -48,7 +48,7 @@ export default function PayrollPage() {
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl transition-all shadow-sm"
+          className="flex items-center gap-1.5 px-4 py-2 bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white text-sm font-semibold rounded-xl transition-all shadow-sm"
         >
           <Plus className="h-4 w-4" /> Run New Payroll
         </button>

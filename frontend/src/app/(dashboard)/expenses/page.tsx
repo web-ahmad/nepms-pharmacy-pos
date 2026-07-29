@@ -146,7 +146,7 @@ export default function PettyCashPage() {
               type="date"
               value={formData.date}
               onChange={e => setFormData(p => ({ ...p, date: e.target.value }))}
-              className="w-full px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl text-base font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+              className="w-full px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl text-base font-medium focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand-soft)] outline-none transition-all"
             />
           </div>
           
@@ -156,7 +156,7 @@ export default function PettyCashPage() {
               required
               value={formData.petty_cash_category_id}
               onChange={e => setFormData(p => ({ ...p, petty_cash_category_id: e.target.value }))}
-              className="w-full px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl text-base font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all appearance-none"
+              className="w-full px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl text-base font-medium focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand-soft)] outline-none transition-all appearance-none"
             >
               <option value="">Select Category</option>
               {categories?.map(acc => (
@@ -174,7 +174,7 @@ export default function PettyCashPage() {
               value={formData.amount}
               onChange={e => setFormData(p => ({ ...p, amount: e.target.value }))}
               placeholder="0.00"
-              className="w-full px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl text-base font-medium focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+              className="w-full px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl text-base font-medium focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand-soft)] outline-none transition-all"
             />
           </div>
 
@@ -186,14 +186,14 @@ export default function PettyCashPage() {
               value={formData.description}
               onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
               placeholder="e.g. Office tea and snacks"
-              className="w-full px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl text-base focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all"
+              className="w-full px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border border-gray-200 dark:border-zinc-800 rounded-2xl text-base focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand-soft)] outline-none transition-all"
             />
           </div>
 
           <button 
             type="submit"
             disabled={isSubmitting}
-            className="w-full md:w-auto h-[54px] px-8 bg-gray-900 dark:bg-white hover:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 text-white dark:text-gray-900 font-bold rounded-2xl transition-all shadow-lg hover:shadow-emerald-500/25 flex items-center justify-center gap-2 shrink-0 group"
+            className="w-full md:w-auto h-[54px] px-8 bg-gray-900 dark:bg-white hover:bg-[var(--brand)] dark:hover:bg-[var(--brand)] disabled:opacity-50 text-white dark:text-gray-900 font-bold rounded-2xl transition-all shadow-lg hover:shadow-emerald-500/25 flex items-center justify-center gap-2 shrink-0 group"
           >
             {isSubmitting ? (
               <span className="animate-pulse">Saving...</span>
@@ -309,12 +309,12 @@ export default function PettyCashPage() {
                   value={newCatName}
                   onChange={e => setNewCatName(e.target.value)}
                   placeholder="e.g. Foods, Travel"
-                  className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-emerald-500 outline-none"
+                  className="flex-1 px-4 py-2.5 bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:border-[var(--brand)] outline-none"
                 />
                 <button 
                   type="submit"
                   disabled={isCreatingCat}
-                  className="px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl disabled:opacity-50 flex items-center gap-2 font-medium text-sm transition-colors"
+                  className="px-4 bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white rounded-xl disabled:opacity-50 flex items-center gap-2 font-medium text-sm transition-colors"
                 >
                   <Plus size={16} />
                   Add

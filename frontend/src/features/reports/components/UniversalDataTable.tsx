@@ -122,7 +122,7 @@ export default function UniversalDataTable({ data, isLoading, rowsPerPage = 10, 
     );
   };
 
-  const formatCurrencyValue = (num: number) => `Rs ${Math.round(num).toLocaleString('en-PK')}`;
+  const formatCurrencyValue = (num: number) => `Rs ${num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const formatValue = (col: DynamicColumn, value: any) => {
     if (value === null || value === undefined) return <span className="text-zinc-300 dark:text-zinc-700">—</span>;

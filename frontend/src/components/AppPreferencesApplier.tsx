@@ -7,12 +7,14 @@ import { useAppPreferences, applyAppPreferences } from '@/stores/app-preferences
  *  interface attributes in sync with the user's saved preferences. */
 export default function AppPreferencesApplier() {
   const accent = useAppPreferences((s) => s.accent);
+  const customFrom = useAppPreferences((s) => s.customFrom);
+  const customTo = useAppPreferences((s) => s.customTo);
   const reduceMotion = useAppPreferences((s) => s.reduceMotion);
   const compact = useAppPreferences((s) => s.compact);
 
   useEffect(() => {
-    applyAppPreferences({ accent, reduceMotion, compact });
-  }, [accent, reduceMotion, compact]);
+    applyAppPreferences({ accent, customFrom, customTo, reduceMotion, compact });
+  }, [accent, customFrom, customTo, reduceMotion, compact]);
 
   return null;
 }

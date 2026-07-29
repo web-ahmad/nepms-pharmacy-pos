@@ -81,7 +81,7 @@ export default function SalesPage() {
       <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-gray-200">
         <div className="space-y-2">
           {/* Badge */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#006a43] text-white shadow-sm shadow-emerald-200"
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[var(--brand)] text-white shadow-sm shadow-emerald-200"
             style={{ animation: 'sh-fadein 0.4s ease-out both' }}>
             <Zap size={11} className="fill-white" />
             Sales &amp; Returns Terminal
@@ -135,14 +135,14 @@ export default function SalesPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`relative flex items-center gap-2 px-6 py-4 text-[13px] font-semibold transition-all duration-200 outline-none select-none ${
                 activeTab === tab.id
-                  ? 'text-[#006a43]'
+                  ? 'text-[var(--brand)]'
                   : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
               }`}
             >
               {tab.icon}
               {tab.label}
               {activeTab === tab.id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#006a43] rounded-t-full" />
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--brand)] rounded-t-full" />
               )}
             </button>
           ))}

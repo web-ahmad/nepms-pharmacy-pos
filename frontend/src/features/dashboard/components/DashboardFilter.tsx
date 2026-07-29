@@ -96,7 +96,7 @@ export default function DashboardFilter({ dateRange, onChange }: DashboardFilter
               <button
                 key={p.key}
                 onClick={() => handleSelect(p.key)}
-                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:text-zinc-300 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400"
+                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm text-zinc-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 dark:text-zinc-300 dark:hover:bg-[var(--brand)]/10 dark:hover:text-emerald-400"
               >
                 {p.label}
                 {activeKey === p.key && <Check size={14} className="text-emerald-600 dark:text-emerald-400" />}

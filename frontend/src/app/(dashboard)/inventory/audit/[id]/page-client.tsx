@@ -247,7 +247,7 @@ export default function AuditSessionDetailPage() {
               <button
                 onClick={handleReconcile}
                 disabled={reconcileSession.isPending}
-                className="inline-flex items-center justify-center rounded-lg text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 h-10 px-4 py-2 disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-lg text-sm font-medium bg-[var(--brand)] text-white hover:bg-[var(--brand-strong)] h-10 px-4 py-2 disabled:opacity-50"
               >
                 <ShieldCheck className="w-4 h-4 mr-2" />
                 {reconcileSession.isPending ? 'Finalizing...' : 'Approve & Finalize'}

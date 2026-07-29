@@ -15,6 +15,22 @@ import { useCheckout, useWorkflowMode } from '@/features/pos/services/pos.api';
 import { Clock, Calendar, Building2, Store, MonitorSmartphone, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// POS is intentionally PINNED to a hard emerald-green theme — it does NOT follow
+// the app accent picker. These vars override the accent-driven --brand / --md-*
+// for the POS subtree only, so the terminal is always green with white text on
+// green, regardless of what accent the rest of the app uses.
+const POS_GREEN = {
+  ['--brand']: '#059669',
+  ['--brand-2']: '#047857',
+  ['--brand-soft']: 'rgba(5, 150, 105, 0.14)',
+  ['--brand-strong']: '#065f46',
+  ['--brand-fg']: '#ffffff',
+  ['--md-primary']: '#059669',
+  ['--md-primary-container']: '#047857',
+  ['--md-on-primary-container']: '#ffffff',
+  backgroundImage: 'linear-gradient(135deg, var(--brand-soft), transparent 55%)',
+} as React.CSSProperties;
+
 function LiveClock() {
   const [time, setTime] = useState(new Date());
 
@@ -156,13 +172,16 @@ export default function POSFullScreen() {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-gradient-to-br from-surface to-surface-variant/30 text-on-surface font-sans">
+    <div
+      style={POS_GREEN}
+      className="flex h-screen w-screen flex-col overflow-hidden bg-zinc-50 text-on-surface font-sans dark:bg-zinc-950"
+    >
       {/* Premium Header */}
       <motion.header 
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className="flex justify-between items-center w-full px-6 h-20 bg-surface/80 backdrop-blur-md border-b border-outline-variant/50 shadow-sm shrink-0 z-10"
+        className="flex justify-between items-center w-full px-6 h-20 bg-white/70 backdrop-blur-md border-b border-zinc-200/70 shadow-sm shrink-0 z-10 dark:bg-zinc-950/70 dark:border-zinc-800"
       >
         <div className="flex items-center gap-6">
           <motion.div 
@@ -201,12 +220,12 @@ export default function POSFullScreen() {
             <motion.button 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setShowHeldSales(true)} 
-              className="px-4 py-2 bg-blue-50/50 backdrop-blur-sm text-blue-700 hover:bg-blue-100/80 border border-blue-200/50 rounded-xl font-semibold text-sm transition-all shadow-sm relative overflow-hidden group"
+              onClick={() => setShowHeldSales(true)}
+              style={{ color: 'var(--brand)', backgroundColor: 'var(--brand-soft)' }}
+              className="px-4 py-2 backdrop-blur-sm border border-transparent rounded-xl font-semibold text-sm transition-all shadow-sm relative overflow-hidden group"
             >
-              <div className="absolute inset-0 bg-blue-400/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
               Held Sales
-              {activeShortcut === 'F9' && <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-500 rounded-t-md"></span>}
+              {activeShortcut === 'F9' && <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-8 h-1 rounded-t-md" style={{ backgroundColor: 'var(--brand)' }}></span>}
             </motion.button>
           </div>
           <div className="flex items-center gap-4 pl-4 border-l border-outline-variant/30">
@@ -248,7 +267,7 @@ export default function POSFullScreen() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="w-[30%] min-w-[340px] bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
+            className="w-[30%] min-w-[340px] bg-white/80 backdrop-blur-xl border border-zinc-200/70 rounded-2xl flex flex-col overflow-hidden shadow-xl shadow-black/5 dark:bg-zinc-950/70 dark:border-zinc-800"
           >
             <MedicineSearch searchInputRef={searchInputRef} />
           </motion.aside>
@@ -258,7 +277,7 @@ export default function POSFullScreen() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="flex-1 bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
+            className="flex-1 bg-white/80 backdrop-blur-xl border border-zinc-200/70 rounded-2xl flex flex-col overflow-hidden shadow-xl shadow-black/5 dark:bg-zinc-950/70 dark:border-zinc-800"
           >
             <CartPanel onHoldSale={handleHoldSale} />
           </motion.section>
@@ -268,7 +287,7 @@ export default function POSFullScreen() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
-            className="w-[32%] min-w-[360px] max-w-[420px] bg-surface/80 backdrop-blur-xl border border-outline-variant/40 rounded-2xl flex flex-col overflow-hidden shadow-lg shadow-black/5"
+            className="w-[32%] min-w-[360px] max-w-[420px] bg-white/80 backdrop-blur-xl border border-zinc-200/70 rounded-2xl flex flex-col overflow-hidden shadow-xl shadow-black/5 dark:bg-zinc-950/70 dark:border-zinc-800"
           >
             <PaymentPanel 
               checkoutButtonRef={checkoutButtonRef}

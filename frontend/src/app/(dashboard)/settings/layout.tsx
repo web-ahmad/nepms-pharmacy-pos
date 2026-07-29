@@ -19,8 +19,6 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'Invoice & Receipt', href: '/settings/invoice', icon: Receipt },
   { name: 'Invoice Template', href: '/settings/invoice-template', icon: FileText },
   { name: 'POS', href: '/settings/pos', icon: MonitorSmartphone },
-  { name: 'Branches', href: '/settings/branches', icon: GitBranch },
-  { name: 'Inventory', href: '/settings/inventory', icon: Boxes },
   { name: 'CRM & Loyalty', href: '/settings/crm', icon: Heart },
   { name: 'HR & Payroll', href: '/settings/hr', icon: Users2 },
   { name: 'Prescriptions', href: '/settings/prescriptions', icon: Stethoscope },
@@ -34,7 +32,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
     <div className="flex h-full flex-col space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg shadow-blue-200/50 dark:shadow-blue-900/30">
+        <div className="brand-surface-br brand-shadow flex h-10 w-10 items-center justify-center rounded-xl">
           <SlidersHorizontal className="h-5 w-5 text-white" />
         </div>
         <div>
@@ -52,15 +50,15 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
             <Link
               key={item.name}
               href={item.href}
-              className={`group flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${
+              className={`group flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-gradient-to-r from-blue-50 to-blue-50/50 text-blue-700 shadow-sm ring-1 ring-blue-100 dark:from-blue-500/10 dark:to-blue-500/5 dark:text-blue-400 dark:ring-blue-900/30'
+                  ? 'brand-surface brand-shadow'
                   : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-50'
               }`}
             >
               <Icon
                 className={`h-4 w-4 flex-shrink-0 transition-colors ${
-                  isActive ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300'
+                  isActive ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300'
                 }`}
               />
               {item.name}

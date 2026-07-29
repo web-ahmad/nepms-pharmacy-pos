@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePOSStore } from '../store/pos-store';
-import { useCheckout, useWorkflowMode } from '../services/pos.api';
+import { useCheckout, useWorkflowMode, usePosConfig } from '../services/pos.api';
 import { CheckoutPayload } from '../types/pos';
 import { CreditCard, Banknote, Landmark, Loader2, AlertCircle, Search, ClipboardList, X, Split, Gift } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
@@ -48,6 +48,20 @@ export default function PaymentPanel({
   const { data: workflowData } = useWorkflowMode();
   const isDualCounter = workflowData?.mode === 'DUAL_COUNTER';
 
+  // ── POS settings (Settings → POS) applied live to the terminal ──────────────
+  const posConfig = usePosConfig();
+  // Apply the configured default payment mode once (fresh empty cart).
+  const defaultModeApplied = useRef(false);
+  useEffect(() => {
+    if (!defaultModeApplied.current && posConfig?.default_payment_mode && cartItems.length === 0) {
+      setPaymentMethod(posConfig.default_payment_mode as any);
+      defaultModeApplied.current = true;
+    }
+  }, [posConfig?.default_payment_mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Payment methods honour "Allow Credit Sale".
+  const paymentMethods = ['Cash', 'Card', ...(posConfig.allow_credit_sale ? ['Credit'] : []), 'Bank Transfer', 'Split', 'Gift Voucher'];
+
   const handleCheckout = async (holdSale = false) => {
     setErrorMsg('');
     if (cartItems.length === 0) {
@@ -59,6 +73,19 @@ export default function PaymentPanel({
     let actualPaid = amountPaid;
     if ((paymentMethod === 'Card' || paymentMethod === 'Bank Transfer') && amountPaid === 0) {
       actualPaid = finalTotal;
+    }
+
+    // ── Enforce POS settings ──────────────────────────────────────────────
+    if (!holdSale && !isDualCounter) {
+      const isCredit = paymentMethod === 'Credit';
+      if (isCredit && !posConfig.allow_credit_sale) {
+        setErrorMsg('Credit sales are disabled in POS settings.');
+        return;
+      }
+      if (!isCredit && !posConfig.allow_partial_payment && actualPaid < finalTotal) {
+        setErrorMsg('Partial payment is disabled in POS settings. Please collect the full amount.');
+        return;
+      }
     }
 
     // Require customer for partial payment/credit if not holding sale (and not in dual counter mode where cashier handles payment)
@@ -198,12 +225,14 @@ export default function PaymentPanel({
         )}
       </div>
 
-      {/* Global Discount */}
-      {hasDiscountPermission && (
+      {/* Global Discount — gated by permission AND the "Enable Discounts" setting */}
+      {hasDiscountPermission && posConfig.enable_discounts && (
         <div className="mt-4">
-          <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-1 block">Cart Discount</label>
+          <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-1 block">
+            Cart Discount {globalDiscount.type === 'PERCENTAGE' && <span className="text-outline normal-case">(max {posConfig.max_discount_percent}%)</span>}
+          </label>
           <div className="flex items-center gap-2">
-            <select 
+            <select
               className="rounded-md border border-outline-variant bg-white p-2 text-body-md focus:border-primary focus:outline-none"
               value={globalDiscount.type}
               onChange={(e) => setGlobalDiscount(e.target.value as 'PERCENTAGE'|'FIXED', globalDiscount.value)}
@@ -211,11 +240,18 @@ export default function PaymentPanel({
               <option value="FIXED">Rs</option>
               <option value="PERCENTAGE">%</option>
             </select>
-            <input 
-              type="number" 
+            <input
+              type="number"
               className="w-full rounded-md border border-outline-variant bg-white p-2 text-body-md focus:border-primary focus:outline-none"
               value={globalDiscount.value}
-              onChange={(e) => setGlobalDiscount(globalDiscount.type, parseFloat(e.target.value) || 0)}
+              onChange={(e) => {
+                let v = parseFloat(e.target.value) || 0;
+                // Cap percentage discounts at the configured maximum.
+                if (globalDiscount.type === 'PERCENTAGE' && v > posConfig.max_discount_percent) {
+                  v = posConfig.max_discount_percent;
+                }
+                setGlobalDiscount(globalDiscount.type, v);
+              }}
             />
           </div>
         </div>
@@ -254,7 +290,7 @@ export default function PaymentPanel({
         <div className="mt-4 flex-1 overflow-y-auto pr-1">
             <label className="text-xs text-on-surface-variant font-bold tracking-widest uppercase mb-3 block">Payment Method</label>
             <div className="grid grid-cols-2 gap-2">
-              {['Cash', 'Card', 'Credit', 'Bank Transfer', 'Split', 'Gift Voucher'].map((method) => {
+              {paymentMethods.map((method) => {
                 let Icon = Banknote;
                 if (method === 'Card') Icon = CreditCard;
                 if (method === 'Bank Transfer') Icon = Landmark;
@@ -284,38 +320,51 @@ export default function PaymentPanel({
           </div>
       )}
 
-      {/* Summary Box */}
+      {/* Summary Boxes — Payable stays GREEN always; a SEPARATE box below turns
+          orange (change due, black text) or red (remaining balance, white text). */}
+      {(() => {
+        const isChange = !isDualCounter && amountPaid > finalTotal;
+        const isRemaining = !isDualCounter && (
+          (amountPaid < finalTotal && amountPaid > 0) ||
+          ((amountPaid === 0 || isNaN(amountPaid)) && (paymentMethod === 'Credit' || selectedCustomer))
+        );
+        const stateGrad = isChange
+          ? 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%)'
+          : 'linear-gradient(135deg, #f87171 0%, #ef4444 50%, #b91c1c 100%)';
+        const stateText = isChange ? 'text-black' : 'text-white';
+        return (
       <div className="mt-auto pt-4 border-t border-outline-variant/30 shrink-0">
-        <motion.div 
+        {/* Payable Amount — always green */}
+        <motion.div
           layout
-          className="bg-gradient-to-br from-primary-container to-primary/20 rounded-2xl p-5 mb-4 border border-primary/10 shadow-inner"
+          style={{ backgroundImage: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #065f46 100%)' }}
+          className="rounded-2xl p-5 mb-3 border border-white/15 shadow-lg text-white"
         >
-          <div className="flex justify-between items-center text-on-primary-container mb-1">
-            <span className="font-semibold opacity-80 uppercase tracking-wider text-xs">Payable Amount</span>
-            <span className="text-3xl font-[Arial] font-extrabold tracking-tight text-primary drop-shadow-sm">Rs {finalTotal.toFixed(2)}</span>
+          <div className="flex justify-between items-center">
+            <span className="font-[Arial] font-semibold opacity-90 uppercase tracking-wider text-xs">Payable Amount</span>
+            <span className="text-3xl font-[Arial] font-bold drop-shadow-sm">Rs {finalTotal.toFixed(2)}</span>
           </div>
-          
-          {!isDualCounter && (
-            <AnimatePresence>
-                {amountPaid > finalTotal ? (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex justify-between items-center mt-3 border-t border-primary/20 pt-3">
-                    <span className="font-semibold text-on-primary-container opacity-90 uppercase tracking-wider text-xs">Change Due</span>
-                    <span className="text-2xl font-[Arial] font-extrabold text-emerald-600 dark:text-emerald-400">Rs {changeDue.toFixed(2)}</span>
-                  </motion.div>
-                ) : amountPaid < finalTotal && amountPaid > 0 ? (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex justify-between items-center mt-3 border-t border-primary/20 pt-3">
-                    <span className="font-semibold text-rose-600/80 dark:text-rose-300/80 uppercase tracking-wider text-xs">Remaining Balance</span>
-                    <span className="text-2xl font-[Arial] font-extrabold text-rose-600 dark:text-rose-400">Rs {(finalTotal - amountPaid).toFixed(2)}</span>
-                  </motion.div>
-                ) : (amountPaid === 0 || isNaN(amountPaid)) && (paymentMethod === 'Credit' || selectedCustomer) ? (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex justify-between items-center mt-3 border-t border-primary/20 pt-3">
-                    <span className="font-semibold text-rose-600/80 dark:text-rose-300/80 uppercase tracking-wider text-xs">Remaining Balance</span>
-                    <span className="text-2xl font-[Arial] font-extrabold text-rose-600 dark:text-rose-400">Rs {finalTotal.toFixed(2)}</span>
-                  </motion.div>
-                ) : null}
-            </AnimatePresence>
-          )}
         </motion.div>
+
+        {/* State box — separate; colour depends on change/remaining */}
+        <AnimatePresence>
+          {!isDualCounter && (isChange || isRemaining) && (
+            <motion.div
+              key={isChange ? 'change' : 'remaining'}
+              layout
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              style={{ backgroundImage: stateGrad }}
+              className={`flex justify-between items-center rounded-2xl p-4 mb-4 border ${isChange ? 'border-black/10' : 'border-white/15'} shadow-lg ${stateText}`}
+            >
+              <span className="font-[Arial] font-semibold opacity-90 uppercase tracking-wider text-xs">{isChange ? 'Change Due' : 'Remaining Balance'}</span>
+              <span className="text-2xl font-[Arial] font-bold drop-shadow-sm">
+                Rs {isChange ? changeDue.toFixed(2) : (amountPaid > 0 ? (finalTotal - amountPaid) : finalTotal).toFixed(2)}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {errorMsg && (
@@ -337,7 +386,7 @@ export default function PaymentPanel({
           ref={checkoutButtonRef}
           onClick={() => handleCheckout(false)}
           disabled={checkoutMutation.isPending || cartItems.length === 0}
-          className="w-full bg-gradient-to-r from-primary to-primary/80 text-white font-bold text-lg py-4 rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50 flex items-center justify-center relative overflow-hidden group"
+          className="brand-surface brand-shadow w-full !text-white font-bold text-lg py-4 rounded-xl hover:shadow-lg transition-all disabled:opacity-50 flex items-center justify-center relative overflow-hidden group"
         >
           <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
           {checkoutMutation.isPending ? (
@@ -347,6 +396,8 @@ export default function PaymentPanel({
           )}
         </motion.button>
       </div>
+        );
+      })()}
     </div>
   );
 }

@@ -24,14 +24,14 @@ const IconReturn = () => (
 );
 
 const IconPayment = ({ active }: { active: boolean }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#006a43' : '#d1d5db'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? 'var(--brand)' : '#d1d5db'} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
     <line x1="1" y1="10" x2="23" y2="10"/>
   </svg>
 );
 
 const IconInfo = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#006a43" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
   </svg>
 );
@@ -85,7 +85,7 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
     return (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
         <div className="bg-white p-8 rounded-xl shadow-xl flex items-center gap-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#006a43] border-t-transparent"></div>
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[var(--brand)] border-t-transparent"></div>
           <p className="font-bold text-slate-700">Loading invoice data...</p>
         </div>
       </div>
@@ -151,7 +151,7 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
         {/* ── HEADER ─────────────────────────────────────────────────────── */}
         <header className="flex justify-between items-center px-6 py-4 bg-white border-b border-gray-200 shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#006a43] shrink-0"></span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--brand)] shrink-0"></span>
             <div>
               <h1 className="text-[17px] font-bold text-gray-900 leading-tight">Process Item Return</h1>
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mt-0.5">
@@ -255,7 +255,7 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
                               <select
                                 value={itemState.reason}
                                 onChange={(e) => handleReasonChange(item.id, e.target.value)}
-                                className="w-full h-8 bg-white border border-gray-300 rounded-lg px-2.5 pr-7 text-[11px] text-gray-700 font-medium outline-none appearance-none cursor-pointer focus:border-[#006a43] transition-colors"
+                                className="w-full h-8 bg-white border border-gray-300 rounded-lg px-2.5 pr-7 text-[11px] text-gray-700 font-medium outline-none appearance-none cursor-pointer focus:border-[var(--brand)] transition-colors"
                               >
                                 <option value="Customer Changed Mind">Custom</option>
                                 <option value="Damaged">Defective</option>
@@ -273,7 +273,7 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
                         {/* Stock Action */}
                         <div className="w-[80px] shrink-0 flex justify-center">
                           {maxReturn > 0 && itemState.quantity > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-[#006a43] font-semibold text-[12px]">
+                            <span className="inline-flex items-center gap-1 text-[var(--brand)] font-semibold text-[12px]">
                               <IconReturn />
                               Return
                             </span>
@@ -283,7 +283,7 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
                         </div>
 
                         {/* Refund */}
-                        <div className="w-[56px] shrink-0 text-right text-[13px] font-bold text-[#006a43]">
+                        <div className="w-[56px] shrink-0 text-right text-[13px] font-bold text-[var(--brand)]">
                           Rs {lineRefund.toFixed(2)}
                         </div>
                       </div>
@@ -321,11 +321,11 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
                 <button
                   type="button"
                   onClick={() => setPaymentMode('Cash')}
-                  className={`w-full flex items-center justify-between p-3 border-2 rounded-xl bg-white transition-all text-left ${paymentMode === 'Cash' ? 'border-[#006a43] bg-[#f4faf7]' : 'border-gray-200 hover:border-gray-300'}`}
+                  className={`w-full flex items-center justify-between p-3 border-2 rounded-xl bg-white transition-all text-left ${paymentMode === 'Cash' ? 'border-[var(--brand)] bg-[#f4faf7]' : 'border-gray-200 hover:border-gray-300'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${paymentMode === 'Cash' ? 'border-[#006a43]' : 'border-gray-300'}`}>
-                      {paymentMode === 'Cash' && <div className="w-3 h-3 rounded-full bg-[#006a43]"></div>}
+                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${paymentMode === 'Cash' ? 'border-[var(--brand)]' : 'border-gray-300'}`}>
+                      {paymentMode === 'Cash' && <div className="w-3 h-3 rounded-full bg-[var(--brand)]"></div>}
                     </div>
                     <div>
                       <div className="text-[13px] font-bold text-gray-800">Cash Refund</div>
@@ -339,11 +339,11 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
                 <button
                   type="button"
                   onClick={() => setPaymentMode('Store Credit')}
-                  className={`w-full flex items-center justify-between p-3 border-2 rounded-xl bg-white transition-all text-left ${paymentMode === 'Store Credit' ? 'border-[#006a43] bg-[#f4faf7]' : 'border-gray-200 hover:border-gray-300'}`}
+                  className={`w-full flex items-center justify-between p-3 border-2 rounded-xl bg-white transition-all text-left ${paymentMode === 'Store Credit' ? 'border-[var(--brand)] bg-[#f4faf7]' : 'border-gray-200 hover:border-gray-300'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${paymentMode === 'Store Credit' ? 'border-[#006a43]' : 'border-gray-300'}`}>
-                      {paymentMode === 'Store Credit' && <div className="w-3 h-3 rounded-full bg-[#006a43]"></div>}
+                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${paymentMode === 'Store Credit' ? 'border-[var(--brand)]' : 'border-gray-300'}`}>
+                      {paymentMode === 'Store Credit' && <div className="w-3 h-3 rounded-full bg-[var(--brand)]"></div>}
                     </div>
                     <div>
                       <div className="text-[13px] font-bold text-gray-800">Store Credit</div>
@@ -360,7 +360,7 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full h-[80px] p-3 rounded-xl border border-gray-200 bg-white text-[12px] text-gray-700 outline-none resize-none focus:border-[#006a43] transition-colors placeholder:text-gray-400"
+                className="w-full h-[80px] p-3 rounded-xl border border-gray-200 bg-white text-[12px] text-gray-700 outline-none resize-none focus:border-[var(--brand)] transition-colors placeholder:text-gray-400"
                 placeholder="Optional details about this return..."
               />
             </div>
@@ -393,7 +393,7 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
         <footer className="flex justify-between items-center px-6 py-4 bg-white border-t border-gray-200 shrink-0">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total Refund</span>
-            <span className="text-[28px] font-bold text-[#006a43] mt-0.5 leading-none">Rs {totalRefund.toFixed(2)}</span>
+            <span className="text-[28px] font-bold text-[var(--brand)] mt-0.5 leading-none">Rs {totalRefund.toFixed(2)}</span>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -407,7 +407,7 @@ export default function SaleReturnModal({ saleId, onClose, onSuccess }: SaleRetu
               type="button"
               onClick={handleSubmit}
               disabled={processReturnMutation.isPending || activeReturns.length === 0}
-              className="flex items-center gap-2 bg-[#006a43] hover:bg-[#005233] text-white px-5 py-2.5 rounded-xl text-[14px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white px-5 py-2.5 rounded-xl text-[14px] font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {processReturnMutation.isPending ? <IconSpinner /> : <IconCheck />}
               <span>{processReturnMutation.isPending ? 'Processing...' : 'Process Return'}</span>

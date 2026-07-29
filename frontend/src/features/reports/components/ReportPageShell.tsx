@@ -18,7 +18,7 @@ export type ReportTab = {
 type AccentColor = 'emerald' | 'blue' | 'violet' | 'amber' | 'red' | 'teal' | 'orange' | 'indigo' | 'zinc';
 
 const ACCENT_ACTIVE: Record<AccentColor, string> = {
-  emerald: 'bg-emerald-600 text-white shadow-lg shadow-emerald-200/60 dark:shadow-emerald-900/30',
+  emerald: 'bg-[var(--brand)] text-white shadow-lg shadow-emerald-200/60 dark:shadow-emerald-900/30',
   blue:    'bg-blue-600 text-white shadow-lg shadow-blue-200/60 dark:shadow-blue-900/30',
   violet:  'bg-violet-600 text-white shadow-lg shadow-violet-200/60 dark:shadow-violet-900/30',
   amber:   'bg-amber-500 text-white shadow-lg shadow-amber-200/60 dark:shadow-amber-900/30',

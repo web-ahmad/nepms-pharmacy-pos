@@ -65,7 +65,7 @@ export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }:
     return (
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] flex justify-end">
         <div className="bg-white border-l border-gray-200 w-full max-w-lg h-screen shadow-2xl flex flex-col justify-center items-center z-[1000]">
-           <div className="w-8 h-8 border-4 border-[#006a43] border-t-transparent rounded-full animate-spin"></div>
+           <div className="w-8 h-8 border-4 border-[var(--brand)] border-t-transparent rounded-full animate-spin"></div>
         </div>
       </div>
     );
@@ -83,8 +83,8 @@ export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }:
         {/* Drawer header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-[#f6faf8] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-[#006a43]/10">
-              <RotateCcw size={18} className="text-[#006a43]" />
+            <div className="p-2 rounded-xl bg-[var(--brand)]/10">
+              <RotateCcw size={18} className="text-[var(--brand)]" />
             </div>
             <div>
               <h3 className="text-[16px] font-bold text-gray-900">Return Invoice Details</h3>
@@ -130,7 +130,7 @@ export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }:
                         <Package size={13} className="text-gray-400 shrink-0 mt-0.5" />
                         {item.medicine_name}
                       </span>
-                      <span className="font-mono text-[#006a43] font-bold shrink-0 ml-2">
+                      <span className="font-mono text-[var(--brand)] font-bold shrink-0 ml-2">
                         Rs {item.total_refund.toFixed(2)}
                       </span>
                     </div>
@@ -166,19 +166,19 @@ export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }:
           <div className="bg-[#f4faf7] rounded-2xl border border-emerald-100 p-4 flex justify-between items-center">
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Refund</p>
-              <p className="text-[22px] font-extrabold text-[#006a43] font-mono mt-0.5 leading-none">
+              <p className="text-[22px] font-extrabold text-[var(--brand)] font-mono mt-0.5 leading-none">
                 Rs {selectedReturn.total_amount.toFixed(2)}
               </p>
             </div>
-            <div className="p-3 rounded-xl bg-[#006a43]/10">
-              <ArrowRightLeft size={22} className="text-[#006a43]" />
+            <div className="p-3 rounded-xl bg-[var(--brand)]/10">
+              <ArrowRightLeft size={22} className="text-[var(--brand)]" />
             </div>
           </div>
 
           {/* Print button */}
           <button
             onClick={() => handlePrint(selectedReturn)}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-[#006a43] hover:bg-[#005233] text-white rounded-xl font-bold text-[14px] transition-all duration-150 active:scale-95"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white rounded-xl font-bold text-[14px] transition-all duration-150 active:scale-95"
           >
             <Printer size={16} />
             Print Return Invoice

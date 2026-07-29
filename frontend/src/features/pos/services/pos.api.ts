@@ -45,6 +45,44 @@ export const useHeldSales = () => {
   });
 };
 
+// ── POS behaviour config ─────────────────────────────────────────────────────
+export interface PosConfig {
+  enable_barcode_scanner: boolean;
+  default_payment_mode: string;
+  allow_partial_payment: boolean;
+  allow_credit_sale: boolean;
+  enable_discounts: boolean;
+  max_discount_percent: number;
+  enable_prescription_requirement: boolean;
+  allow_hold_sale: boolean;
+  show_expiry_warning: boolean;
+}
+
+export const DEFAULT_POS_CONFIG: PosConfig = {
+  enable_barcode_scanner: true,
+  default_payment_mode: 'Cash',
+  allow_partial_payment: false,
+  allow_credit_sale: true,
+  enable_discounts: true,
+  max_discount_percent: 20,
+  enable_prescription_requirement: false,
+  allow_hold_sale: true,
+  show_expiry_warning: true,
+};
+
+/** Live POS behaviour flags from Settings → POS (applied on the terminal). */
+export const usePosConfig = (): PosConfig => {
+  const { data } = useQuery({
+    queryKey: ['sales', 'pos-config'],
+    queryFn: async () => {
+      const res = await api.get<Partial<PosConfig>>('/api/v1/sales/pos-config');
+      return res.data;
+    },
+    staleTime: 30000,
+  });
+  return { ...DEFAULT_POS_CONFIG, ...(data || {}) };
+};
+
 export const useWorkflowMode = () => {
   return useQuery({
     queryKey: ['sales', 'workflow-mode'],

@@ -143,7 +143,7 @@ export default function PurchaseQuotationDetailPage() {
                   <button 
                     onClick={handleConvertToPO}
                     disabled={convertToPO.isPending}
-                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold text-xs shadow-sm hover:bg-emerald-700 transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[var(--brand)] text-white font-semibold text-xs shadow-sm hover:bg-[var(--brand-strong)] transition-colors"
                   >
                     <ShoppingCart size={14} /> Select & PO
                   </button>

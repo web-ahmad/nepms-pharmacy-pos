@@ -19,7 +19,10 @@ const THEMES = [
 
 export default function GeneralSettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { accent, setAccent, reduceMotion, setReduceMotion, compact, setCompact } = useAppPreferences();
+  const {
+    accent, setAccent, customFrom, customTo, setCustomGradient,
+    reduceMotion, setReduceMotion, compact, setCompact,
+  } = useAppPreferences();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []); // avoid theme hydration mismatch
 
@@ -63,9 +66,10 @@ export default function GeneralSettingsPage() {
         </div>
       </SettingsCard>
 
-      {/* ── Accent / Brand colour ───────────────────────────────────── */}
-      <SettingsCard icon={Palette} title="Accent Colour" description="Recolours the sidebar navigation, active tabs and highlights across the app." delay={0.08} accent="violet">
-        <div className="flex flex-wrap gap-3">
+      {/* ── Accent / Brand gradient ─────────────────────────────────── */}
+      <SettingsCard icon={Palette} title="Accent Gradient" description="Recolours the sidebar, active tabs, primary buttons, the POS terminal and highlights across the whole app." delay={0.08} accent="violet">
+        {/* Preset gradient swatches */}
+        <div className="grid grid-cols-4 gap-3 sm:grid-cols-6">
           {ACCENTS.map((a) => {
             const active = accent === a.name;
             return (
@@ -74,26 +78,81 @@ export default function GeneralSettingsPage() {
                 type="button"
                 title={a.label}
                 onClick={() => setAccent(a.name as AccentName)}
-                className={`group relative h-11 w-11 rounded-xl transition-transform hover:scale-105 focus:outline-none ${active ? 'ring-2 ring-offset-2 ring-zinc-400 dark:ring-offset-zinc-950' : ''}`}
-                style={{ backgroundColor: a.hex }}
+                className={`group relative flex h-14 flex-col items-center justify-end overflow-hidden rounded-xl shadow-sm transition-all hover:scale-105 focus:outline-none ${
+                  active ? 'ring-2 ring-offset-2 ring-zinc-500 dark:ring-offset-zinc-950' : 'ring-1 ring-black/5'
+                }`}
+                style={{ backgroundImage: `linear-gradient(135deg, ${a.from}, ${a.to})` }}
               >
                 {active && (
-                  <span className="absolute inset-0 flex items-center justify-center text-white">
-                    <Check size={18} />
+                  <span className="absolute inset-0 flex items-center justify-center text-white drop-shadow">
+                    <Check size={20} />
                   </span>
                 )}
+                <span className="w-full bg-black/25 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-white/90 backdrop-blur-sm">
+                  {a.label}
+                </span>
               </button>
             );
           })}
         </div>
-        <div className="mt-4 flex items-center gap-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
+
+        {/* Custom gradient builder */}
+        <div className="mt-5 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-zinc-800 dark:text-zinc-100">Custom Gradient</p>
+              <p className="text-xs text-zinc-500">Pick any two colours to build your own brand gradient.</p>
+            </div>
+            {accent === 'custom' && (
+              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400">
+                Active
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-300">
+              From
+              <input
+                type="color"
+                value={customFrom}
+                onChange={(e) => setCustomGradient(e.target.value, customTo)}
+                className="h-9 w-12 cursor-pointer rounded-lg border border-zinc-300 bg-transparent p-0.5 dark:border-zinc-700"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-300">
+              To
+              <input
+                type="color"
+                value={customTo}
+                onChange={(e) => setCustomGradient(customFrom, e.target.value)}
+                className="h-9 w-12 cursor-pointer rounded-lg border border-zinc-300 bg-transparent p-0.5 dark:border-zinc-700"
+              />
+            </label>
+            <div
+              className="h-9 min-w-[120px] flex-1 rounded-lg shadow-inner"
+              style={{ backgroundImage: `linear-gradient(to right, ${customFrom}, ${customTo})` }}
+            />
+            <button
+              type="button"
+              onClick={() => setCustomGradient(customFrom, customTo)}
+              className="rounded-lg px-4 py-2 text-sm font-bold text-white shadow-sm transition-transform active:scale-95"
+              style={{ backgroundImage: `linear-gradient(to right, ${customFrom}, ${customTo})` }}
+            >
+              Use this gradient
+            </button>
+          </div>
+        </div>
+
+        {/* Live preview */}
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
           <span className="text-xs text-zinc-500">Live preview:</span>
           <span className="rounded-md px-3 py-1 text-sm font-semibold" style={{ color: 'var(--brand)', backgroundColor: 'var(--brand-soft)' }}>
             Active navigation item
           </span>
-          <span className="rounded-md px-3 py-1 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--brand)' }}>
+          <span className="brand-surface brand-shadow rounded-md px-3 py-1 text-sm font-semibold">
             Primary button
           </span>
+          <span className="brand-gradient-text text-sm font-extrabold">Gradient heading</span>
         </div>
       </SettingsCard>
 

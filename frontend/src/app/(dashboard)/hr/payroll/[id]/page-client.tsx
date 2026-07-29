@@ -141,7 +141,7 @@ export default function PayrollDetailsPage() {
               <button 
                 onClick={() => submitPayroll.mutate(run.id)}
                 disabled={submitPayroll.isPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white transition-all shadow-sm"
               >
                 <Send className="h-3.5 w-3.5" />
                 {submitPayroll.isPending ? 'Sending...' : 'Send for Approval'}
@@ -164,7 +164,7 @@ export default function PayrollDetailsPage() {
                 <button 
                   onClick={() => approvePayroll.mutate({ id: run.id })}
                   disabled={approvePayroll.isPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white transition-all shadow-sm"
                 >
                   <ThumbsUp className="h-3.5 w-3.5" />
                   {approvePayroll.isPending ? 'Approving...' : 'Approve'}
@@ -197,7 +197,7 @@ export default function PayrollDetailsPage() {
               <button 
                 onClick={() => finalizePayroll.mutate(run.id)}
                 disabled={finalizePayroll.isPending}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-sm"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-[var(--brand)] hover:bg-[var(--brand-strong)] text-white transition-all shadow-sm"
               >
                 <DollarSign className="h-3.5 w-3.5" />
                 {finalizePayroll.isPending ? 'Processing Payout...' : 'Mark as Paid'}
@@ -285,7 +285,7 @@ export default function PayrollDetailsPage() {
             <p className="text-sm text-gray-500 mb-4">You are approving this payroll run via manual override. Please provide a reason/remarks for the owner.</p>
             
             <textarea 
-              className="w-full rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 p-3 text-sm outline-none focus:border-emerald-500 mb-4 h-24"
+              className="w-full rounded-lg border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 p-3 text-sm outline-none focus:border-[var(--brand)] mb-4 h-24"
               placeholder="Enter remarks..."
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
@@ -307,7 +307,7 @@ export default function PayrollDetailsPage() {
                   setShowOverrideDialog(false);
                 }}
                 disabled={!remarks.trim() || approvePayroll.isPending}
-                className="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-50"
+                className="px-4 py-2 text-sm font-semibold text-white bg-[var(--brand)] hover:bg-[var(--brand-strong)] rounded-lg disabled:opacity-50"
               >
                 {approvePayroll.isPending ? 'Approving...' : 'Confirm Override'}
               </button>

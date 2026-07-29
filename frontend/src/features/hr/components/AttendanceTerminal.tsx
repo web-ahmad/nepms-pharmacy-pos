@@ -272,7 +272,7 @@ export default function AttendanceTerminal() {
                   id="btn-clock-in"
                   onClick={handleClockIn}
                   disabled={isWorking || !selectedEmployeeId}
-                  className="group relative w-full overflow-hidden rounded-xl bg-emerald-600 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="group relative w-full overflow-hidden rounded-xl bg-[var(--brand)] py-4 text-base font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-[var(--brand)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isWorking ? (
                     <span className="flex items-center justify-center gap-2">

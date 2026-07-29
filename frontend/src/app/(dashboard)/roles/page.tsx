@@ -824,7 +824,7 @@ function RolesPage() {
               <button
                 onClick={handleCreateRole}
                 disabled={createRole.isPending || !newRoleName.trim()}
-                className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-strong)] disabled:opacity-50 transition-colors"
               >
                 {createRole.isPending ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                 Create

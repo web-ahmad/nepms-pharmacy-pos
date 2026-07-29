@@ -225,7 +225,7 @@ export default function AttendanceLogs({
           
           <button 
             onClick={() => setIsMarkCustomOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--brand-strong)]"
           >
             <CalendarDays size={16} />
             <span className="hidden sm:inline">Mark Custom Date</span>
