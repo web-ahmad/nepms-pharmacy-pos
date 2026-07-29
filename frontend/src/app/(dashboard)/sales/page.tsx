@@ -150,9 +150,14 @@ export default function SalesPage() {
 
         {/* Tab Content */}
         <div className="p-0">
+          {/* NOTE: opacity-only entrance (sh-fadein). A transform-based animation
+              here (e.g. sh-slideup) leaves a lingering `transform` that turns this
+              wrapper into the containing block for the fixed-position return modal
+              / invoice drawer rendered inside <SalesHistory/>, breaking their
+              full-screen overlay. Keep this fade-only. */}
           {activeTab === 'history'
-            ? <div key="history" style={{ animation: 'sh-slideup 0.3s ease-out both' }}><SalesHistory /></div>
-            : <div key="returns" style={{ animation: 'sh-slideup 0.3s ease-out both' }}><ReturnLogs /></div>
+            ? <div key="history" style={{ animation: 'sh-fadein 0.3s ease-out both' }}><SalesHistory /></div>
+            : <div key="returns" style={{ animation: 'sh-fadein 0.3s ease-out both' }}><ReturnLogs /></div>
           }
         </div>
       </div>

@@ -841,7 +841,10 @@ class SalesService:
                 original_invoice=sale.invoice_number,
                 refund_amount=total_refund_acc,
                 cost_of_items_returned=total_cost_returned,
-                payment_method=payload.payment_mode
+                payment_method=payload.payment_mode,
+                branch_id=branch_id,
+                source_module="Sales Return",
+                source_id=sale_return.id
             )
 
             db.commit()

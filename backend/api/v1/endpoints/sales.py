@@ -237,7 +237,7 @@ def process_return(
     db: Session = Depends(get_db),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
-    token_payload: dict = Depends(requires_permission("pos:approve_refund"))
+    token_payload: dict = Depends(requires_permission("pos:return"))
 ):
     """
     Legacy return endpoint. Restores batch quantities, triggers Stock Movement, and credits customer ledger.
@@ -406,7 +406,7 @@ def process_item_wise_return(
     db: Session = Depends(get_db),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     current_user: User = Depends(get_current_user),
-    token_payload: dict = Depends(requires_permission("pos:approve_refund"))
+    token_payload: dict = Depends(requires_permission("pos:return"))
 ):
     """
     Process an item-wise partial or full return for a sale.

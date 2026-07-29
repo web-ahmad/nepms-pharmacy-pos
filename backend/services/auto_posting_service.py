@@ -310,6 +310,9 @@ class AutoPostingService:
         
         # Entry 1: Refund Money
         entry_refund = JournalEntryCreate(
+            branch_id=branch_id,
+            source_module=source_module,
+            source_id=source_id,
             reference=refund_reference,
             description=f"Sales Return Refund for {original_invoice}",
             lines=[
@@ -318,10 +321,13 @@ class AutoPostingService:
             ]
         )
         je_refund = self.accounts_svc.create_journal_entry(tenant_id, user_id, entry_refund)
-        
+
         # Entry 2: Restock Inventory & Reverse COGS
         if cost_of_items_returned > 0:
             entry_restock = JournalEntryCreate(
+                branch_id=branch_id,
+                source_module=source_module,
+                source_id=source_id,
                 reference=f"{refund_reference}-RESTOCK",
                 description=f"Inventory Restock for Return {original_invoice}",
                 lines=[
