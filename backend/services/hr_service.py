@@ -53,6 +53,10 @@ class HRService:
             att_q = att_q.filter(Employee.branch_id == branch_id)
         present_today = att_q.filter(Attendance.status == "Present").count()
         late_today = att_q.filter(Attendance.status == "Late").count()
+        # Only count employees who were EXPLICITLY marked absent in attendance —
+        # not everyone who simply has no record yet (that would show the whole
+        # branch as "absent" before attendance is taken for the day).
+        marked_absent_today = att_q.filter(Attendance.status == "Absent").count()
 
         # On Leave Today
         on_leave_q = self.db.query(LeaveRequest).join(Employee).filter(
@@ -65,7 +69,7 @@ class HRService:
             on_leave_q = on_leave_q.filter(Employee.branch_id == branch_id)
         on_leave_today = on_leave_q.count()
         
-        absent_today = max(0, active_employees - (present_today + late_today + on_leave_today))
+        absent_today = marked_absent_today
         
         attendance_percent = ((present_today + late_today) / active_employees * 100) if active_employees > 0 else 0.0
         

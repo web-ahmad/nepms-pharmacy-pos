@@ -49,9 +49,11 @@ class CRMService:
         self.get_customer(customer_id)
         return self.repo.get_purchases(customer_id)
 
-    def record_payment(self, customer_id: str, payment_in: CustomerPaymentCreate, branch_id: str):
+    def record_payment(self, customer_id: str, payment_in: CustomerPaymentCreate, branch_id: str,
+                       tenant_id: str = None, user_id: str = None):
         customer = self.get_customer(customer_id)
-        
+        tenant_id = tenant_id or getattr(customer, "tenant_id", None)
+
         if payment_in.amount <= 0:
             raise HTTPException(status_code=400, detail="Payment amount must be greater than zero")
 
@@ -72,9 +74,13 @@ class CRMService:
 
         # Update Invoice Status if sale_id exists, else Auto-Allocate (FIFO)
         from models.sales import Sale
+        primary_invoice = None   # for the accounting reference
+        post_branch_id = branch_id
         if payment_in.sale_id:
             sale = self.db.query(Sale).filter(Sale.id == payment_in.sale_id).first()
             if sale:
+                primary_invoice = sale.invoice_number
+                post_branch_id = sale.branch_id or branch_id
                 sale.amount_paid += payment_in.amount
                 if sale.amount_paid >= sale.total_amount:
                     sale.status = "Paid"
@@ -98,6 +104,10 @@ class CRMService:
                     sale.amount_paid += allocate
                     remaining_payment -= allocate
 
+                    if primary_invoice is None:
+                        primary_invoice = sale.invoice_number
+                        post_branch_id = sale.branch_id or branch_id
+
                     if sale.amount_paid >= sale.total_amount:
                         sale.status = "Paid"
                     elif sale.amount_paid > 0:
@@ -120,6 +130,24 @@ class CRMService:
             notes=payment_in.notes
         )
         self.repo.add_ledger_entry(ledger_entry)
+
+        # ── Auto-Posting (Accounting Engine) ──────────────────────────────
+        # A customer clearing their credit balance must reduce Accounts
+        # Receivable and increase Cash in the ledger, otherwise the invoice
+        # stays "payable" in accounting even though the customer has paid.
+        if tenant_id and user_id:
+            try:
+                from services.auto_posting_service import AutoPostingService
+                auto_post = AutoPostingService(self.db)
+                ref = f"PAY-{primary_invoice}-{payment_id[:4]}" if primary_invoice else f"RCPT-{payment_id[:8]}"
+                auto_post.post_customer_payment(
+                    tenant_id, user_id, ref, payment_in.amount,
+                    branch_id=post_branch_id,
+                    source_module="Customer Payment", source_id=payment_id,
+                )
+            except Exception:
+                # Never let an accounting-post failure roll back the payment record.
+                pass
 
         self.db.commit()
         return payment

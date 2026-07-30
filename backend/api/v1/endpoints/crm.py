@@ -131,7 +131,10 @@ def record_customer_payment(
     service = CRMService(db)
     # Get branch_id from user's current session or first branch (simplified for now)
     branch_id = current_user.branches[0].branch_id if current_user.branches else None
-    return service.record_payment(customer_id, payment, branch_id)
+    return service.record_payment(
+        customer_id, payment, branch_id,
+        tenant_id=current_user.tenant_id, user_id=current_user.id,
+    )
 
 @router.post("/customers/{customer_id}/redeem")
 def redeem_points(
