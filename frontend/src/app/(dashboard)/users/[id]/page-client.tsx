@@ -16,6 +16,8 @@ import toast from 'react-hot-toast';
 import { UserAvatar }      from '@/features/users/components/UserAvatar';
 import { UserStatusBadge } from '@/features/users/components/UserStatusBadge';
 import { AssignBranchDialog } from '@/features/users/components/AssignBranchDialog';
+import { EditUserDialog } from '@/features/users/components/EditUserDialog';
+import { Pencil } from 'lucide-react';
 import {
   useEnterpriseUser,
   useUserSessions, useTerminateSession, useTerminateAllSessions,
@@ -312,12 +314,25 @@ function ActivityTab({ userId }: { userId: string }) {
   );
 }
 
+// Run a mutation with visible success/failure feedback so actions never fail
+// silently (the old inline handlers swallowed API errors → looked like nothing
+// happened / "the buttons don't work").
+async function runAction(fn: () => Promise<any>, okMsg: string) {
+  try {
+    await fn();
+    toast.success(okMsg);
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail || e?.message || 'Action failed. You may not have permission.');
+  }
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router  = useRouter();
   const [tab, setTab] = useState<Tab>('profile');
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: user, isLoading } = useEnterpriseUser(id);
   const suspendMut  = useSuspendUser(id);
@@ -359,76 +374,86 @@ export default function UserDetailPage() {
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden"
+        className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       >
         {/* Cover gradient */}
-        <div className="h-24 bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600" />
+        <div className="relative h-28 bg-gradient-to-br from-indigo-500 via-violet-500 to-purple-600">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/15 blur-2xl" />
+          <div className="pointer-events-none absolute bottom-0 left-1/3 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+        </div>
 
-        <div className="px-6 pb-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-12">
-            <div className="flex items-end gap-4">
-              <div className="ring-4 ring-white dark:ring-zinc-900 rounded-2xl">
-                <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} size="xl" />
-              </div>
-              <div className="mb-1">
-                <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+        <div className="px-5 pb-5 sm:px-6">
+          {/* Identity */}
+          <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="w-fit shrink-0 rounded-2xl ring-4 ring-white dark:ring-zinc-900">
+              <UserAvatar name={user.full_name} avatarUrl={user.avatar_url} size="xl" />
+            </div>
+            <div className="min-w-0 sm:pb-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate text-xl font-bold text-zinc-900 dark:text-zinc-100">
                   {user.full_name ?? user.username}
                 </h1>
-                <p className="text-sm text-zinc-500">{user.email}</p>
+                <UserStatusBadge status={user.status} size="sm" />
               </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <UserStatusBadge status={user.status} size="md" />
-
-              {user.status === 'active' ? (
-                <button onClick={async () => { await suspendMut.mutateAsync({ reason: 'Admin action' }); toast.success('Suspended'); }}
-                  className="flex items-center gap-1.5 text-xs font-medium border border-amber-200 dark:border-amber-800 text-amber-600 rounded-lg px-3 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors">
-                  <UserX size={13} /> Suspend
-                </button>
-              ) : (
-                <button onClick={async () => { await activateMut.mutateAsync(); toast.success('Activated'); }}
-                  className="flex items-center gap-1.5 text-xs font-medium border border-emerald-200 dark:border-emerald-800 text-emerald-600 rounded-lg px-3 py-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors">
-                  <UserCheck size={13} /> Activate
-                </button>
-              )}
-
-              {user.status.startsWith('locked') ? (
-                <button onClick={async () => { await unlockMut.mutateAsync(); toast.success('Unlocked'); }}
-                  className="flex items-center gap-1.5 text-xs font-medium border border-blue-200 dark:border-blue-800 text-blue-600 rounded-lg px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
-                  <Unlock size={13} /> Unlock
-                </button>
-              ) : (
-                <button onClick={async () => { await lockMut.mutateAsync({ reason: 'Admin lock', permanent: false }); toast.success('Locked'); }}
-                  className="flex items-center gap-1.5 text-xs font-medium border border-orange-200 dark:border-orange-800 text-orange-600 rounded-lg px-3 py-1.5 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors">
-                  <Lock size={13} /> Lock
-                </button>
-              )}
-
-              <button onClick={async () => { const r = await resetPwMut.mutateAsync({ force_change: true }); toast.success(`Temp: ${r.temporary_password}`, { duration: 10000 }); }}
-                className="flex items-center gap-1.5 text-xs font-medium border border-purple-200 dark:border-purple-800 text-purple-600 rounded-lg px-3 py-1.5 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
-                <KeyRound size={13} /> Reset Password
-              </button>
+              <p className="truncate text-sm text-zinc-500">{user.email}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+                <span className="flex items-center gap-1.5">
+                  <Shield size={13} className="text-indigo-500" />
+                  {user.enterprise_role?.name ?? 'No role'}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Building2 size={13} className="text-emerald-500" />
+                  {user.branch_assignments?.length ?? 0} branches
+                </span>
+                {user.employee_id && <span className="font-mono">{user.employee_id}</span>}
+                {user.last_login_at && (
+                  <span>Last login: {format(new Date(user.last_login_at), 'dd MMM yyyy HH:mm')}</span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Quick meta */}
-          <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-1.5 text-sm text-zinc-500">
-            <span className="flex items-center gap-1.5">
-              <Shield size={13} className="text-indigo-500" />
-              {user.enterprise_role?.name ?? 'No role'}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Building2 size={13} className="text-emerald-500" />
-              {user.branch_assignments?.length ?? 0} branches
-            </span>
-            {user.employee_id && (
-              <span className="font-mono text-xs">{user.employee_id}</span>
+          {/* Actions — own row below the identity, never overlapping the cover */}
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+            {user.status === 'active' ? (
+              <button disabled={suspendMut.isPending}
+                onClick={() => runAction(() => suspendMut.mutateAsync({ reason: 'Admin action' }), 'User suspended')}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-600 transition-colors hover:bg-amber-50 disabled:opacity-50 dark:border-amber-800 dark:hover:bg-amber-900/20">
+                {suspendMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <UserX size={13} />} Suspend
+              </button>
+            ) : (
+              <button disabled={activateMut.isPending}
+                onClick={() => runAction(() => activateMut.mutateAsync(), 'User activated')}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-800 dark:hover:bg-emerald-900/20">
+                {activateMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <UserCheck size={13} />} Activate
+              </button>
             )}
-            {user.last_login_at && (
-              <span>Last login: {format(new Date(user.last_login_at), 'dd MMM yyyy HH:mm')}</span>
+
+            {user.status.startsWith('locked') ? (
+              <button disabled={unlockMut.isPending}
+                onClick={() => runAction(() => unlockMut.mutateAsync(), 'User unlocked')}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-50 disabled:opacity-50 dark:border-blue-800 dark:hover:bg-blue-900/20">
+                {unlockMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <Unlock size={13} />} Unlock
+              </button>
+            ) : (
+              <button disabled={lockMut.isPending}
+                onClick={() => runAction(() => lockMut.mutateAsync({ reason: 'Admin lock', permanent: false }), 'User locked')}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-orange-200 px-3 py-1.5 text-xs font-semibold text-orange-600 transition-colors hover:bg-orange-50 disabled:opacity-50 dark:border-orange-800 dark:hover:bg-orange-900/20">
+                {lockMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />} Lock
+              </button>
             )}
+
+            <button disabled={resetPwMut.isPending}
+              onClick={() => runAction(async () => { const r = await resetPwMut.mutateAsync({ force_change: true }); toast.success(`Temp password: ${r.temporary_password}`, { duration: 10000 }); }, 'Password reset')}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 px-3 py-1.5 text-xs font-semibold text-purple-600 transition-colors hover:bg-purple-50 disabled:opacity-50 dark:border-purple-800 dark:hover:bg-purple-900/20">
+              {resetPwMut.isPending ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />} Reset Password
+            </button>
+
+            <button
+              onClick={() => setEditOpen(true)}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm shadow-indigo-500/30 transition-all hover:shadow-md">
+              <Pencil size={13} /> Edit Details
+            </button>
           </div>
         </div>
       </motion.div>
@@ -466,6 +491,9 @@ export default function UserDetailPage() {
         {tab === 'logins'   && <LoginHistoryTab userId={id} />}
         {tab === 'activity' && <ActivityTab userId={id} />}
       </motion.div>
+
+      {/* Edit details modal */}
+      <EditUserDialog user={user} open={editOpen} onClose={() => setEditOpen(false)} />
     </div>
   );
 }

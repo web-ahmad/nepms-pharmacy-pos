@@ -143,6 +143,8 @@ class PurchaseInvoiceCreate(PurchaseInvoiceBase):
 class PurchaseInvoiceResponse(PurchaseInvoiceBase):
     id: str
     invoice_number: Optional[str] = None
+    grn_number: Optional[str] = None
+    supplier_name: Optional[str] = None
     status: str
     items: List[InvoiceItemResponse] = []
     model_config = ConfigDict(from_attributes=True)

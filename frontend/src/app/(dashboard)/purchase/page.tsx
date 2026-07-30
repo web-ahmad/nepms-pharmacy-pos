@@ -5,15 +5,18 @@ import { api } from '@/services/api';
 import Link from 'next/link';
 import { ShoppingCart, Users, Receipt, CreditCard, ArrowRight, Package } from 'lucide-react';
 import { PurchaseOrder, GRN, PurchaseInvoice } from '@/features/purchase/types/purchase';
+import { useAuthStore } from '@/stores/auth-store';
 
 export default function PurchaseDashboardPage() {
-  // We can fetch data here to summarize, or use dedicated analytics endpoints.
-  // Assuming basic endpoint calls to aggregate locally for now
-  const { data: pos } = useQuery({ queryKey: ['purchase_orders'], queryFn: async () => (await api.get('/api/v1/purchase/orders')).data as PurchaseOrder[] });
-  const { data: invoices } = useQuery({ queryKey: ['invoices'], queryFn: async () => (await api.get('/api/v1/purchase/invoices')).data as PurchaseInvoice[] });
-  
+  // Include the active branch in every cache key so switching branches refetches
+  // branch-scoped data instead of serving another branch's cached response.
+  const branchId = useAuthStore((s) => s.branchId);
+
+  const { data: pos } = useQuery({ queryKey: ['purchase_orders', branchId], queryFn: async () => (await api.get('/api/v1/purchase/orders')).data as PurchaseOrder[] });
+  const { data: invoices } = useQuery({ queryKey: ['invoices', branchId], queryFn: async () => (await api.get('/api/v1/purchase/invoices')).data as PurchaseInvoice[] });
+
   // Use the new dashboard API for KPIs
-  const { data: summary } = useQuery({ queryKey: ['purchase_summary'], queryFn: async () => (await api.get('/api/v1/dashboard/purchase-summary')).data });
+  const { data: summary } = useQuery({ queryKey: ['purchase_summary', branchId], queryFn: async () => (await api.get('/api/v1/dashboard/purchase-summary')).data });
 
   const pendingPOs = pos?.filter(po => po.status === 'Approved' || po.status === 'Draft').length || 0;
   const outstandingPayables = invoices?.filter(inv => inv.status !== 'Paid' && inv.status !== 'Cancelled')

@@ -220,6 +220,8 @@ export const useCreateGRN = () => {
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders', variables.po_id] });
       queryClient.invalidateQueries({ queryKey: ['grns'] });
+      // GRN auto-creates a supplier invoice — refresh the Invoices tab too.
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       // IMPORTANT: Invalidate Inventory since GRN creates batches!
       queryClient.invalidateQueries({ queryKey: ['medicines'] });

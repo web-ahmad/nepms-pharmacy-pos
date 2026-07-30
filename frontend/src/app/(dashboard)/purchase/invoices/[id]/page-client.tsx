@@ -77,60 +77,36 @@ export default function InvoiceDetailPage() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    // Template-driven letterhead (Modern / Classic / Minimal)
-    const puLogo = (h: number) => companyLogo ? `<img src="${companyLogo}" alt="Logo" style="height:${h}px;width:auto;max-width:${Math.round(h * 3.2)}px;object-fit:contain;" />` : '';
     const invNo = invoice.invoice_number || 'N/A';
-    let invHeader: string;
-    if (template.template === 'classic') {
-      invHeader = `
-        <div style="text-align:center;margin-bottom:36px;">
-          ${companyLogo ? `<div style="margin-bottom:8px;">${puLogo(60)}</div>` : ''}
-          <div style="font-size:28px;font-weight:800;color:#1e293b;letter-spacing:-0.5px;">${companyName}</div>
-          <div style="font-size:12px;color:#64748b;margin-top:4px;">${companyAddress}</div>
-          <div style="display:inline-block;margin-top:12px;padding:6px 26px;border-radius:999px;background:${accent};color:${onAccent};font-size:15px;font-weight:800;letter-spacing:0.14em;">INVOICE</div>
-          <div style="font-size:12px;color:#94a3b8;margin-top:6px;font-family:monospace;">${invNo}</div>
-          <div style="height:2px;background:${accent};margin-top:16px;"></div>
-        </div>`;
-    } else if (template.template === 'minimal') {
-      invHeader = `
-        <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:16px;border-bottom:3px solid ${accent};margin-bottom:36px;">
-          <div style="display:flex;align-items:center;gap:16px;">
-            ${puLogo(46)}
-            <div>
-              <div style="font-size:24px;font-weight:800;color:${accent};letter-spacing:-0.5px;">${companyName}</div>
-              <div style="font-size:11px;color:#94a3b8;">${companyAddress}</div>
-            </div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:26px;font-weight:800;color:#1e293b;">INVOICE</div>
-            <div style="font-size:12px;color:#94a3b8;font-family:monospace;">${invNo}</div>
-          </div>
-        </div>`;
-    } else {
-      invHeader = `
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:20px;background:${accent};color:${onAccent};border-radius:12px;padding:20px 26px;margin-bottom:36px;">
-          <div style="display:flex;align-items:center;gap:16px;">
-            ${companyLogo ? `<div style="background:#fff;border-radius:8px;padding:5px;display:flex;">${puLogo(46)}</div>` : ''}
-            <div>
-              <div style="font-size:25px;font-weight:800;">${companyName}</div>
-              <div style="font-size:11px;opacity:0.85;">${companyAddress}</div>
-            </div>
-          </div>
-          <div style="text-align:right;">
-            <div style="font-size:27px;font-weight:800;letter-spacing:0.04em;">INVOICE</div>
-            <div style="font-size:12px;opacity:0.85;font-family:monospace;">${invNo}</div>
-          </div>
-        </div>`;
-    }
+    const subtotal = invoice.total_amount - (invoice.tax_amount || 0);
+    const cPhone = (company as any).phone;
+    const cEmail = (company as any).email;
+
+    // Letterhead — LOGO ONLY on the left (no company name text here; the name
+    // is shown below in the details), a prominent "PURCHASE INVOICE" on the right.
+    const invHeader = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:24px;">
+        <div>
+          ${companyLogo
+            ? `<img src="${companyLogo}" alt="Logo" style="height:66px;width:auto;max-width:230px;object-fit:contain;" />`
+            : `<div style="height:60px;width:60px;border-radius:14px;background:${accent};color:${onAccent};display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;">${companyName.charAt(0).toUpperCase()}</div>`}
+        </div>
+        <div style="text-align:right;">
+          <div style="display:inline-block;background:${accent};color:${onAccent};font-size:18px;font-weight:800;letter-spacing:0.12em;padding:10px 22px;border-radius:8px;">PURCHASE INVOICE</div>
+          <div style="font-size:12px;color:#64748b;margin-top:8px;font-family:monospace;">No. ${invNo}</div>
+        </div>
+      </div>
+      <div style="height:3px;background:${accent};border-radius:3px;margin:16px 0 26px;"></div>`;
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Invoice ${invoice.invoice_number}</title>
+        <title>Purchase Invoice ${invNo}</title>
         <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1a1a1a; background: white; }
+          * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          html { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1a1a1a; background: white; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 3px solid ${accent}; }
           .header-left { display: flex; align-items: center; gap: 16px; }
           .header-logo { height: 56px; width: auto; max-width: 180px; object-fit: contain; }
@@ -140,14 +116,15 @@ export default function InvoiceDetailPage() {
           .invoice-number { font-size: 14px; color: #64748b; text-align: right; margin-top: 4px; font-family: monospace; }
           .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
           .meta-box { padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; }
-          .meta-label { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+          .meta-label { font-size: 11px; font-weight: 700; color: ${accent}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
           .meta-value { font-size: 15px; font-weight: 600; color: #1e293b; }
-          
+
           /* Items Table Styles */
-          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          .items-table th, .items-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
-          .items-table th { background: #f8fafc; font-size: 12px; font-weight: 600; text-transform: uppercase; color: #64748b; }
-          .items-table td { font-size: 14px; }
+          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; border-radius: 8px; overflow: hidden; }
+          .items-table th, .items-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #eef2f7; }
+          .items-table thead th { background: ${accent}; color: ${onAccent}; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: none; }
+          .items-table tbody tr:nth-child(even) { background: #f8fafc; }
+          .items-table td { font-size: 14px; color: #334155; }
           .font-mono { font-family: monospace; }
           .text-right { text-align: right; }
           
@@ -170,38 +147,50 @@ export default function InvoiceDetailPage() {
           .footer { margin-top: 60px; padding-top: 20px; border-top: 2px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
           .footer-text { font-size: 11px; color: #94a3b8; }
           .watermark { font-size: 11px; color: #cbd5e1; font-style: italic; }
-          @media print { body { padding: 20px; } }
+          @media print {
+            body { padding: 16px; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          }
         </style>
       </head>
       <body>
+      <div style="border:2px solid #0f172a;border-radius:14px;padding:32px 34px;">
         ${invHeader}
 
         <div class="meta-grid">
           <div class="meta-box">
-            <div class="meta-label">Supplier</div>
-            <div class="meta-value">Rs {supplier?.name || invoice.supplier_id}</div>
-            ${supplier?.phone ? `<div style="font-size: 13px; color: #64748b; margin-top: 4px;">Phone: ${supplier.phone}</div>` : ''}
+            <div class="meta-label">Pharmacy</div>
+            <div class="meta-value" style="font-size:17px;">${companyName}</div>
+            <div style="font-size:13px;color:#64748b;margin-top:6px;">${companyAddress}</div>
+            ${cPhone ? `<div style="font-size:13px;color:#64748b;">Phone: ${cPhone}</div>` : ''}
+            ${cEmail ? `<div style="font-size:13px;color:#64748b;">Email: ${cEmail}</div>` : ''}
+          </div>
+          <div class="meta-box">
+            <div class="meta-label">Bill From — Supplier</div>
+            <div class="meta-value" style="font-size:17px;">${supplier?.name || invoice.supplier_name || invoice.supplier_id || '—'}</div>
+            ${supplier?.phone ? `<div style="font-size: 13px; color: #64748b; margin-top: 6px;">Phone: ${supplier.phone}</div>` : ''}
             ${supplier?.email ? `<div style="font-size: 13px; color: #64748b;">Email: ${supplier.email}</div>` : ''}
             ${supplier?.address ? `<div style="font-size: 13px; color: #64748b;">Address: ${supplier.address}</div>` : ''}
           </div>
-          <div class="meta-box">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-              <div>
-                <div class="meta-label">Invoice Date</div>
-                <div class="meta-value">Rs {invoice.invoice_date ? format(new Date(invoice.invoice_date), 'MMM dd, yyyy') : '-'}</div>
-              </div>
-              <div>
-                <div class="meta-label">Due Date</div>
-                <div class="meta-value">Rs {invoice.due_date ? format(new Date(invoice.due_date), 'MMM dd, yyyy') : '-'}</div>
-              </div>
-              <div>
-                <div class="meta-label">GRN Reference</div>
-                <div class="meta-value" style="font-family: monospace; font-size: 13px;">Rs {invoice.grn_id}</div>
-              </div>
-              <div>
-                <div class="meta-label">Status</div>
-                <span class="status-badge ${invoice.status === 'Paid' ? 'status-paid' : invoice.status === 'Unpaid' ? 'status-unpaid' : 'status-partial'}">Rs {invoice.status}</span>
-              </div>
+        </div>
+
+        <div class="meta-box" style="margin-bottom:30px;">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;">
+            <div>
+              <div class="meta-label">Invoice Date</div>
+              <div class="meta-value">${invoice.invoice_date ? format(new Date(invoice.invoice_date), 'MMM dd, yyyy') : '-'}</div>
+            </div>
+            <div>
+              <div class="meta-label">Due Date</div>
+              <div class="meta-value">${invoice.due_date ? format(new Date(invoice.due_date), 'MMM dd, yyyy') : '-'}</div>
+            </div>
+            <div>
+              <div class="meta-label">GRN Reference</div>
+              <div class="meta-value" style="font-family: monospace; font-size: 13px;">${invoice.grn_number || invoice.grn_id || '—'}</div>
+            </div>
+            <div>
+              <div class="meta-label">Status</div>
+              <span class="status-badge ${invoice.status === 'Paid' ? 'status-paid' : invoice.status === 'Unpaid' ? 'status-unpaid' : 'status-partial'}">${invoice.status}</span>
             </div>
           </div>
         </div>
@@ -219,11 +208,11 @@ export default function InvoiceDetailPage() {
           <tbody>
             ${(invoice.items || []).map(item => `
               <tr>
-                <td style="font-weight: 600;">Rs {item.medicine_name}</td>
-                <td class="font-mono" style="font-size: 13px;">Rs {item.batch_number}</td>
-                <td class="text-right font-mono">Rs {item.quantity}</td>
+                <td style="font-weight: 600; color:#1e293b;">${item.medicine_name}</td>
+                <td class="font-mono" style="font-size: 13px; color:#64748b;">${item.batch_number || '—'}</td>
+                <td class="text-right font-mono">${item.quantity}</td>
                 <td class="text-right font-mono">Rs ${item.unit_price.toFixed(2)}</td>
-                <td class="text-right font-mono" style="font-weight: 700;">Rs ${item.total_price.toFixed(2)}</td>
+                <td class="text-right font-mono" style="font-weight: 700; color:#1e293b;">Rs ${item.total_price.toFixed(2)}</td>
               </tr>
             `).join('')}
             ${(!invoice.items || invoice.items.length === 0) ? `
@@ -234,29 +223,25 @@ export default function InvoiceDetailPage() {
           </tbody>
         </table>
 
-        <div class="amounts-grid">
-          <div class="amount-card total">
-            <div class="amount-label">Total Amount</div>
-            <div class="amount-value">Rs ${invoice.total_amount.toFixed(2)}</div>
+        <div style="display:flex;justify-content:space-between;gap:28px;align-items:flex-start;margin-top:4px;">
+          <div style="flex:1;max-width:330px;font-size:12px;color:#64748b;line-height:1.6;">
+            <div style="font-weight:700;color:#334155;margin-bottom:5px;text-transform:uppercase;font-size:11px;letter-spacing:0.06em;">Notes</div>
+            Please verify goods received against the GRN reference before settling payment. This is a system-generated purchase invoice and requires no signature.
           </div>
-          <div class="amount-card tax">
-            <div class="amount-label">Tax Amount</div>
-            <div class="amount-value">Rs ${invoice.tax_amount.toFixed(2)}</div>
-          </div>
-          <div class="amount-card paid">
-            <div class="amount-label">Amount Paid</div>
-            <div class="amount-value">Rs ${invoice.amount_paid.toFixed(2)}</div>
-          </div>
-          <div class="amount-card remaining">
-            <div class="amount-label">Balance Due</div>
-            <div class="amount-value">Rs ${remaining.toFixed(2)}</div>
+          <div style="width:300px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;padding:11px 18px;font-size:13.5px;color:#475569;border-bottom:1px solid #eef2f7;"><span>Subtotal</span><span style="font-family:monospace;">Rs ${subtotal.toFixed(2)}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:11px 18px;font-size:13.5px;color:#475569;border-bottom:1px solid #eef2f7;"><span>Tax</span><span style="font-family:monospace;">Rs ${invoice.tax_amount.toFixed(2)}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:12px 18px;font-size:15px;font-weight:800;color:#0f172a;background:#f1f5f9;"><span>Total</span><span style="font-family:monospace;">Rs ${invoice.total_amount.toFixed(2)}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:11px 18px;font-size:13.5px;color:#15803d;border-bottom:1px solid #eef2f7;"><span>Amount Paid</span><span style="font-family:monospace;font-weight:700;">Rs ${invoice.amount_paid.toFixed(2)}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:14px 18px;font-size:16px;font-weight:800;background:${accent};color:${onAccent};"><span>Balance Due</span><span style="font-family:monospace;">Rs ${remaining.toFixed(2)}</span></div>
           </div>
         </div>
 
         <div class="footer">
           <div class="footer-text">Generated on ${format(new Date(), 'MMMM dd, yyyy HH:mm')}</div>
-          <div class="watermark">NEPMS — Powered by Pharmacy Management System</div>
+          <div class="watermark">${companyName} — Powered by NEPMS</div>
         </div>
+      </div>
       </body>
       </html>
     `);
@@ -390,7 +375,7 @@ export default function InvoiceDetailPage() {
             </div>
             <div>
               <span className="text-xs font-semibold uppercase text-zinc-400 dark:text-zinc-500 tracking-wider">GRN Reference</span>
-              <p className="text-xs font-mono text-zinc-600 dark:text-zinc-400 mt-1">{invoice.grn_id}</p>
+              <p className="text-xs font-mono text-zinc-600 dark:text-zinc-400 mt-1">{invoice.grn_number || invoice.grn_id}</p>
             </div>
             <div>
               <span className="text-xs font-semibold uppercase text-zinc-400 dark:text-zinc-500 tracking-wider">Status</span>

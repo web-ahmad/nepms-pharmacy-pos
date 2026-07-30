@@ -2,6 +2,7 @@
 // features/users/components/UserAvatar.tsx
 
 import { cn } from '@/lib/utils';
+import { resolveAssetUrl } from '@/features/settings/services/settings.api';
 
 interface Props {
   name?: string;
@@ -56,7 +57,7 @@ export function UserAvatar({ name, avatarUrl, size = 'md', isOnline, className }
     <div className={cn('relative inline-flex shrink-0', className)}>
       {avatarUrl ? (
         <img
-          src={avatarUrl}
+          src={resolveAssetUrl(avatarUrl)}
           alt={name ?? 'User'}
           className={cn('rounded-full object-cover', sizeClass)}
         />

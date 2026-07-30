@@ -2,17 +2,38 @@
 
 import React from 'react';
 import { motion, Variants } from 'framer-motion';
-import { useDashboardStats } from '../services/accounts.api';
-import { 
-  TrendingUp, TrendingDown, DollarSign, Activity, 
-  Wallet, Landmark, CreditCard, Receipt
+import { useDashboardStats, useFinancialTrends } from '../services/accounts.api';
+import {
+  TrendingUp, TrendingDown, DollarSign, Activity,
+  Wallet, Landmark, CreditCard, Receipt, BarChart3, LineChart as LineChartIcon,
 } from 'lucide-react';
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  AreaChart, Area,
+} from 'recharts';
 
 const formatCurrency = (val: number) => 
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val || 0);
 
+// Compact tooltip for the financial charts
+function ChartTip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+      <p className="mb-1 font-semibold text-zinc-700 dark:text-zinc-200">{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.dataKey} className="flex items-center gap-1.5" style={{ color: p.color }}>
+          <span className="inline-block h-2 w-2 rounded-full" style={{ background: p.color }} />
+          {p.name}: Rs {Number(p.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export function AccountsDashboard() {
   const { data, isLoading, error } = useDashboardStats();
+  const { data: trends, isLoading: trendsLoading } = useFinancialTrends(6);
 
   if (isLoading) {
     return (
@@ -184,25 +205,73 @@ export function AccountsDashboard() {
         ))}
       </motion.div>
       
-      {/* Chart Section Placeholder */}
-      <motion.div 
+      {/* Charts — real data (last 6 months, branch-scoped) */}
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
+        transition={{ delay: 0.4 }}
         className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2"
       >
+        {/* Revenue vs Expenses */}
         <div className="rounded-2xl border border-gray-200/50 bg-white/70 p-6 shadow-xl backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/50">
-           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Revenue vs Expenses</h3>
-           <div className="mt-4 flex h-64 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-             <p className="text-sm text-gray-500 dark:text-gray-400">Detailed charting available in analytics module.</p>
-           </div>
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+            <BarChart3 className="h-5 w-5 text-indigo-500" /> Revenue vs Expenses
+          </h3>
+          <p className="mb-3 text-xs text-gray-400">Last 6 months</p>
+          <div className="h-64">
+            {trendsLoading ? (
+              <div className="h-full animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+            ) : !trends || trends.every((t) => !t.revenue && !t.expenses) ? (
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 text-sm text-gray-400 dark:border-gray-700">
+                No financial activity yet for this branch.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={trends} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" strokeOpacity={0.5} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
+                  <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(99,102,241,0.06)' }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="revenue" name="Revenue" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={26} />
+                  <Bar dataKey="expenses" name="Expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={26} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
-        
+
+        {/* Net Cash Flow Trend */}
         <div className="rounded-2xl border border-gray-200/50 bg-white/70 p-6 shadow-xl backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/50">
-           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Cash Flow Trend</h3>
-           <div className="mt-4 flex h-64 items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-             <p className="text-sm text-gray-500 dark:text-gray-400">Detailed charting available in analytics module.</p>
-           </div>
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+            <LineChartIcon className="h-5 w-5 text-emerald-500" /> Cash Flow Trend
+          </h3>
+          <p className="mb-3 text-xs text-gray-400">Net (revenue − expenses) per month</p>
+          <div className="h-64">
+            {trendsLoading ? (
+              <div className="h-full animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />
+            ) : !trends || trends.every((t) => !t.net) ? (
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-gray-300 text-sm text-gray-400 dark:border-gray-700">
+                No cash flow yet for this branch.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trends} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="netFlowFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" strokeOpacity={0.5} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
+                  <Tooltip content={<ChartTip />} cursor={{ stroke: '#10b981', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                  <Area type="monotone" dataKey="net" name="Net Cash Flow" stroke="#10b981" strokeWidth={2} fill="url(#netFlowFill)" dot={{ r: 3, fill: '#10b981' }} activeDot={{ r: 5 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
         </div>
       </motion.div>
     </div>

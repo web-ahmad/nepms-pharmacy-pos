@@ -2,7 +2,8 @@
 // features/users/components/UserTable.tsx
 // TanStack Table-based list view for enterprise users.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import {
   createColumnHelper,
@@ -40,8 +41,19 @@ function SortIcon({ sorted }: { sorted: false | 'asc' | 'desc' }) {
     : <ChevronDown size={12} className="text-indigo-500" />;
 }
 
-function ActionsMenu({ user, onEdit }: { user: EnterpriseUserListItem; onEdit: (u: EnterpriseUserListItem) => void }) {
+// Never let a row action fail silently — surface success + the real error.
+async function runUserAction(fn: () => Promise<any>, okMsg: string) {
+  try { await fn(); toast.success(okMsg); }
+  catch (e: any) { toast.error(e?.response?.data?.detail || e?.message || 'Action failed. You may not have permission.'); }
+}
+
+function ActionsMenu({ user }: { user: EnterpriseUserListItem }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
   const suspendMut  = useSuspendUser(user.id);
   const activateMut = useActivateUser(user.id);
   const lockMut     = useLockUser(user.id);
@@ -49,111 +61,110 @@ function ActionsMenu({ user, onEdit }: { user: EnterpriseUserListItem; onEdit: (
   const resetPwMut  = useResetPassword(user.id);
   const deleteMut   = useDeleteUser();
 
+  useEffect(() => setMounted(true), []);
+
+  // Position the portal menu under the trigger; close on scroll/resize so it
+  // never drifts away from its row.
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => { window.removeEventListener('scroll', close, true); window.removeEventListener('resize', close); };
+  }, [open]);
+
   const actions = [
     {
-      label: 'Edit',
+      label: 'Edit / Manage',
       icon: <Pencil size={14} />,
-      onClick: () => { onEdit(user); setOpen(false); },
+      onClick: () => { router.push(`/users/${user.id}`); setOpen(false); },
     },
     user.status === 'active'
       ? {
-          label: 'Suspend',
-          icon: <UserX size={14} />,
-          onClick: async () => {
-            await suspendMut.mutateAsync({ reason: 'Manual suspension by admin' });
-            toast.success('User suspended');
-            setOpen(false);
-          },
+          label: 'Suspend', icon: <UserX size={14} />,
+          onClick: () => { runUserAction(() => suspendMut.mutateAsync({ reason: 'Manual suspension by admin' }), 'User suspended'); setOpen(false); },
         }
       : {
-          label: 'Activate',
-          icon: <UserCheck size={14} />,
-          onClick: async () => {
-            await activateMut.mutateAsync();
-            toast.success('User activated');
-            setOpen(false);
-          },
+          label: 'Activate', icon: <UserCheck size={14} />,
+          onClick: () => { runUserAction(() => activateMut.mutateAsync(), 'User activated'); setOpen(false); },
         },
     user.status.startsWith('locked')
       ? {
-          label: 'Unlock',
-          icon: <Unlock size={14} />,
-          onClick: async () => {
-            await unlockMut.mutateAsync();
-            toast.success('User unlocked');
-            setOpen(false);
-          },
+          label: 'Unlock', icon: <Unlock size={14} />,
+          onClick: () => { runUserAction(() => unlockMut.mutateAsync(), 'User unlocked'); setOpen(false); },
         }
       : {
-          label: 'Lock (Temp)',
-          icon: <Lock size={14} />,
-          onClick: async () => {
-            await lockMut.mutateAsync({ reason: 'Manual admin lock', permanent: false });
-            toast.success('User locked');
-            setOpen(false);
-          },
+          label: 'Lock (Temp)', icon: <Lock size={14} />,
+          onClick: () => { runUserAction(() => lockMut.mutateAsync({ reason: 'Manual admin lock', permanent: false }), 'User locked'); setOpen(false); },
         },
     {
-      label: 'Reset Password',
-      icon: <KeyRound size={14} />,
-      onClick: async () => {
-        const res = await resetPwMut.mutateAsync({ force_change: true });
-        toast.success(`Temp password: ${res.temporary_password}`, { duration: 8000 });
+      label: 'Reset Password', icon: <KeyRound size={14} />,
+      onClick: () => {
+        runUserAction(async () => {
+          const res = await resetPwMut.mutateAsync({ force_change: true });
+          toast.success(`Temp password: ${res.temporary_password}`, { duration: 8000 });
+        }, 'Password reset');
         setOpen(false);
       },
     },
     {
-      label: 'Delete',
-      icon: <Trash2 size={14} />,
-      danger: true,
-      onClick: async () => {
+      label: 'Delete', icon: <Trash2 size={14} />, danger: true,
+      onClick: () => {
         if (!confirm(`Delete user ${user.full_name ?? user.username}? This cannot be undone.`)) return;
-        await deleteMut.mutateAsync(user.id);
-        toast.success('User deleted');
+        runUserAction(() => deleteMut.mutateAsync(user.id), 'User deleted');
         setOpen(false);
       },
     },
   ];
 
   return (
-    <div className="relative">
+    <>
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        ref={btnRef}
+        onClick={(e) => { e.stopPropagation(); open ? setOpen(false) : openMenu(); }}
         className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
       >
         <MoreHorizontal size={15} />
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: -4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -4 }}
-              transition={{ duration: 0.12 }}
-              className="absolute right-0 top-8 z-50 min-w-[170px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl py-1.5"
-            >
-              {actions.map((a, i) => (
-                <button
-                  key={i}
-                  onClick={a.onClick}
-                  className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-sm transition-colors ${
-                    (a as any).danger
-                      ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                      : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                  }`}
-                >
-                  {a.icon}
-                  {a.label}
-                </button>
-              ))}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
+      {/* Portal → escapes the table's overflow clipping; stays on top, responsive */}
+      {mounted && open && pos && createPortal(
+        <AnimatePresence>
+          <div key="am-overlay" className="fixed inset-0 z-[90]" onClick={() => setOpen(false)} />
+          <motion.div
+            key="am-menu"
+            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+            transition={{ duration: 0.12 }}
+            style={{ top: pos.top, right: pos.right }}
+            className="fixed z-[100] w-[190px] max-w-[calc(100vw-1rem)] overflow-hidden rounded-xl border border-zinc-200 bg-white py-1.5 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {actions.map((a, i) => (
+              <button
+                key={i}
+                onClick={a.onClick}
+                className={`flex w-full items-center gap-2.5 px-3.5 py-2 text-sm transition-colors ${
+                  (a as any).danger
+                    ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+                    : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                }`}
+              >
+                {a.icon}
+                {a.label}
+              </button>
+            ))}
+          </motion.div>
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
   );
 }
 
@@ -260,7 +271,7 @@ export function UserTable({ onEditUser }: Props) {
           >
             <ArrowRight size={15} />
           </button>
-          <ActionsMenu user={row.original} onEdit={onEditUser ?? (() => {})} />
+          <ActionsMenu user={row.original} />
         </div>
       ),
     }),

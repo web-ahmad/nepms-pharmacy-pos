@@ -48,7 +48,14 @@ export default function GeneralLedgerTable({ data, isLoading, searchRef = '', bo
     const ref = row.reference || '';
     if (!ref) return <span className="font-mono text-gray-500 dark:text-zinc-500">—</span>;
 
-    const link = getReferenceLink(ref);
+    // Purchase invoices share the INV- prefix with cash sales. Disambiguate via
+    // the entry's description / account so clicking opens the PURCHASE invoice
+    // detail, not the sales screen. (Purchase-invoice detail resolves by number.)
+    const desc = (row.journal_desc || '').toLowerCase();
+    const acct = (row.account_name || '').toLowerCase();
+    const isPurchaseInvoice = ref.startsWith('INV-') && (desc.includes('purchase invoice') || acct.includes('payable'));
+
+    const link = isPurchaseInvoice ? `/purchase/invoices/${ref}` : getReferenceLink(ref);
     if (link) {
       return (
         <Link href={link} className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold font-mono whitespace-nowrap">
@@ -136,6 +143,10 @@ export default function GeneralLedgerTable({ data, isLoading, searchRef = '', bo
                   <td className="px-4 py-3 text-center whitespace-nowrap">
                     {row.status === 'Paid' ? (
                       <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>
+                    ) : row.status === 'Unpaid' ? (
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">Unpaid</span>
+                    ) : row.status === 'Partially Paid' ? (
+                      <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
                     ) : row.status === 'Posted' || row.status === 'Approved' ? (
                       <span className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">{row.status}</span>
                     ) : row.status === 'Pending' ? (

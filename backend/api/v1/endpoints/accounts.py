@@ -194,6 +194,17 @@ def get_dashboard_stats(
     return service.get_dashboard_stats(scope.tenant_id, scope.branch_id)
 
 
+@router.get("/financial-trends")
+def get_financial_trends(
+    months: int = 6,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_accounts_view),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+):
+    service = AccountsService(db)
+    return service.get_financial_trends(scope.tenant_id, branch_id=scope.branch_id, months=months)
+
+
 @router.post("/force-rebuild")
 def force_rebuild_accounting(
     db: Session = Depends(get_db),

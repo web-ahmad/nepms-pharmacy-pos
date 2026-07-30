@@ -8,7 +8,84 @@ from database import supabase_client
 
 class AuthService:
     @staticmethod
-    def authenticate_user(db: Session, login_data: UserLogin) -> Token:
+    def _parse_ua(ua: str):
+        """Very small user-agent parse for browser/os display (no external dep)."""
+        ua = ua or ""
+        u = ua.lower()
+        browser = ('Edge' if 'edg' in u else 'Chrome' if 'chrome' in u else
+                   'Firefox' if 'firefox' in u else 'Safari' if 'safari' in u else 'Unknown')
+        os_name = ('Windows' if 'windows' in u else 'macOS' if 'mac os' in u or 'macintosh' in u else
+                   'Android' if 'android' in u else 'iOS' if 'iphone' in u or 'ipad' in u else
+                   'Linux' if 'linux' in u else 'Unknown')
+        return browser, os_name
+
+    @staticmethod
+    def _record_login(db: Session, eu, tenant_id, pharmacy_id, ip_address, user_agent):
+        """Best-effort: write a session + login-history row so the user detail
+        Sessions / Login History tabs populate. Never blocks login on failure."""
+        try:
+            import uuid, hashlib
+            from datetime import datetime, timedelta
+            from models.enterprise.user import UserSession, UserLoginHistory, UserTrustedDevice
+            browser, os_name = AuthService._parse_ua(user_agent)
+            device_name = f"{browser} on {os_name}"
+            fingerprint = hashlib.sha256(f"{eu.id}|{browser}|{os_name}|{user_agent or ''}".encode()).hexdigest()[:32]
+            now = datetime.utcnow()
+
+            # ── Trusted device (upsert by fingerprint) ──
+            device = db.query(UserTrustedDevice).filter(
+                UserTrustedDevice.enterprise_user_id == eu.id,
+                UserTrustedDevice.device_fingerprint == fingerprint,
+                UserTrustedDevice.is_deleted == False,
+            ).first()
+            if device:
+                device.last_seen_at = now
+                device.ip_address = ip_address
+            else:
+                db.add(UserTrustedDevice(
+                    id=str(uuid.uuid4()), enterprise_user_id=eu.id,
+                    device_fingerprint=fingerprint, device_name=device_name,
+                    browser=browser, os=os_name, ip_address=ip_address,
+                    is_trusted=True, is_blocked=False,
+                    first_seen_at=now, last_seen_at=now,
+                    tenant_id=tenant_id, pharmacy_id=pharmacy_id,
+                ))
+
+            # ── Session ──
+            session = UserSession(
+                id=str(uuid.uuid4()),
+                enterprise_user_id=eu.id,
+                session_token=str(uuid.uuid4()),
+                device_fingerprint=fingerprint,
+                device_name=device_name, browser=browser, os=os_name,
+                ip_address=ip_address, user_agent=user_agent,
+                is_active=True, last_activity_at=now,
+                expires_at=now + timedelta(hours=12),
+                tenant_id=tenant_id, pharmacy_id=pharmacy_id,
+            )
+            db.add(session)
+            db.flush()
+
+            # ── Login history ──
+            db.add(UserLoginHistory(
+                id=str(uuid.uuid4()),
+                enterprise_user_id=eu.id,
+                event_type="login", ip_address=ip_address,
+                device_fingerprint=fingerprint,
+                device_name=device_name, browser=browser, os=os_name,
+                user_agent=user_agent, success=True, session_id=session.id,
+                tenant_id=tenant_id, pharmacy_id=pharmacy_id,
+            ))
+
+            # Reflect last-login on the profile / Access tab too.
+            eu.last_login_at = now
+            eu.last_login_ip = ip_address
+            db.commit()
+        except Exception:
+            db.rollback()  # never break login because of audit logging
+
+    @staticmethod
+    def authenticate_user(db: Session, login_data: UserLogin, ip_address: str = None, user_agent: str = None) -> Token:
         user = user_repo.get_by_username(db, username=login_data.username)
         if not user:
             raise HTTPException(
@@ -247,6 +324,14 @@ class AuthService:
             "assigned_branches":   assigned_branches,
             "pharmacy_name":       pharmacy_name,
         }
+
+        # Record session + login history (best-effort, non-blocking).
+        if eu:
+            AuthService._record_login(
+                db, eu,
+                tenant_id=user.tenant_id, pharmacy_id=pharmacy_id,
+                ip_address=ip_address, user_agent=user_agent,
+            )
 
         return Token(
             access_token = access_token,

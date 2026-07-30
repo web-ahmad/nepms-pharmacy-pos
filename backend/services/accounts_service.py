@@ -178,7 +178,18 @@ class AccountsService:
         from models.hr import PayrollRun
         payroll_runs = self.db.query(PayrollRun).filter(PayrollRun.tenant_id == tenant_id).all()
         payroll_status_map = {f"PAYROLL-{r.month}-{r.year}": r.status for r in payroll_runs}
-        
+
+        # Pre-fetch purchase-invoice statuses. INV- is used by BOTH cash sales
+        # (always paid) AND purchase invoices (payables that may be Unpaid /
+        # Partially Paid). For purchase references, show the REAL invoice status
+        # instead of blindly labelling every INV- row "Paid".
+        from models.purchase import PurchaseInvoice
+        purchase_inv_status = {
+            pi.invoice_number: pi.status
+            for pi in self.db.query(PurchaseInvoice.invoice_number, PurchaseInvoice.status)
+            .filter(PurchaseInvoice.tenant_id == tenant_id).all()
+        }
+
         for r in rows:
             debit = r.debit or 0.0
             credit = r.credit or 0.0
@@ -196,7 +207,8 @@ class AccountsService:
                 elif r.reference.startswith("EXP-") or r.reference.startswith("PC-"):
                     row_status = "Posted"
                 elif r.reference.startswith("INV-"):
-                    row_status = "Paid"
+                    # Purchase invoice → real payable status; otherwise it's a cash sale.
+                    row_status = purchase_inv_status.get(r.reference, "Paid")
             
             parsed_rows.append({
                 "date": r.date,
@@ -303,6 +315,62 @@ class AccountsService:
             ar_balance=ar_balance,
             ap_balance=ap_balance
         )
+
+    def get_financial_trends(self, tenant_id: str, branch_id: str = None, months: int = 6):
+        """Last `months` months of Revenue vs Expenses (+ net) built from approved
+        journal entries, branch-scoped. Powers the accounting dashboard charts."""
+        from datetime import datetime
+        from models.accounts import JournalEntry, JournalEntryLine, Account, AccountCategory
+
+        now = datetime.utcnow()
+        start_year, start_month = now.year, now.month - (months - 1)
+        while start_month <= 0:
+            start_month += 12
+            start_year -= 1
+        start = datetime(start_year, start_month, 1)
+
+        q = (
+            self.db.query(JournalEntry.date, Account.category, JournalEntryLine.debit, JournalEntryLine.credit)
+            .join(JournalEntryLine, JournalEntryLine.journal_entry_id == JournalEntry.id)
+            .join(Account, Account.id == JournalEntryLine.account_id)
+            .filter(JournalEntry.tenant_id == tenant_id, JournalEntry.status == "Approved", JournalEntry.date >= start)
+        )
+        if branch_id:
+            q = q.filter(JournalEntryLine.branch_id == branch_id)
+
+        buckets = {}
+        for d, category, debit, credit in q.all():
+            if isinstance(d, str):
+                try:
+                    d = datetime.fromisoformat(d)
+                except Exception:
+                    continue
+            if not d:
+                continue
+            key = (d.year, d.month)
+            b = buckets.setdefault(key, {"rev": 0.0, "exp": 0.0})
+            debit = debit or 0.0
+            credit = credit or 0.0
+            if category == AccountCategory.REVENUE:
+                b["rev"] += (credit - debit)
+            elif category == AccountCategory.EXPENSE:
+                b["exp"] += (debit - credit)
+
+        result = []
+        y, m = start.year, start.month
+        for _ in range(months):
+            b = buckets.get((y, m), {"rev": 0.0, "exp": 0.0})
+            result.append({
+                "month": datetime(y, m, 1).strftime("%b %y"),
+                "revenue": round(b["rev"], 2),
+                "expenses": round(b["exp"], 2),
+                "net": round(b["rev"] - b["exp"], 2),
+            })
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+        return result
 
     # =====================================================================
     # Enterprise Extensions (Phase 8)

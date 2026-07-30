@@ -410,7 +410,7 @@ class PurchaseService:
             # --- Auto Posting ---
             from services.auto_posting_service import AutoPostingService
             auto_post = AutoPostingService(db)
-            je = auto_post.post_purchase_invoice(tenant_id, user_id, inv_number, grn_in.total_amount, supplier.name)
+            je = auto_post.post_purchase_invoice(tenant_id, user_id, inv_number, grn_in.total_amount, supplier.name, branch_id=branch_id, source_module="Purchase", source_id=invoice.id)
             if je:
                 invoice.journal_entry_id = je.id
 
@@ -448,7 +448,7 @@ class PurchaseService:
         # --- Auto Posting ---
         from services.auto_posting_service import AutoPostingService
         auto_post = AutoPostingService(db)
-        je = auto_post.post_purchase_invoice(tenant_id, "SYSTEM", inv.invoice_number, inv.total_amount, supplier.name)
+        je = auto_post.post_purchase_invoice(tenant_id, "SYSTEM", inv.invoice_number, inv.total_amount, supplier.name, branch_id=getattr(inv, "branch_id", None), source_module="Purchase", source_id=inv.id)
         if je:
             inv.journal_entry_id = je.id
             
@@ -502,7 +502,10 @@ class PurchaseService:
             invoice_reference=inv_ref,
             amount_paid=payment.amount,
             payment_method=payment.payment_method,
-            supplier_name=supplier.name
+            supplier_name=supplier.name,
+            branch_id=branch_id,
+            source_module="Purchase",
+            source_id=payment.id
         )
         
         db.commit()
@@ -583,7 +586,10 @@ class PurchaseService:
             tenant_id=tenant_id,
             user_id=user_id,
             reference=db_pr.return_number,
-            amount=return_in.total_amount
+            amount=return_in.total_amount,
+            branch_id=branch_id,
+            source_module="Purchase Return",
+            source_id=db_pr.id
         )
             
         db.commit()

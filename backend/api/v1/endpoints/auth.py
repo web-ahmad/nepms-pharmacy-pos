@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from core.deps import get_db, get_current_user, requires_permission
@@ -9,12 +9,14 @@ from models.users import User
 router = APIRouter()
 
 @router.post("/login", response_model=Token)
-def login(login_data: UserLogin, db: Session = Depends(get_db)):
+def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
     """
     Local Edge Authentication. Generates JWT for the user.
     """
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
     try:
-        return AuthService.authenticate_user(db, login_data)
+        return AuthService.authenticate_user(db, login_data, ip_address=ip_address, user_agent=user_agent)
     except HTTPException:
         raise
     except SQLAlchemyError as e:

@@ -68,6 +68,8 @@ export interface PurchaseInvoice {
   id: string;
   invoice_number?: string;
   grn_id: string;
+  grn_number?: string;
+  supplier_name?: string;
   supplier_id: string;
   invoice_date?: string;
   due_date?: string;

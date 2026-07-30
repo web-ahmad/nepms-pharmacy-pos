@@ -3,10 +3,11 @@
 import { useAuthStore } from '@/stores/auth-store';
 import { useExpiryAlerts } from '@/features/dashboard/services/dashboard.api';
 import { useLowStockAlerts, LowStockAlert } from '@/features/inventory/services/alerts.api';
-import { LogOut, User as UserIcon, Moon, Sun, X, ChevronRight, Package, Clock, AlertTriangle, TrendingDown } from 'lucide-react';
+import { LogOut, User as UserIcon, Moon, Sun, X, ChevronRight, Package, Clock, AlertTriangle, TrendingDown, ChevronDown, Settings, Mail, Building2, ShieldCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const fmtCount = (n: number) => (n > 99 ? '99+' : String(n));
@@ -305,21 +306,41 @@ function AlertIconButton({
 
 import { BranchSwitcher } from './BranchSwitcher';
 
+// ── Profile detail row ────────────────────────────────────────────────────
+function ProfileRow({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-3 px-4 py-2.5">
+      <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+        <Icon size={14} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">{label}</p>
+        <p className="truncate text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">{value}</p>
+      </div>
+    </div>
+  );
+}
+
 // ── TopNavigation ─────────────────────────────────────────────────────────
 export function TopNavigation() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, branchId } = useAuthStore();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
 
   const { data: expiryAlerts } = useExpiryAlerts();
   const { data: lowStockData } = useLowStockAlerts({ skip: 0, limit: 100 });
   const [openTray, setOpenTray] = useState<'low-stock' | 'near-expiry' | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const trayRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (trayRef.current && !trayRef.current.contains(e.target as Node)) {
         setOpenTray(null);
+      }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
       }
     };
     document.addEventListener('mousedown', handler);
@@ -343,6 +364,11 @@ export function TopNavigation() {
     setOpenTray(prev => prev === type ? null : type);
 
   const handleLogout = () => { logout(); router.push('/login'); };
+
+  const displayName = user?.full_name || user?.username || 'Guest';
+  const initial = displayName.charAt(0).toUpperCase();
+  const currentBranch = user?.assigned_branches?.find(b => b.id === branchId)?.name
+    || (branchId ? 'Selected branch' : 'All Branches');
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-6 dark:border-zinc-800 dark:bg-zinc-950">
@@ -388,31 +414,83 @@ export function TopNavigation() {
 
 
 
-        {/* Theme toggle */}
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="flex items-center justify-center w-9 h-9 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-          title="Toggle Theme"
-        >
-          {theme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
-        </button>
-
-        {/* User + logout */}
-        <div className="flex items-center gap-3 pl-3 ml-1 border-l border-zinc-200 dark:border-zinc-800">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand)]/10 text-[var(--brand)] font-bold text-sm shrink-0">
-            <UserIcon size={15} />
-          </div>
-          <div className="hidden md:block text-sm text-right">
-            <p className="font-semibold text-zinc-900 dark:text-zinc-50 leading-tight">{user?.username || 'Guest'}</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">{user?.role || 'User'}</p>
-          </div>
+        {/* Profile menu */}
+        <div ref={profileRef} className="relative pl-2 ml-1 border-l border-zinc-200 dark:border-zinc-800">
           <button
-            onClick={handleLogout}
-            className="ml-1 flex items-center justify-center w-8 h-8 rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 dark:text-zinc-400 dark:hover:text-red-400 transition-colors"
-            title="Log out"
+            onClick={() => setProfileOpen(o => !o)}
+            className="flex items-center gap-2.5 rounded-xl px-1.5 py-1.5 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            title="Your profile"
           >
-            <LogOut size={17} />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-sm font-bold text-white shadow-sm shadow-emerald-500/30 shrink-0">
+              {initial}
+            </div>
+            <div className="hidden md:block text-sm text-right leading-tight">
+              <p className="font-semibold text-zinc-900 dark:text-zinc-50">{displayName}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{user?.role || 'User'}</p>
+            </div>
+            <ChevronDown size={15} className={`hidden md:block text-zinc-400 transition-transform ${profileOpen ? 'rotate-180' : ''}`} />
           </button>
+
+          <AnimatePresence>
+            {profileOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                className="absolute right-0 top-full z-50 mt-2 w-[300px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950"
+              >
+                {/* Gradient header */}
+                <div className="relative overflow-hidden bg-gradient-to-br from-emerald-600 to-green-700 p-4 text-white">
+                  <div className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+                  <div className="relative flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-lg font-black ring-1 ring-white/25 backdrop-blur-sm">
+                      {initial}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-bold">{displayName}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-white/15">{user?.role || 'User'}</span>
+                        {typeof user?.hierarchy_level === 'number' && (
+                          <span className="rounded-md bg-white/15 px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-white/15">L{user.hierarchy_level}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detail rows */}
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+                  {user?.email && <ProfileRow icon={Mail} label="Email" value={user.email} />}
+                  <ProfileRow icon={Building2} label="Active Branch" value={currentBranch} />
+                  <ProfileRow icon={ShieldCheck} label="Access" value={`Level ${user?.hierarchy_level ?? 4} · ${user?.permissions?.length ?? 0} permissions`} />
+                </div>
+
+                {/* Actions */}
+                <div className="border-t border-zinc-100 p-1.5 dark:border-zinc-800">
+                  <button
+                    onClick={() => { router.push('/settings/company'); setProfileOpen(false); }}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  >
+                    <Settings size={15} className="text-zinc-400" /> Account &amp; Settings
+                  </button>
+                  <button
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  >
+                    {theme === 'dark' ? <Sun size={15} className="text-zinc-400" /> : <Moon size={15} className="text-zinc-400" />}
+                    {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20"
+                  >
+                    <LogOut size={15} /> Log out
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

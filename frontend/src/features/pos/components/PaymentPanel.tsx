@@ -120,6 +120,9 @@ export default function PaymentPanel({
 
   return (
     <div className="flex h-full flex-col">
+      {/* Scrollable middle region — keeps the Payable / Change Due / Process Sale
+          bar pinned at the bottom even when the customer's details expand. */}
+      <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
       {/* Customer Information Card */}
       <div className="bg-surface/50 rounded-2xl border border-outline-variant/40 p-4 relative flex-shrink-0 shadow-sm backdrop-blur-sm">
         <h3 className="text-xs font-bold text-primary/70 mb-3 uppercase tracking-widest">Customer Info</h3>
@@ -287,7 +290,7 @@ export default function PaymentPanel({
 
       {/* Payment Methods */}
       {!isDualCounter && (
-        <div className="mt-4 flex-1 overflow-y-auto pr-1">
+        <div className="mt-4">
             <label className="text-xs text-on-surface-variant font-bold tracking-widest uppercase mb-3 block">Payment Method</label>
             <div className="grid grid-cols-2 gap-2">
               {paymentMethods.map((method) => {
@@ -319,6 +322,7 @@ export default function PaymentPanel({
             </div>
           </div>
       )}
+      </div>{/* end scrollable middle */}
 
       {/* Summary Boxes — Payable stays GREEN always; a SEPARATE box below turns
           orange (change due, black text) or red (remaining balance, white text). */}
@@ -333,7 +337,7 @@ export default function PaymentPanel({
           : 'linear-gradient(135deg, #f87171 0%, #ef4444 50%, #b91c1c 100%)';
         const stateText = isChange ? 'text-black' : 'text-white';
         return (
-      <div className="mt-auto pt-4 border-t border-outline-variant/30 shrink-0">
+      <div className="pt-3 border-t border-outline-variant/30 shrink-0">
         {/* Payable Amount — always green */}
         <motion.div
           layout

@@ -80,7 +80,7 @@ export function UserCard({ user, index = 0, onEdit }: Props) {
                 <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 top-8 z-50 min-w-[180px] rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl py-1.5">
                   {[
-                    { label: 'Edit', icon: <Pencil size={13} />, action: () => { onEdit?.(user); setMenuOpen(false); } },
+                    { label: 'Edit / Manage', icon: <Pencil size={13} />, action: () => { router.push(`/users/${user.id}`); setMenuOpen(false); } },
                     user.status === 'active'
                       ? { label: 'Suspend', icon: <UserX size={13} />, action: async () => { await suspendMut.mutateAsync({ reason: 'Admin action' }); toast.success('Suspended'); setMenuOpen(false); } }
                       : { label: 'Activate', icon: <UserCheck size={13} />, action: async () => { await activateMut.mutateAsync(); toast.success('Activated'); setMenuOpen(false); } },

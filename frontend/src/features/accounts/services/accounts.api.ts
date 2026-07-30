@@ -207,6 +207,26 @@ export const useDashboardStats = () => {
   });
 };
 
+export interface FinancialTrendPoint {
+  month: string;
+  revenue: number;
+  expenses: number;
+  net: number;
+}
+
+export const useFinancialTrends = (months = 6) => {
+  const branchId = useAuthStore((s) => s.branchId);
+  return useQuery({
+    queryKey: ['accounts', 'financial-trends', branchId, months],
+    queryFn: async () => {
+      const res = await api.get(`/api/v1/accounts/financial-trends?months=${months}`);
+      return res.data as FinancialTrendPoint[];
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+};
+
 export const useForceRebuildAccounting = () => {
   const queryClient = useQueryClient();
   return useMutation({

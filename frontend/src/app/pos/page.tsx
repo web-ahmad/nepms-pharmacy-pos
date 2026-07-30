@@ -146,6 +146,13 @@ export default function POSFullScreen() {
         setShowVerificationQueue(true);
       } else if (e.key === 'Escape' && isTyping && target.id === 'medicine-search') {
         if (searchInputRef.current) searchInputRef.current.value = '';
+      } else if (e.key === 'Escape' && !isTyping) {
+        // Exit POS. Confirm first if there's an unsold cart so it isn't lost.
+        e.preventDefault();
+        flashShortcut('Esc');
+        if (cartItems.length === 0 || window.confirm('Exit POS? The current cart will be cleared.')) {
+          router.push('/');
+        }
       }
     };
 
@@ -233,11 +240,13 @@ export default function POSFullScreen() {
             <motion.button 
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => router.push('/')} 
+              onClick={() => router.push('/')}
+              title="Exit POS (Esc)"
               className="px-5 py-2 bg-red-50/50 backdrop-blur-sm text-red-600 hover:bg-red-100/80 border border-red-200/50 rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-2"
             >
               <LayoutGrid size={16} />
               Exit POS
+              <span className="hidden lg:inline text-[10px] font-semibold bg-red-100/70 text-red-500 px-1.5 py-0.5 rounded ml-0.5">Esc</span>
             </motion.button>
           </div>
         </div>
@@ -316,6 +325,7 @@ export default function POSFullScreen() {
           <span className={activeShortcut === 'Ctrl+S' ? 'text-primary font-bold' : ''}>[Ctrl+S] Pay & Print</span>
           <span className={activeShortcut === 'F8' ? 'text-primary font-bold' : ''}>[F8] Hold</span>
           <span className={activeShortcut === 'F9' ? 'text-primary font-bold' : ''}>[F9] Held List</span>
+          <span className={activeShortcut === 'Esc' ? 'text-red-500 font-bold' : ''}>[Esc] Exit</span>
 
         </div>
       </footer>

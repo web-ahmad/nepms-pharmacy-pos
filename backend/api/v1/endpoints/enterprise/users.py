@@ -8,9 +8,10 @@ All routes are pharmacy-scoped. Super-admins see all pharmacy data.
 
 from __future__ import annotations
 
+import os, uuid, shutil
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.orm import Session
 
 from core.deps import get_current_user, requires_permission
@@ -47,6 +48,25 @@ from schemas.enterprise.user import (
 )
 
 router = APIRouter()
+
+# Avatars are saved under storage/ (statically served at /storage/... — see main.py).
+AVATAR_DIR = os.path.join(os.getcwd(), "storage", "avatars")
+os.makedirs(AVATAR_DIR, exist_ok=True)
+_ALLOWED_AVATAR_EXT = {"png", "jpg", "jpeg", "webp", "gif"}
+
+
+@router.post("/avatar", summary="Upload a user avatar image → returns its URL")
+def upload_avatar(
+    file: UploadFile = File(...),
+    _: dict = Depends(requires_permission("users:update")),
+):
+    ext = (file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "png")
+    if ext not in _ALLOWED_AVATAR_EXT:
+        raise HTTPException(status_code=400, detail=f"Unsupported image type '.{ext}'. Use PNG, JPG, WEBP or GIF.")
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    with open(os.path.join(AVATAR_DIR, filename), "wb") as buf:
+        shutil.copyfileobj(file.file, buf)
+    return {"url": f"/storage/avatars/{filename}"}
 
 
 def _resolve_pharmacy_id(scope: PharmacyScope) -> str:

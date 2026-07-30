@@ -278,12 +278,14 @@ def get_orders(
     scope: PharmacyScope = Depends(get_pharmacy_scope)
 ):
     from models.purchase import PurchaseOrder
-    return (
-        db.query(PurchaseOrder)
-        .filter(PurchaseOrder.tenant_id == scope.tenant_id, PurchaseOrder.is_deleted == False)
-        .order_by(PurchaseOrder.created_at.desc())
-        .offset(skip).limit(limit).all()
+    query = db.query(PurchaseOrder).filter(
+        PurchaseOrder.tenant_id == scope.tenant_id, PurchaseOrder.is_deleted == False
     )
+    # Branch isolation: only filter when a specific branch is active. In the
+    # tenant-wide "All Branches" view (scope.branch_id is None) show everything.
+    if scope.branch_id:
+        query = query.filter(PurchaseOrder.branch_id == scope.branch_id)
+    return query.order_by(PurchaseOrder.created_at.desc()).offset(skip).limit(limit).all()
 
 # --- GRNs ---
 @router.post("/grn", response_model=GRNResponse)
@@ -307,6 +309,8 @@ def get_grns(
 ):
     from models.purchase import GRN
     query = db.query(GRN).filter(GRN.tenant_id == scope.tenant_id, GRN.is_deleted == False)
+    if scope.branch_id:
+        query = query.filter(GRN.branch_id == scope.branch_id)
     if po_id:
         query = query.filter(GRN.po_id == po_id)
     return query.all()
@@ -365,6 +369,12 @@ def get_invoice(
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     invoice.items = get_invoice_items_helper(db, invoice)
+    # Attach readable GRN number + supplier name for the printed document.
+    from models.purchase import GRN, Supplier
+    grn = db.query(GRN).filter(GRN.id == invoice.grn_id).first() if invoice.grn_id else None
+    invoice.grn_number = grn.grn_number if grn else None
+    sup = db.query(Supplier).filter(Supplier.id == invoice.supplier_id).first()
+    invoice.supplier_name = sup.name if sup else None
     return invoice
 
 @router.get("/invoices", response_model=List[PurchaseInvoiceResponse])
@@ -376,6 +386,12 @@ def get_invoices(
 ):
     from models.purchase import PurchaseInvoice, GRN
     query = db.query(PurchaseInvoice).filter(PurchaseInvoice.tenant_id == scope.tenant_id, PurchaseInvoice.is_deleted == False)
+    # Branch isolation: PurchaseInvoice has no branch_id of its own, so scope it
+    # through its originating GRN's branch when a specific branch is active.
+    if scope.branch_id:
+        query = query.filter(PurchaseInvoice.grn_id.in_(
+            db.query(GRN.id).filter(GRN.branch_id == scope.branch_id)
+        ))
     if po_id:
         query = query.filter(PurchaseInvoice.grn_id.in_(
             db.query(GRN.id).filter(GRN.po_id == po_id)
@@ -425,6 +441,8 @@ def get_purchase_returns(
         PurchaseReturn.tenant_id == scope.tenant_id,
         PurchaseReturn.is_deleted == False
     )
+    if scope.branch_id:
+        query = query.filter(PurchaseReturn.branch_id == scope.branch_id)
     if po_id:
         query = query.filter(PurchaseReturn.po_id == po_id)
         
