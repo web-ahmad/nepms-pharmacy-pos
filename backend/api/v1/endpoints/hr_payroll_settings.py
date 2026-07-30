@@ -9,22 +9,43 @@ from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 
 router = APIRouter()
 
+
+def _effective_branch(db: Session, tenant_id: str, scope: PharmacyScope):
+    bid = scope.branch_id
+    if not bid:
+        from models.users import Branch
+        mb = db.query(Branch).filter(Branch.tenant_id == tenant_id, Branch.is_main == True).first()
+        if mb:
+            bid = mb.id
+    return bid
+
+
 @router.get("", response_model=List[PayrollSettingResponse])
 def get_payroll_settings(
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
 ):
     tenant_id = current_user.tenant_id
+    branch_id = _effective_branch(db, tenant_id, scope)
+
+    # Only this branch's employees' payroll rules.
+    emp_q = db.query(Employee).filter(Employee.tenant_id == tenant_id)
+    if branch_id:
+        emp_q = emp_q.filter(Employee.branch_id == branch_id)
+    emp_rows = emp_q.all()
+    employees = {e.id: f"{e.first_name} {e.last_name}" for e in emp_rows}
+    emp_ids = set(employees.keys())
+
     settings = db.query(PayrollSetting).filter(PayrollSetting.tenant_id == tenant_id).all()
-    
-    # We also need employee_name for UI
-    employees = {e.id: f"{e.first_name} {e.last_name}" for e in db.query(Employee).filter(Employee.tenant_id == tenant_id).all()}
-    
+
     result = []
     for s in settings:
+        if branch_id and s.employee_id not in emp_ids:
+            continue  # belongs to another branch's employee
         s.employee_name = employees.get(s.employee_id, "Unknown Employee")
         result.append(s)
-        
+
     return result
 
 @router.post("", response_model=PayrollSettingResponse)

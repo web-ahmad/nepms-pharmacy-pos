@@ -476,11 +476,27 @@ class DynamicReportEngine:
             *self._sale_filters(tenant_id, params)
         ).scalar() or 0.0
 
-        # Calculate Total Expenses (branch-scoped like revenue/COGS above)
-        expenses = self.db.query(func.sum(ExpenseVoucher.amount)).filter(
-            ExpenseVoucher.tenant_id == tenant_id, ExpenseVoucher.status == 'Approved',
-            *([ExpenseVoucher.branch_id == params.branch_id] if params and params.branch_id else [])
-        ).scalar() or 0.0
+        # Total Operational Expenses — LEDGER based (all EXPENSE-account postings
+        # like payroll/salary, expense vouchers, etc.), EXCLUDING COGS (5010,
+        # shown separately above) to avoid double-counting. Branch + date scoped.
+        from models.accounts import Account, JournalEntry, JournalEntryLine, AccountCategory
+        exp_q = self.db.query(func.sum(JournalEntryLine.debit - JournalEntryLine.credit))\
+            .select_from(JournalEntryLine)\
+            .join(JournalEntry, JournalEntry.id == JournalEntryLine.journal_entry_id)\
+            .join(Account, Account.id == JournalEntryLine.account_id)\
+            .filter(
+                JournalEntry.tenant_id == tenant_id,
+                JournalEntry.status == 'Approved',
+                Account.category == AccountCategory.EXPENSE,
+                Account.code != '5010',
+            )
+        if params and params.branch_id:
+            exp_q = exp_q.filter(JournalEntryLine.branch_id == params.branch_id)
+        if params and params.start_date:
+            exp_q = exp_q.filter(func.date(JournalEntry.date) >= params.start_date)
+        if params and params.end_date:
+            exp_q = exp_q.filter(func.date(JournalEntry.date) <= params.end_date)
+        expenses = exp_q.scalar() or 0.0
 
         gross_profit = sales_rev - cogs
         net_profit = gross_profit - expenses
@@ -934,25 +950,41 @@ class DynamicReportEngine:
         }
 
     def _strategy_expenses_by_category(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
-        """Expense Report"""
-        query = self.db.query(
-            ExpenseCategory.name.label('category_name'),
-            func.sum(ExpenseVoucher.amount).label('total_amount'),
-            func.count(ExpenseVoucher.id).label('voucher_count')
-        ).select_from(ExpenseVoucher).join(ExpenseCategory, ExpenseVoucher.category_id == ExpenseCategory.id).filter(
-            ExpenseVoucher.tenant_id == tenant_id,
-            ExpenseVoucher.status == 'Approved',
-            *([ExpenseVoucher.branch_id == params.branch_id] if params and params.branch_id else [])
-        ).group_by(ExpenseCategory.name).order_by(desc('total_amount')).all()
+        """Expense Report — LEDGER based (all EXPENSE-account postings), so it
+        includes payroll, COGS, sales returns and expense vouchers alike, not
+        just the expense-voucher module. Branch + date scoped."""
+        from models.accounts import Account, JournalEntry, JournalEntryLine, AccountCategory
+
+        q = self.db.query(
+            Account.name.label('category_name'),
+            func.count(func.distinct(JournalEntry.id)).label('voucher_count'),
+            func.sum(JournalEntryLine.debit - JournalEntryLine.credit).label('total_amount'),
+        ).select_from(JournalEntryLine)\
+         .join(JournalEntry, JournalEntry.id == JournalEntryLine.journal_entry_id)\
+         .join(Account, Account.id == JournalEntryLine.account_id)\
+         .filter(
+            JournalEntry.tenant_id == tenant_id,
+            JournalEntry.status == 'Approved',
+            Account.category == AccountCategory.EXPENSE,
+         )
+        if params and params.branch_id:
+            q = q.filter(JournalEntryLine.branch_id == params.branch_id)
+        if params and params.start_date:
+            q = q.filter(func.date(JournalEntry.date) >= params.start_date)
+        if params and params.end_date:
+            q = q.filter(func.date(JournalEntry.date) <= params.end_date)
+        query = q.group_by(Account.name)\
+                 .having(func.sum(JournalEntryLine.debit - JournalEntryLine.credit) != 0)\
+                 .order_by(desc('total_amount')).all()
 
         return {
             "metadata": {
                 "report_id": "expenses_by_category",
                 "title": "Expenses by Category",
                 "columns": [
-                    {"key": "category_name", "label": "Expense Category", "type": "string"},
-                    {"key": "voucher_count", "label": "Total Vouchers", "type": "number"},
-                    {"key": "total_amount", "label": "Total Amount Spent", "type": "currency"}
+                    {"key": "category_name", "label": "Expense Account", "type": "string"},
+                    {"key": "voucher_count", "label": "Entries", "type": "number"},
+                    {"key": "total_amount", "label": "Total Amount", "type": "currency"}
                 ]
             },
             "rows": [dict(r._mapping) for r in query]

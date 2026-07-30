@@ -146,6 +146,7 @@ class PayrollRun(Base):
     __tablename__ = "payroll_runs"
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id = Column(String, ForeignKey("tenants.id"), index=True)
+    branch_id = Column(String, ForeignKey("branches.id"), nullable=True, index=True)
     month = Column(Integer)
     year = Column(Integer)
     total_gross = Column(Float, default=0.0)

@@ -40,7 +40,7 @@ class PayloadUser:
 def require_hr_view(token_payload: dict = Depends(requires_permission("hr:view"))): return PayloadUser(token_payload)
 def require_hr_create(token_payload: dict = Depends(requires_permission("hr:create"))): return PayloadUser(token_payload)
 def require_hr_update(token_payload: dict = Depends(requires_permission("hr:update"))): return PayloadUser(token_payload)
-def require_hr_approve(token_payload: dict = Depends(requires_permission("hr:approve"))): return PayloadUser(token_payload)
+def require_hr_approve(token_payload: dict = Depends(requires_permission("hr:manage"))): return PayloadUser(token_payload)
 def require_payroll_view(token_payload: dict = Depends(requires_permission("payroll:view"))): return PayloadUser(token_payload)
 def require_payroll_run(token_payload: dict = Depends(requires_permission("payroll:create"))): return PayloadUser(token_payload)
 def require_payroll_approve(token_payload: dict = Depends(requires_permission("payroll:approve"))): return PayloadUser(token_payload)
@@ -317,8 +317,9 @@ def get_weekly_summary(
 
 # Leaves
 @router.get("/leaves", response_model=List[LeaveRequestResponse])
-def get_leaves(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_leaves(current_user.tenant_id)
+def get_leaves(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).get_leaves(current_user.tenant_id, branch_id=effective_branch_id)
 
 @router.post("/leaves", response_model=LeaveRequestResponse)
 def create_leave(obj_in: LeaveRequestCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
@@ -353,8 +354,9 @@ def update_shift(id: str, obj_in: ShiftUpdate, db: Session = Depends(get_db), cu
 
 # Payroll
 @router.get("/payroll", response_model=List[PayrollRunResponse])
-def get_payroll_runs(db: Session = Depends(get_db), current_user: User = Depends(require_payroll_view)):
-    runs = HRService(db).get_payroll_runs(current_user.tenant_id)
+def get_payroll_runs(db: Session = Depends(get_db), current_user: User = Depends(require_payroll_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    runs = HRService(db).get_payroll_runs(current_user.tenant_id, branch_id=effective_branch_id)
     valid_runs = []
     for run in runs:
         try:
@@ -367,12 +369,14 @@ def get_payroll_runs(db: Session = Depends(get_db), current_user: User = Depends
     return valid_runs
 
 @router.get("/payroll/preview", response_model=List[PayrollLineResponse])
-def preview_payroll(month: int, year: int, department_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
-    return HRService(db).preview_payroll(current_user.tenant_id, month, year, department_id)
+def preview_payroll(month: int, year: int, department_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).preview_payroll(current_user.tenant_id, month, year, department_id, branch_id=effective_branch_id)
 
 @router.post("/payroll/run", response_model=PayrollRunResponse)
-def run_payroll(obj_in: PayrollRunCreate, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run)):
-    return HRService(db).run_payroll(current_user.tenant_id, current_user.id, obj_in)
+def run_payroll(obj_in: PayrollRunCreate, db: Session = Depends(get_db), current_user: User = Depends(require_payroll_run), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).run_payroll(current_user.tenant_id, current_user.id, obj_in, branch_id=effective_branch_id)
 
 @router.get("/payroll/summary")
 def get_payroll_summary(db: Session = Depends(get_db), current_user: User = Depends(require_payroll_view)):
@@ -497,8 +501,9 @@ def export_master_payroll(id: str, db: Session = Depends(get_db), current_user: 
 
 # Advance Salary
 @router.get("/advances", response_model=List[AdvanceSalaryResponse])
-def get_advances(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_advances(current_user.tenant_id)
+def get_advances(db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).get_advances(current_user.tenant_id, branch_id=effective_branch_id)
 
 @router.post("/advances", response_model=AdvanceSalaryResponse)
 def create_advance(obj_in: AdvanceSalaryCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
@@ -520,8 +525,9 @@ def get_hr_analytics(db: Session = Depends(get_db), current_user: User = Depends
 
 # Employee Documents
 @router.get("/employee-documents", response_model=List[EmployeeDocumentResponse])
-def get_employee_documents(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_employee_documents(current_user.tenant_id, employee_id)
+def get_employee_documents(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).get_employee_documents(current_user.tenant_id, employee_id, branch_id=effective_branch_id)
 
 @router.post("/employee-documents", response_model=EmployeeDocumentResponse)
 def create_employee_document(obj_in: EmployeeDocumentCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
@@ -538,8 +544,9 @@ def delete_employee_document(id: str, db: Session = Depends(get_db), current_use
 
 # Performance Reviews
 @router.get("/performance-reviews", response_model=List[PerformanceReviewResponse])
-def get_performance_reviews(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_performance_reviews(current_user.tenant_id, employee_id)
+def get_performance_reviews(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).get_performance_reviews(current_user.tenant_id, employee_id, branch_id=effective_branch_id)
 
 @router.post("/performance-reviews", response_model=PerformanceReviewResponse)
 def create_performance_review(obj_in: PerformanceReviewCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
@@ -552,8 +559,9 @@ def update_performance_review(id: str, obj_in: PerformanceReviewUpdate, db: Sess
 
 # Employee Tasks
 @router.get("/employee-tasks", response_model=List[EmployeeTaskResponse])
-def get_employee_tasks(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
-    return HRService(db).get_employee_tasks(current_user.tenant_id, employee_id)
+def get_employee_tasks(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
+    effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)
+    return HRService(db).get_employee_tasks(current_user.tenant_id, employee_id, branch_id=effective_branch_id)
 
 @router.post("/employee-tasks", response_model=EmployeeTaskResponse)
 def create_employee_task(obj_in: EmployeeTaskCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):

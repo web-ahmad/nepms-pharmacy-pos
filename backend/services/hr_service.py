@@ -260,8 +260,8 @@ class HRService:
         days = self.repo.get_weekly_summary(tenant_id)
         return {"days": days}
 
-    def get_leaves(self, tenant_id: str):
-        return self.repo.get_leaves(tenant_id)
+    def get_leaves(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_leaves(tenant_id, branch_id=branch_id)
 
     def create_leave(self, tenant_id: str, obj_in: LeaveRequestCreate):
         return self.repo.create_leave(tenant_id, obj_in)
@@ -300,8 +300,8 @@ class HRService:
             raise HTTPException(404, "Shift not found")
         return shift
 
-    def get_payroll_runs(self, tenant_id: str):
-        return self.repo.get_payroll_runs(tenant_id)
+    def get_payroll_runs(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_payroll_runs(tenant_id, branch_id=branch_id)
 
     def get_payroll_run(self, tenant_id: str, run_id: str):
         run = self.repo.get_payroll_run(tenant_id, run_id)
@@ -312,13 +312,16 @@ class HRService:
     def finalize_payroll(self, tenant_id: str, user_id: str, run_id: str):
         run = self.repo.finalize_payroll_run(tenant_id, run_id)
         
-        # Trigger accounting auto-post hook now that it is Paid!
+        # Trigger accounting auto-post hook now that it is Paid! (branch-scoped)
         je = self.auto_posting.post_payroll(
-            tenant_id, 
-            user_id, 
-            f"PAYROLL-{run.month}-{run.year}", 
-            run.total_net, 
-            description=f"Auto Post: Payroll run disbursed {run.month}/{run.year}"
+            tenant_id,
+            user_id,
+            f"PAYROLL-{run.month}-{run.year}",
+            run.total_net,
+            description=f"Auto Post: Payroll run disbursed {run.month}/{run.year}",
+            branch_id=run.branch_id,
+            source_module="Payroll",
+            source_id=run.id,
         )
         if je:
             run.journal_entry_id = je.id
@@ -361,16 +364,20 @@ class HRService:
     def get_payroll_summary(self, tenant_id: str):
         return self.repo.get_payroll_summary(tenant_id)
 
-    def preview_payroll(self, tenant_id: str, month: int, year: int, department_id: str = None):
-        return self.repo.calculate_payroll_lines(tenant_id, month, year, department_id)
+    def preview_payroll(self, tenant_id: str, month: int, year: int, department_id: str = None, branch_id: str = None):
+        return self.repo.calculate_payroll_lines(tenant_id, month, year, department_id, branch_id=branch_id)
 
-    def run_payroll(self, tenant_id: str, user_id: str, obj_in: PayrollRunCreate):
+    def run_payroll(self, tenant_id: str, user_id: str, obj_in: PayrollRunCreate, branch_id: str = None):
         from models.hr import PayrollRun
-        existing_run = self.db.query(PayrollRun).filter(
+        # Payroll is per-branch: one run per (branch, month, year).
+        dup_q = self.db.query(PayrollRun).filter(
             PayrollRun.tenant_id == tenant_id,
             PayrollRun.month == obj_in.month,
-            PayrollRun.year == obj_in.year
-        ).first()
+            PayrollRun.year == obj_in.year,
+        )
+        if branch_id:
+            dup_q = dup_q.filter(PayrollRun.branch_id == branch_id)
+        existing_run = dup_q.first()
         if existing_run:
             raise HTTPException(
                 status_code=400,
@@ -378,8 +385,8 @@ class HRService:
             )
 
         try:
-            employees = self.repo.get_employees(tenant_id)
-            run = self.repo.create_payroll_run(tenant_id, user_id, obj_in, employees)
+            employees = self.repo.get_employees(tenant_id, branch_id=branch_id)
+            run = self.repo.create_payroll_run(tenant_id, user_id, obj_in, employees, branch_id=branch_id)
             
             # Auto-post to Accounting REMOVED from initial run (delayed to final payment step)
 
@@ -391,8 +398,8 @@ class HRService:
             raise HTTPException(status_code=400, detail=str(e))
 
     # Advance Salary Methods
-    def get_advances(self, tenant_id: str):
-        return self.repo.get_advances(tenant_id)
+    def get_advances(self, tenant_id: str, branch_id: str = None):
+        return self.repo.get_advances(tenant_id, branch_id=branch_id)
 
     def create_advance(self, tenant_id: str, obj_in: AdvanceSalaryCreate):
         return self.repo.create_advance(tenant_id, obj_in)
@@ -430,8 +437,8 @@ class HRService:
     # =====================================================================
 
     # Employee Documents
-    def get_employee_documents(self, tenant_id: str, employee_id: str = None):
-        return self.repo.get_employee_documents(tenant_id, employee_id)
+    def get_employee_documents(self, tenant_id: str, employee_id: str = None, branch_id: str = None):
+        return self.repo.get_employee_documents(tenant_id, employee_id, branch_id=branch_id)
 
     def create_employee_document(self, tenant_id: str, user_id: str, obj_in: EmployeeDocumentCreate):
         return self.repo.create_employee_document(tenant_id, user_id, obj_in)
@@ -449,8 +456,8 @@ class HRService:
         return {"message": "Employee document deleted successfully"}
 
     # Performance Reviews
-    def get_performance_reviews(self, tenant_id: str, employee_id: str = None):
-        return self.repo.get_performance_reviews(tenant_id, employee_id)
+    def get_performance_reviews(self, tenant_id: str, employee_id: str = None, branch_id: str = None):
+        return self.repo.get_performance_reviews(tenant_id, employee_id, branch_id=branch_id)
 
     def create_performance_review(self, tenant_id: str, obj_in: PerformanceReviewCreate):
         return self.repo.create_performance_review(tenant_id, obj_in)
@@ -462,8 +469,8 @@ class HRService:
         return review
 
     # Employee Tasks
-    def get_employee_tasks(self, tenant_id: str, employee_id: str = None):
-        return self.repo.get_employee_tasks(tenant_id, employee_id)
+    def get_employee_tasks(self, tenant_id: str, employee_id: str = None, branch_id: str = None):
+        return self.repo.get_employee_tasks(tenant_id, employee_id, branch_id=branch_id)
 
     def create_employee_task(self, tenant_id: str, user_id: str, obj_in: EmployeeTaskCreate):
         return self.repo.create_employee_task(tenant_id, user_id, obj_in)

@@ -35,8 +35,10 @@ export default function PayrollDetailsPage() {
   const [showOverrideDialog, setShowOverrideDialog] = useState(false);
   const [remarks, setRemarks] = useState("");
   const { user } = useAuthStore();
-  // RBAC 4.0: L1 (Super Admin) and L2 (Pharmacy Owner) are privileged managers
-  const isOwner = (user?.hierarchy_level ?? 4) <= 2;
+  // Owners who can approve payroll directly: L1 (Super Admin), L2 (Pharmacy
+  // Owner) and L3 (Franchise / Branch Owner — approves their own branch's run).
+  // L4 staff must use the override-with-remarks flow.
+  const isOwner = (user?.hierarchy_level ?? 4) <= 3;
 
 
   const isLoading = isRunLoading || isEmpLoading;

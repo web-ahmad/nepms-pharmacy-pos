@@ -122,10 +122,15 @@ export default function PayrollPage() {
                     </td>
                     <td className="px-5 py-4 text-right font-mono font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{fmt(run.total_net)}</td>
                     <td className="px-5 py-4 whitespace-nowrap">
-                      {run.status === 'Draft'
-                        ? <span className="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400">Auto-Posted</span>
-                        : <span className="inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>
-                      }
+                      {(() => {
+                        const s = run.status || 'Draft';
+                        const cls =
+                          s === 'Paid' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                          s === 'Approved' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                          s === 'Pending Approval' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                          'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400';
+                        return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${cls}`}>{s}</span>;
+                      })()}
                     </td>
                     <td className="px-5 py-4 font-mono text-xs text-gray-400 dark:text-zinc-500 whitespace-nowrap">
                       {format(new Date(run.created_at), 'dd MMM yyyy HH:mm')}

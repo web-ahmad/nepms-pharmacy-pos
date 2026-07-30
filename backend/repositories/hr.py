@@ -575,8 +575,12 @@ class HRRepository:
         return result
 
     # Leave Requests
-    def get_leaves(self, tenant_id: str):
-        leaves = self.db.query(LeaveRequest).filter(LeaveRequest.tenant_id == tenant_id).order_by(LeaveRequest.created_at.desc()).all()
+    def get_leaves(self, tenant_id: str, branch_id: str = None):
+        q = self.db.query(LeaveRequest).filter(LeaveRequest.tenant_id == tenant_id)
+        if branch_id:
+            q = q.filter(LeaveRequest.employee_id.in_(
+                self.db.query(Employee.id).filter(Employee.tenant_id == tenant_id, Employee.branch_id == branch_id)))
+        leaves = q.order_by(LeaveRequest.created_at.desc()).all()
         result = []
         for leave in leaves:
             emp = self.db.query(Employee).filter(Employee.id == leave.employee_id).first()
@@ -638,8 +642,11 @@ class HRRepository:
         return db_obj
 
     # Payroll
-    def get_payroll_runs(self, tenant_id: str):
-        return self.db.query(PayrollRun).filter(PayrollRun.tenant_id == tenant_id).all()
+    def get_payroll_runs(self, tenant_id: str, branch_id: str = None):
+        q = self.db.query(PayrollRun).filter(PayrollRun.tenant_id == tenant_id)
+        if branch_id:
+            q = q.filter(PayrollRun.branch_id == branch_id)
+        return q.order_by(PayrollRun.year.desc(), PayrollRun.month.desc()).all()
 
     def get_payroll_run(self, tenant_id: str, run_id: str):
         from sqlalchemy.orm import joinedload
@@ -663,7 +670,7 @@ class HRRepository:
                 
         return run
 
-    def calculate_payroll_lines(self, tenant_id: str, month: int, year: int, department_id: str = None):
+    def calculate_payroll_lines(self, tenant_id: str, month: int, year: int, department_id: str = None, branch_id: str = None):
         """
         Optimized payroll calculation engine.
         - 3 bulk DB queries instead of N+1 per employee
@@ -683,6 +690,8 @@ class HRRepository:
             Employee.tenant_id == tenant_id,
             Employee.is_active == True
         )
+        if branch_id:
+            emp_query = emp_query.filter(Employee.branch_id == branch_id)
         if department_id and department_id != "all":
             emp_query = emp_query.filter(Employee.department_id == department_id)
         employees = emp_query.all()
@@ -882,17 +891,19 @@ class HRRepository:
         return lines
 
 
-    def create_payroll_run(self, tenant_id: str, user_id: str, obj_in: PayrollRunCreate, employees: list):
+    def create_payroll_run(self, tenant_id: str, user_id: str, obj_in: PayrollRunCreate, employees: list, branch_id: str = None):
         db_obj = PayrollRun(
             tenant_id=tenant_id,
+            branch_id=branch_id,
             month=obj_in.month,
             year=obj_in.year,
             created_by=user_id
         )
         self.db.add(db_obj)
         self.db.flush()
-        
-        calculated_lines = self.calculate_payroll_lines(tenant_id, obj_in.month, obj_in.year, obj_in.department_id)
+
+        # Only include the active branch's employees when a branch is selected.
+        calculated_lines = self.calculate_payroll_lines(tenant_id, obj_in.month, obj_in.year, obj_in.department_id, branch_id=branch_id)
         
         total_gross = 0.0
         total_net = 0.0
@@ -981,8 +992,12 @@ class HRRepository:
         }
 
     # Advance Salary
-    def get_advances(self, tenant_id: str):
-        advances = self.db.query(AdvanceSalary).filter(AdvanceSalary.tenant_id == tenant_id).order_by(AdvanceSalary.created_at.desc()).all()
+    def get_advances(self, tenant_id: str, branch_id: str = None):
+        q = self.db.query(AdvanceSalary).filter(AdvanceSalary.tenant_id == tenant_id)
+        if branch_id:
+            q = q.filter(AdvanceSalary.employee_id.in_(
+                self.db.query(Employee.id).filter(Employee.tenant_id == tenant_id, Employee.branch_id == branch_id)))
+        advances = q.order_by(AdvanceSalary.created_at.desc()).all()
         # manual join of employee_name
         for adv in advances:
             adv.employee_name = f"{adv.employee.first_name} {adv.employee.last_name}" if adv.employee else None
@@ -1014,10 +1029,13 @@ class HRRepository:
     # =====================================================================
 
     # Employee Documents
-    def get_employee_documents(self, tenant_id: str, employee_id: str = None):
+    def get_employee_documents(self, tenant_id: str, employee_id: str = None, branch_id: str = None):
         q = self.db.query(EmployeeDocument).filter(EmployeeDocument.tenant_id == tenant_id)
         if employee_id:
             q = q.filter(EmployeeDocument.employee_id == employee_id)
+        if branch_id:
+            q = q.filter(EmployeeDocument.employee_id.in_(
+                self.db.query(Employee.id).filter(Employee.tenant_id == tenant_id, Employee.branch_id == branch_id)))
         return q.all()
 
     def create_employee_document(self, tenant_id: str, user_id: str, obj_in):
@@ -1047,10 +1065,13 @@ class HRRepository:
         return True
 
     # Performance Reviews
-    def get_performance_reviews(self, tenant_id: str, employee_id: str = None):
+    def get_performance_reviews(self, tenant_id: str, employee_id: str = None, branch_id: str = None):
         q = self.db.query(PerformanceReview).filter(PerformanceReview.tenant_id == tenant_id)
         if employee_id:
             q = q.filter(PerformanceReview.employee_id == employee_id)
+        if branch_id:
+            q = q.filter(PerformanceReview.employee_id.in_(
+                self.db.query(Employee.id).filter(Employee.tenant_id == tenant_id, Employee.branch_id == branch_id)))
         return q.all()
 
     def create_performance_review(self, tenant_id: str, obj_in):
@@ -1072,10 +1093,13 @@ class HRRepository:
         return db_obj
 
     # Employee Tasks
-    def get_employee_tasks(self, tenant_id: str, employee_id: str = None):
+    def get_employee_tasks(self, tenant_id: str, employee_id: str = None, branch_id: str = None):
         q = self.db.query(EmployeeTask).filter(EmployeeTask.tenant_id == tenant_id)
         if employee_id:
             q = q.filter(EmployeeTask.employee_id == employee_id)
+        if branch_id:
+            q = q.filter(EmployeeTask.employee_id.in_(
+                self.db.query(Employee.id).filter(Employee.tenant_id == tenant_id, Employee.branch_id == branch_id)))
         return q.all()
 
     def create_employee_task(self, tenant_id: str, user_id: str, obj_in):
