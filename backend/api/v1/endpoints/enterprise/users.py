@@ -207,6 +207,12 @@ def create_user(
                 status_code=403,
                 detail="Branch Owners cannot assign users to other branches."
             )
+        # Auto-assign the creator's branch when none was supplied, otherwise the
+        # new user has no branch and stays invisible in the branch-scoped list.
+        if token_branch and not data.default_branch_id:
+            data.default_branch_id = token_branch
+            if not data.allowed_branches:
+                data.allowed_branches = [token_branch]
 
     eu = user_service.create_user(db, data=data, pharmacy_id=pid, created_by_id=created_by)
     return _build_read(eu)

@@ -30,161 +30,82 @@ from schemas.enterprise.user import RoleCreate, RoleUpdate
 # Only actions that genuinely apply are listed.
 # ══════════════════════════════════════════════════════════════════════════════
 
+# NOTE: This catalog is deliberately curated to the modules that ACTUALLY exist
+# in the software. Every permission code here is either enforced by a backend
+# `requires_permission(...)` guard or used by a frontend sidebar/route gate — no
+# fictional/aspirational permissions. Grouped module-by-module with just the
+# actions each module really supports (view + the real write/approve actions).
 _MODULES: List[Tuple[str, List[str]]] = [
-    # ── Dashboard & Analytics ──────────────────────────────────────────────────
-    ("dashboard",              ["view", "export"]),
-    ("analytics",              ["view", "export"]),
-    ("executive_dashboard",    ["view", "export"]),
+    # ── Overview ───────────────────────────────────────────────────────────────
+    ("dashboard",       ["view", "export"]),
+    ("analytics",       ["view", "export"]),
 
-    # ── POS & Sales ───────────────────────────────────────────────────────────
-    ("pos",                    ["view", "create", "update", "manage", "approve", "void", "print"]),
-    ("cashier",                ["view", "create", "manage", "print"]),
-    ("sales",                  ["view", "create", "update", "manage", "approve", "void", "export", "print"]),
-    ("sales_returns",          ["view", "create", "approve", "manage", "export", "print"]),
+    # ── Point of Sale & Sales ──────────────────────────────────────────────────
+    ("pos",             ["view", "create", "return", "hold", "discount", "void", "print"]),
+    ("cashier",         ["view", "manage", "print"]),
+    ("sales",           ["view", "create", "update", "return", "refund", "discount", "void", "export", "print"]),
 
-    # ── Customers & CRM ───────────────────────────────────────────────────────
-    ("customers",              ["view", "create", "update", "delete", "manage", "export", "print"]),
-    ("customer_wallet",        ["view", "create", "update", "manage", "approve"]),
-    ("customer_loyalty",       ["view", "create", "update", "manage", "export"]),
-    ("customer_referrals",     ["view", "create", "manage", "export"]),
-    ("crm",                    ["view", "create", "update", "delete", "manage", "export"]),
-    ("marketing",              ["view", "create", "update", "delete", "manage", "export"]),
-    ("campaigns",              ["view", "create", "update", "delete", "manage", "approve", "export", "print"]),
-    ("coupons",                ["view", "create", "update", "delete", "manage", "export"]),
-    ("gift_vouchers",          ["view", "create", "update", "delete", "manage", "approve", "export", "print"]),
+    # ── Customers & Marketing ──────────────────────────────────────────────────
+    ("customers",       ["view", "create", "update", "delete", "credit", "export"]),
+    ("prescriptions",   ["view", "create", "edit", "delete", "print"]),
+    ("marketing",       ["view", "create", "update", "delete", "export"]),
 
-    # ── Clinical ──────────────────────────────────────────────────────────────
-    ("prescriptions",          ["view", "create", "update", "delete", "manage", "approve", "export", "print"]),
-    ("doctors",                ["view", "create", "update", "delete", "manage", "export"]),
+    # ── Inventory ──────────────────────────────────────────────────────────────
+    ("inventory",       ["view", "create", "edit", "delete", "manage", "transfer", "export"]),
+    ("stock",           ["adjust"]),
+    ("medicines",       ["view", "create", "edit", "delete", "export"]),
+    ("physical_audit",  ["view", "create", "approve", "export"]),
 
-    # ── Inventory ─────────────────────────────────────────────────────────────
-    ("inventory",              ["view", "create", "update", "delete", "manage", "approve", "export", "print"]),
-    ("medicines",              ["view", "create", "update", "delete", "manage", "export", "print"]),
-    ("medicine_categories",    ["view", "create", "update", "delete", "manage"]),
-    ("medicine_brands",        ["view", "create", "update", "delete", "manage"]),
-    ("medicine_manufacturers", ["view", "create", "update", "delete", "manage"]),
-    ("medicine_generics",      ["view", "create", "update", "delete", "manage"]),
-    ("medicine_units",         ["view", "create", "update", "delete", "manage"]),
-    ("medicine_strengths",     ["view", "create", "update", "delete", "manage"]),
-    ("medicine_dosage_forms",  ["view", "create", "update", "delete", "manage"]),
-    ("medicine_routes",        ["view", "create", "update", "delete", "manage"]),
-    ("medicine_interactions",  ["view", "create", "update", "delete", "manage"]),
-    ("medicine_batches",       ["view", "create", "update", "delete", "manage", "export"]),
-    ("warehouses",             ["view", "create", "update", "delete", "manage", "export"]),
-    ("rack_management",        ["view", "create", "update", "delete", "manage"]),
-    ("stock_transfers",        ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("stock_reservations",     ["view", "create", "update", "delete", "manage", "approve"]),
-    ("physical_audit",         ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("inventory_adjustments",  ["view", "create", "approve", "manage", "export", "print"]),
+    # ── Purchase ───────────────────────────────────────────────────────────────
+    ("purchase",        ["view", "create", "update", "manage", "approve", "return", "export",
+                         "matrix:manage", "request:approve", "order:create"]),
+    ("suppliers",       ["view", "create", "update", "delete", "export"]),
 
-    # ── Purchase ──────────────────────────────────────────────────────────────
-    ("purchase",               ["view", "create", "update", "delete", "manage", "approve", "export", "print"]),
-    ("purchase_requests",      ["view", "create", "update", "delete", "manage", "approve", "export"]),
-    ("purchase_quotations",    ["view", "create", "update", "delete", "manage", "approve", "export", "print"]),
-    ("purchase_orders",        ["view", "create", "update", "delete", "manage", "approve", "export", "print"]),
-    ("goods_receiving",        ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("purchase_returns",       ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("suppliers",              ["view", "create", "update", "delete", "manage", "export"]),
-    ("supplier_payments",      ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("supplier_ledger",        ["view", "export", "print"]),
+    # ── Accounts ───────────────────────────────────────────────────────────────
+    ("accounts",        ["view", "create", "closing", "manage_bank", "export"]),
+    ("expenses",        ["view", "create", "update", "delete", "approve"]),
 
-    # ── Accounting ────────────────────────────────────────────────────────────
-    ("accounting",             ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("chart_of_accounts",      ["view", "create", "update", "delete", "manage", "export"]),
-    ("journal_entries",        ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("general_ledger",         ["view", "export", "print"]),
-    ("cash_book",              ["view", "create", "update", "manage", "export", "print"]),
-    ("bank_book",              ["view", "create", "update", "manage", "export", "print"]),
-    ("receivables",            ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("payables",               ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("expenses",               ["view", "create", "update", "delete", "manage", "approve", "export", "print"]),
-    ("fixed_assets",           ["view", "create", "update", "delete", "manage", "export"]),
-    ("profit_loss",            ["view", "export", "print"]),
-    ("balance_sheet",          ["view", "export", "print"]),
-    ("trial_balance",          ["view", "export", "print"]),
-    ("tax_management",         ["view", "create", "update", "delete", "manage", "export"]),
+    # ── Reports ────────────────────────────────────────────────────────────────
+    ("reports",         ["view", "export", "print", "sales", "inventory", "purchase",
+                         "financial", "hr", "customers"]),
 
-    # ── HR ────────────────────────────────────────────────────────────────────
-    ("hr",                     ["view", "create", "update", "manage", "export"]),
-    ("employees",              ["view", "create", "update", "delete", "manage", "export", "print"]),
-    ("attendance",             ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("leaves",                 ["view", "create", "update", "manage", "approve", "export"]),
-    ("payroll",                ["view", "create", "update", "manage", "approve", "export", "print"]),
-    ("payroll_setup",          ["view", "create", "update", "manage"]),
-    ("departments",            ["view", "create", "update", "delete", "manage"]),
-    ("designations",           ["view", "create", "update", "delete", "manage"]),
-    ("shifts",                 ["view", "create", "update", "delete", "manage"]),
-    ("training",               ["view", "create", "update", "delete", "manage", "export"]),
-    ("performance_reviews",    ["view", "create", "update", "manage", "approve", "export"]),
-    ("employee_tasks",         ["view", "create", "update", "delete", "manage"]),
-    ("employee_documents",     ["view", "create", "update", "delete", "manage", "export"]),
-    ("org_chart",              ["view", "export"]),
+    # ── HR & Payroll ───────────────────────────────────────────────────────────
+    ("hr",              ["view", "create", "update", "manage", "export"]),
+    ("payroll",         ["view", "create", "approve"]),
 
-    # ── Organization ──────────────────────────────────────────────────────────
-    ("branches",               ["view", "create", "update", "delete", "manage", "export"]),
-    ("branch_settings",        ["view", "update", "manage"]),
+    # ── Governance ─────────────────────────────────────────────────────────────
+    ("compliance",      ["view", "export"]),
+    ("audit",           ["view", "export"]),
+    ("branches",        ["view", "create", "edit", "delete", "export"]),
 
-    # ── Reports & BI ──────────────────────────────────────────────────────────
-    ("reports",                ["view", "create", "manage", "export", "print"]),
-    ("bi_reports",             ["view", "create", "manage", "export"]),
-    ("report_builder",         ["view", "create", "update", "delete", "manage", "export"]),
+    # ── Access Control ─────────────────────────────────────────────────────────
+    ("users",           ["view", "create", "update", "manage", "suspend", "unlock", "reset_password"]),
+    ("roles",           ["view", "create", "update", "delete", "manage"]),
 
-    # ── System & Ops ──────────────────────────────────────────────────────────
-    ("notifications",          ["view", "create", "update", "manage"]),
-    ("compliance",             ["view", "create", "update", "manage", "approve", "export"]),
-    ("ocr_queue",              ["view", "create", "update", "manage"]),
-    ("system_health",          ["view", "manage"]),
-    ("backups",                ["view", "create", "restore", "manage"]),
-    ("system_logs",            ["view", "export", "manage"]),
+    # ── Configuration ──────────────────────────────────────────────────────────
+    ("settings",        ["view", "update", "manage"]),
+    ("notifications",   ["view", "manage"]),
 
-    # ── Audit ─────────────────────────────────────────────────────────────────
-    ("audit",                  [
-        "view", "export", "manage",
-        "investigate", "risk", "compliance",
-        "delete_logs", "restore_logs", "system",
-    ]),
-
-    # ── Access Control ────────────────────────────────────────────────────────
-    ("users",                  [
-        "view", "create", "update", "delete", "manage",
-        "suspend", "unlock", "reset_password",
-        "assign_role", "assign_branch", "export",
-    ]),
-    ("roles",                  ["view", "create", "update", "delete", "manage"]),
-    ("permissions",            ["view", "manage"]),
-
-    # ── Settings (granular) ───────────────────────────────────────────────────
-    ("settings",               [
-        "view", "company", "invoice", "tax", "crm",
-        "inventory", "hr", "pos", "security", "api",
-        "modules", "system",
-    ]),
-
-    # ── Super Admin ───────────────────────────────────────────────────────────
-    ("super_admin",            ["view", "manage", "system"]),
+    # ── System (Super Admin only) ──────────────────────────────────────────────
+    ("system_health",   ["view"]),
+    ("backup",          ["manage"]),
+    ("super_admin",     ["view", "manage"]),
 ]
 
 
 # ── Sensitive permission codes ─────────────────────────────────────────────────
 
 _SENSITIVE_CODES: Set[str] = {
-    "pos:void", "sales:void", "sales_returns:approve",
-    "inventory:delete", "inventory_adjustments:approve",
-    "inventory_adjustments:create", "stock_transfers:approve",
-    "physical_audit:approve", "supplier_payments:approve",
-    "journal_entries:approve", "expenses:approve",
-    "payroll:approve", "payroll:manage",
-    "backups:restore", "backups:manage",
-    "audit:delete_logs", "audit:restore_logs", "audit:manage", "audit:system",
-    "users:delete", "users:suspend", "users:unlock",
-    "users:reset_password", "users:assign_role", "users:assign_branch",
-    "settings:security", "settings:api", "settings:system", "settings:modules",
-    "super_admin:manage", "super_admin:system",
-    "roles:delete", "permissions:manage",
-    "purchase_orders:approve", "goods_receiving:approve",
-    "purchase_returns:approve", "cash_book:manage", "bank_book:manage",
-    "receivables:approve", "payables:approve",
-    "customer_wallet:approve", "gift_vouchers:approve",
+    "pos:void", "pos:return", "sales:void", "sales:refund", "sales:return",
+    "inventory:delete", "stock:adjust", "physical_audit:approve",
+    "purchase:approve", "purchase:matrix:manage", "purchase:request:approve",
+    "accounts:closing", "accounts:manage_bank",
+    "expenses:approve", "payroll:approve", "payroll:create",
+    "backup:manage", "settings:manage",
+    "users:suspend", "users:unlock", "users:reset_password", "users:manage",
+    "roles:delete", "roles:manage",
+    "branches:edit", "branches:delete",
+    "super_admin:manage",
 }
 
 
@@ -199,7 +120,7 @@ def _build_permission_seed() -> List[Dict]:
                 "module":       module,
                 "action":       action,
                 "code":         code,
-                "label":        f"{module.replace('_', ' ').title()} — {action.replace('_', ' ').title()}",
+                "label":        f"{module.replace('_', ' ').title()} — {action.replace('_', ' ').replace(':', ' ').title()}",
                 "description":  None,
                 "is_sensitive": code in _SENSITIVE_CODES,
             })
@@ -249,66 +170,10 @@ def _merge(*perm_lists) -> List[str]:
     return sorted(merged)
 
 
-# ── Common permission bundles ─────────────────────────────────────────────────
-
-_SALES_FULL       = _perm("dashboard:view", "analytics:view", "pos:manage", "cashier:manage",
-                           "sales:manage", "sales_returns:manage", "customers:manage",
-                           "customer_wallet:manage", "customer_loyalty:manage",
-                           "customer_referrals:manage", "reports:view", "reports:export")
-
-_INVENTORY_FULL   = _perm("inventory:manage", "medicines:manage", "medicine_categories:manage",
-                           "medicine_brands:manage", "medicine_manufacturers:manage",
-                           "medicine_generics:manage", "medicine_units:manage",
-                           "medicine_strengths:manage", "medicine_dosage_forms:manage",
-                           "medicine_routes:manage", "medicine_interactions:manage",
-                           "medicine_batches:manage", "warehouses:manage", "rack_management:manage",
-                           "stock_transfers:manage", "stock_reservations:manage",
-                           "physical_audit:manage", "inventory_adjustments:manage")
-
-_PURCHASE_FULL    = _perm("purchase:manage", "purchase_requests:manage",
-                           "purchase_quotations:manage", "purchase_orders:manage",
-                           "goods_receiving:manage", "purchase_returns:manage",
-                           "suppliers:manage", "supplier_payments:manage", "supplier_ledger:view")
-
-_ACCOUNTING_FULL  = _perm("accounting:manage", "chart_of_accounts:manage",
-                           "journal_entries:manage", "general_ledger:view",
-                           "cash_book:manage", "bank_book:manage",
-                           "receivables:manage", "payables:manage",
-                           "expenses:manage", "fixed_assets:manage",
-                           "profit_loss:view", "balance_sheet:view", "trial_balance:view",
-                           "tax_management:manage")
-
-_HR_FULL          = _perm("hr:manage", "employees:manage", "attendance:manage", "leaves:manage",
-                           "payroll:manage", "payroll_setup:manage", "departments:manage",
-                           "designations:manage", "shifts:manage", "training:manage",
-                           "performance_reviews:manage", "employee_tasks:manage",
-                           "employee_documents:manage", "org_chart:view")
-
-_CRM_FULL         = _perm("crm:manage", "marketing:manage", "campaigns:manage",
-                           "coupons:manage", "gift_vouchers:manage",
-                           "customers:manage", "customer_loyalty:manage", "customer_referrals:manage")
-
-_REPORTS_FULL     = _perm("reports:manage", "bi_reports:manage", "report_builder:manage", "analytics:view")
-
-_AUDIT_READ       = _perm("audit:view", "audit:export", "audit:investigate", "audit:risk", "audit:compliance")
-
-_AUDIT_FULL       = _perm("audit:manage", "audit:view", "audit:export", "audit:investigate",
-                           "audit:risk", "audit:compliance", "audit:delete_logs",
-                           "audit:restore_logs", "audit:system",
-                           "compliance:manage", "system_logs:view", "system_logs:export")
-
-_BRANCHES_MANAGE  = _perm("branches:manage", "branch_settings:manage")
-_USERS_MANAGE     = _perm("users:manage", "roles:manage", "permissions:view")
-_SETTINGS_FULL    = _perm("settings:view", "settings:company", "settings:invoice",
-                           "settings:tax", "settings:crm", "settings:inventory",
-                           "settings:hr", "settings:pos")
-_NOTIFICATIONS    = _perm("notifications:view", "notifications:manage")
-_PRESCRIPTIONS    = _perm("prescriptions:manage", "doctors:view", "medicines:view", "customers:view")
-
-
 # ── Default Enterprise Roles ──────────────────────────────────────────────────
 
 DEFAULT_ROLES: Dict[str, Dict] = {
+    # ── System (L1) ────────────────────────────────────────────────────────────
     "Super Admin": {
         "hierarchy_level": 1,
         "branch_scope": "global",
@@ -319,147 +184,112 @@ DEFAULT_ROLES: Dict[str, Dict] = {
         "is_system_role": True,
         "permissions":  ["*"],
     },
-    "Devjix Support": {
-        "hierarchy_level": 1,
-        "branch_scope": "global",
-        "data_scope":   "global",
-        "color":        "#1e3a8a",
-        "icon":         "LifeBuoy",
-        "sort_order":   2,
-        "is_system_role": True,
-        "permissions":  ["*"],
-    },
+    # ── Tenant Owner (L2) — full access to the whole pharmacy, all branches ─────
     "Pharmacy Owner": {
         "hierarchy_level": 2,
         "branch_scope": "global",
         "data_scope":   "tenant",
         "color":        "#f59e0b",
         "icon":         "Crown",
-        "sort_order":   3,
+        "sort_order":   2,
         "is_system_role": False,
         "permissions":  ["*tenant"],
     },
+    # ── Branch head (L3) — full access to their own branch ─────────────────────
     "Franchise Owner": {
         "hierarchy_level": 3,
         "branch_scope": "assigned_branch",
-        "data_scope": "branch",
+        "data_scope":   "branch",
         "color":        "#6366f1",
-        "icon":         "Building",
-        "sort_order":   4,
+        "icon":         "Building2",
+        "sort_order":   3,
         "is_system_role": False,
         "permissions":  ["*tenant-branch"],
     },
-    "Branch Manager": {
+    # ── Branch staff (L4) — explicit, module-scoped permissions ────────────────
+    "Accountant": {
+        "hierarchy_level": 4,
         "branch_scope": "assigned_branch",
         "data_scope":   "branch",
-        "color":        "#4f46e5",
-        "icon":         "Building2",
-        "sort_order":   5,
+        "color":        "#22c55e",
+        "icon":         "Calculator",
+        "sort_order":   4,
         "is_system_role": False,
         "permissions":  _perm(
             "dashboard:view", "analytics:view",
-            "pos:manage", "cashier:manage", "sales:manage", "sales_returns:manage",
-            "customers:manage", "customer_loyalty:manage",
-            "inventory:manage", "medicines:manage", "medicine_batches:manage",
-            "stock_transfers:view", "stock_transfers:create",
-            "physical_audit:manage", "inventory_adjustments:view",
-            "purchase:view", "purchase_requests:create", "purchase_orders:view", "goods_receiving:view",
-            "expenses:view", "expenses:create",
-            "reports:manage", "bi_reports:view",
-            "attendance:manage", "leaves:manage", "hr:view", "employees:view",
-            "branches:view", "branch_settings:view",
-            "notifications:view", "audit:view", "prescriptions:view",
+            "accounts:view", "accounts:create", "accounts:closing",
+            "accounts:manage_bank", "accounts:export",
+            "expenses:view", "expenses:create", "expenses:update", "expenses:approve",
+            "reports:view", "reports:export", "reports:financial",
+            "reports:sales", "reports:purchase",
+            "customers:view", "suppliers:view",
         ),
     },
-    "Senior Pharmacist": {
+    "Pharmacist": {
+        "hierarchy_level": 4,
         "branch_scope": "assigned_branch",
         "data_scope":   "branch",
-        "color":        "#059669",
-        "icon":         "Stethoscope",
+        "color":        "#06b6d4",
+        "icon":         "Pill",
+        "sort_order":   5,
+        "is_system_role": False,
+        "permissions":  _perm(
+            "dashboard:view",
+            "pos:view", "pos:create", "pos:return", "pos:hold", "pos:print", "cashier:view",
+            "sales:view", "sales:create", "sales:print",
+            "inventory:view", "inventory:manage", "inventory:transfer", "stock:adjust",
+            "medicines:view", "medicines:create", "medicines:edit", "physical_audit:view",
+            "purchase:view",
+            "prescriptions:view", "prescriptions:create", "prescriptions:edit", "prescriptions:delete",
+            "customers:view", "customers:create",
+            "reports:view",
+        ),
+    },
+    "Cashier": {
+        "hierarchy_level": 4,
+        "branch_scope": "assigned_branch",
+        "data_scope":   "own_records",
+        "color":        "#f97316",
+        "icon":         "CreditCard",
         "sort_order":   6,
         "is_system_role": False,
         "permissions":  _perm(
             "dashboard:view",
-            "pos:manage", "cashier:manage", "sales:manage", "sales_returns:manage",
-            "inventory:manage", "medicines:manage",
-            "medicine_categories:view", "medicine_brands:view",
-            "medicine_batches:manage",
-            "stock_transfers:view", "stock_reservations:view",
-            "inventory_adjustments:create",
-            "prescriptions:manage", "doctors:view",
-            "customers:view", "customer_loyalty:view",
-            "reports:view", "reports:export",
+            "pos:view", "pos:create", "pos:return", "pos:hold", "pos:discount", "pos:print",
+            "cashier:view", "cashier:manage",
+            "sales:view", "sales:create", "sales:print",
+            "customers:view", "customers:create",
         ),
     },
-    "Pharmacist & Cashier": {
+    "Salesman": {
+        "hierarchy_level": 4,
         "branch_scope": "assigned_branch",
-        "data_scope":   "branch",
-        "color":        "#10b981",
-        "icon":         "Wallet",
+        "data_scope":   "own_records",
+        "color":        "#ec4899",
+        "icon":         "UserRound",
         "sort_order":   7,
         "is_system_role": False,
         "permissions":  _perm(
             "dashboard:view",
-            "pos:view", "pos:create", "cashier:view", "cashier:manage",
-            "sales:view", "sales:create",
-            "inventory:view", "medicines:view",
-            "medicine_categories:view", "medicine_brands:view", "medicine_batches:view",
-            "prescriptions:manage", "doctors:view",
-            "customers:view",
+            "pos:view", "pos:create", "cashier:view",
+            "sales:view", "sales:create", "sales:print", "sales:discount",
+            "customers:view", "customers:create", "customers:update",
+            "reports:view",
         ),
     },
-    "Inventory Manager & Store Keeper": {
+    "HR": {
+        "hierarchy_level": 4,
         "branch_scope": "assigned_branch",
         "data_scope":   "branch",
-        "color":        "#f97316",
-        "icon":         "Package",
+        "color":        "#8b5cf6",
+        "icon":         "Users",
         "sort_order":   8,
         "is_system_role": False,
-        "permissions":  _merge(
-            _INVENTORY_FULL,
-            _perm("dashboard:view", "analytics:view",
-                  "purchase:view", "goods_receiving:manage",
-                  "suppliers:view", "reports:view", "reports:export",
-                  "ocr_queue:manage"),
-        ),
-    },
-    "Accountant": {
-        "branch_scope": "assigned_branch",
-        "data_scope":   "branch",
-        "color":        "#22c55e",
-        "icon":         "DollarSign",
-        "sort_order":   9,
-        "is_system_role": False,
         "permissions":  _perm(
-            "dashboard:view",
-            "accounting:view", "accounting:create",
-            "chart_of_accounts:view",
-            "journal_entries:manage", "general_ledger:view", "general_ledger:export",
-            "cash_book:manage", "bank_book:manage",
-            "receivables:manage", "payables:manage",
-            "expenses:manage",
-            "profit_loss:view", "balance_sheet:view", "trial_balance:view",
-            "tax_management:view",
-            "reports:view", "reports:export",
-            "supplier_payments:view", "supplier_ledger:view",
-        ),
-    },
-    "Auditor": {
-        "branch_scope": "assigned_branch",
-        "data_scope":   "branch",
-        "color":        "#64748b",
-        "icon":         "Search",
-        "sort_order":   10,
-        "is_system_role": False,
-        "permissions":  _perm(
-            "dashboard:view",
-            "audit:view", "audit:export", "audit:investigate",
-            "audit:risk", "audit:compliance",
-            "sales:view", "purchase:view", "inventory:view", "accounting:view",
-            "general_ledger:view", "journal_entries:view",
-            "expenses:view", "payroll:view",
-            "hr:view", "employees:view", "system_logs:view",
-            "reports:view", "reports:export", "compliance:view",
+            "dashboard:view", "analytics:view",
+            "hr:view", "hr:create", "hr:update", "hr:manage",
+            "payroll:view", "payroll:create", "payroll:approve",
+            "reports:view", "reports:hr",
         ),
     },
 }

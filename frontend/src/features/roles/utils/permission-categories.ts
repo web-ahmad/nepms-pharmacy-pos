@@ -1,38 +1,43 @@
+// Maps each real module key (see backend repositories/enterprise/role.py `_MODULES`)
+// to a friendly category used to group the permission matrix in the UI.
 export const MODULE_MAPPING: Record<string, string[]> = {
-  'Accounting & Finance': [
-    'accounting', 'balance_sheet', 'bank_book', 'cash_book', 
-    'chart_of_accounts', 'expenses', 'general_ledger', 
-    'journal_entries', 'payables', 'receivables', 
-    'profit_loss', 'trial_balance', 'tax_management'
-  ],
-  'HR & Payroll': [
-    'attendance', 'departments', 'designations', 'employees', 
-    'employee_documents', 'employee_tasks', 'hr', 'leaves', 
-    'payroll', 'payroll_setup', 'performance_reviews', 'shifts', 'training'
-  ],
-  'Inventory & Stock': [
-    'inventory', 'inventory_adjustments', 'goods_receiving', 
-    'physical_audit', 'rack_management', 'stock_reservations', 
-    'stock_transfers', 'warehouses', 'medicine_batches'
-  ],
-  'Catalog & Medicines': [
-    'medicine_brands', 'medicine_categories', 'medicine_dosage_forms', 
-    'medicine_generics', 'medicine_interactions', 'medicine_manufacturers', 
-    'medicine_routes', 'medicine_strengths', 'medicine_units', 'medicines'
-  ],
-  'Sales & POS': [
-    'pos', 'sales', 'sales_returns', 'prescriptions', 'coupons', 'gift_vouchers'
-  ],
-  'Purchases': [
-    'purchase', 'purchase_orders', 'purchase_quotations', 'purchase_requests', 'purchase_returns', 'suppliers', 'supplier_ledger', 'supplier_payments'
-  ],
-  'CRM & Customers': [
-    'crm', 'customers', 'customer_loyalty', 'customer_referrals', 'customer_wallet'
-  ],
-  'System & Settings': [
-    'audit', 'branches', 'branch_settings', 'dashboard', 'executive_dashboard', 'notifications', 'permissions', 'roles', 'settings', 'users'
-  ]
+  'Overview': ['dashboard', 'analytics'],
+  'Sales & POS': ['pos', 'cashier', 'sales'],
+  'Customers & Marketing': ['customers', 'prescriptions', 'marketing'],
+  'Inventory': ['inventory', 'stock', 'medicines', 'physical_audit'],
+  'Purchase': ['purchase', 'suppliers'],
+  'Accounts & Expenses': ['accounts', 'expenses'],
+  'Reports': ['reports'],
+  'HR & Payroll': ['hr', 'payroll'],
+  'Governance': ['compliance', 'audit', 'branches'],
+  'Access Control': ['users', 'roles'],
+  'Configuration': ['settings', 'notifications'],
+  'System': ['system_health', 'backup', 'super_admin'],
 };
+
+// Preferred display order for categories.
+export const CATEGORY_ORDER: string[] = [
+  'Overview', 'Sales & POS', 'Customers & Marketing', 'Inventory', 'Purchase',
+  'Accounts & Expenses', 'Reports', 'HR & Payroll', 'Governance',
+  'Access Control', 'Configuration', 'System', 'Other',
+];
+
+// Preferred display order for the module-wise permission matrix (mirrors the
+// backend catalog order). Modules not listed here fall to the end, alphabetical.
+export const MODULE_ORDER: string[] = [
+  'dashboard', 'analytics',
+  'pos', 'cashier', 'sales',
+  'customers', 'prescriptions', 'marketing',
+  'inventory', 'stock', 'medicines', 'physical_audit',
+  'purchase', 'suppliers',
+  'accounts', 'expenses',
+  'reports',
+  'hr', 'payroll',
+  'compliance', 'audit', 'branches',
+  'users', 'roles',
+  'settings', 'notifications',
+  'system_health', 'backup', 'super_admin',
+];
 
 export const getModuleCategory = (moduleName: string): string => {
   for (const [parentModule, subModules] of Object.entries(MODULE_MAPPING)) {

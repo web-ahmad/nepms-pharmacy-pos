@@ -247,10 +247,32 @@ class SalesService:
                 if total_cost > 0:
                     auto_post.post_cogs(tenant_id, user_id, invoice_num, total_cost, branch_id=branch_id, source_module="POS", source_id=sale.id)
 
+                # ── Cash Register: inject SALE ledger entry ─────────────────
+                # Record the cash/card actually received at the counter so the
+                # sale shows up in the Cash Book (Daybook) & shift reconciliation.
+                # For a credit sale only the down-payment (amount_paid) is real
+                # cash-in; the credit portion is not.
+                cash_received = sale.amount_paid or 0.0
+                if cash_received > 0:
+                    try:
+                        from services.cashier_service import CashierService
+                        entry_mode = "Cash" if checkout_in.payment_method == "Credit" else checkout_in.payment_method
+                        CashierService.inject_sale_entry(
+                            db=db,
+                            user_id=user_id,
+                            branch_id=branch_id,
+                            tenant_id=tenant_id,
+                            sale_id=sale.id,
+                            amount=cash_received,
+                            payment_mode=entry_mode,
+                        )
+                    except Exception:
+                        pass  # Never block a sale because of cashier ledger failure
+
             db.commit()
             db.refresh(sale)
             return sale
-            
+
         except HTTPException:
             db.rollback()
             raise

@@ -104,7 +104,7 @@ export const NAV_ITEMS = [
   { label: 'Purchases',       href: '/purchase',                  icon: ShoppingBag,     permission: 'purchase:view',           moduleKey: 'purchases',      color: 'orange' as IconColor },
   // ── Finance ───────────────────────────────────────────────────────────────────
   { label: 'Expenses',        href: '/expenses',                  icon: ClipboardList,   permission: 'expenses:view',           moduleKey: 'expenses',       color: 'rose' as IconColor },
-  { label: 'Accounting',      href: '/accounts',                  icon: DollarSign,      permission: 'accounting:view',         moduleKey: 'accounting',     color: 'emerald' as IconColor },
+  { label: 'Accounting',      href: '/accounts',                  icon: DollarSign,      permission: 'accounts:view',           moduleKey: 'accounting',     color: 'emerald' as IconColor },
   // ── CRM ───────────────────────────────────────────────────────────────────────
   { label: 'Customers',       href: '/customers',                 icon: Users,           permission: 'customers:view',          moduleKey: 'customers',      color: 'cyan' as IconColor },
   { label: 'Marketing',       href: '/marketing',                 icon: Megaphone,       permission: 'marketing:view',          moduleKey: 'marketing',      color: 'pink' as IconColor },

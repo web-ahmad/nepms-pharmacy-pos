@@ -465,38 +465,48 @@ class DynamicReportEngine:
         }
 
     def _strategy_profit_and_loss(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
-        """Standard P&L Report"""
-        # Calculate Total Revenue
-        sales_rev = self.db.query(func.sum(Sale.total_amount)).filter(
-            *self._sale_filters(tenant_id, params)
-        ).scalar() or 0.0
-
-        # Calculate COGS
-        cogs = self.db.query(func.sum(SaleItem.cost_price * SaleItem.quantity)).join(Sale).filter(
-            *self._sale_filters(tenant_id, params)
-        ).scalar() or 0.0
-
-        # Total Operational Expenses — LEDGER based (all EXPENSE-account postings
-        # like payroll/salary, expense vouchers, etc.), EXCLUDING COGS (5010,
-        # shown separately above) to avoid double-counting. Branch + date scoped.
+        """Standard P&L Report — fully LEDGER based so it reconciles exactly with
+        Accounting → Profit & Loss (same source of truth: approved journal
+        entries, branch + date scoped on the LINE's branch_id)."""
         from models.accounts import Account, JournalEntry, JournalEntryLine, AccountCategory
-        exp_q = self.db.query(func.sum(JournalEntryLine.debit - JournalEntryLine.credit))\
-            .select_from(JournalEntryLine)\
-            .join(JournalEntry, JournalEntry.id == JournalEntryLine.journal_entry_id)\
-            .join(Account, Account.id == JournalEntryLine.account_id)\
-            .filter(
-                JournalEntry.tenant_id == tenant_id,
-                JournalEntry.status == 'Approved',
-                Account.category == AccountCategory.EXPENSE,
-                Account.code != '5010',
-            )
-        if params and params.branch_id:
-            exp_q = exp_q.filter(JournalEntryLine.branch_id == params.branch_id)
-        if params and params.start_date:
-            exp_q = exp_q.filter(func.date(JournalEntry.date) >= params.start_date)
-        if params and params.end_date:
-            exp_q = exp_q.filter(func.date(JournalEntry.date) <= params.end_date)
-        expenses = exp_q.scalar() or 0.0
+
+        def _ledger_sum(*account_filters, signed_by_debit: bool):
+            """Sum approved JE lines for the given account filters, branch + date
+            scoped. signed_by_debit=True → (debit - credit) [Asset/Expense normal];
+            False → (credit - debit) [Revenue/Liability/Equity normal]."""
+            expr = (JournalEntryLine.debit - JournalEntryLine.credit) if signed_by_debit \
+                else (JournalEntryLine.credit - JournalEntryLine.debit)
+            q = self.db.query(func.sum(expr))\
+                .select_from(JournalEntryLine)\
+                .join(JournalEntry, JournalEntry.id == JournalEntryLine.journal_entry_id)\
+                .join(Account, Account.id == JournalEntryLine.account_id)\
+                .filter(
+                    JournalEntry.tenant_id == tenant_id,
+                    JournalEntry.status == 'Approved',
+                    *account_filters,
+                )
+            if params and params.branch_id:
+                q = q.filter(JournalEntryLine.branch_id == params.branch_id)
+            if params and params.start_date:
+                q = q.filter(func.date(JournalEntry.date) >= params.start_date)
+            if params and params.end_date:
+                q = q.filter(func.date(JournalEntry.date) <= params.end_date)
+            return q.scalar() or 0.0
+
+        # Total Revenue — all REVENUE-category accounts (credit-normal).
+        sales_rev = _ledger_sum(Account.category == AccountCategory.REVENUE, signed_by_debit=False)
+
+        # COGS — the dedicated Cost of Goods Sold account (5010), debit-normal.
+        cogs = _ledger_sum(Account.code == '5010', signed_by_debit=True)
+
+        # Total Operational Expenses — all other EXPENSE-account postings
+        # (payroll/salary, expense vouchers, sales returns, etc.), EXCLUDING COGS
+        # (5010, shown separately above) to avoid double-counting.
+        expenses = _ledger_sum(
+            Account.category == AccountCategory.EXPENSE,
+            Account.code != '5010',
+            signed_by_debit=True,
+        )
 
         gross_profit = sales_rev - cogs
         net_profit = gross_profit - expenses
