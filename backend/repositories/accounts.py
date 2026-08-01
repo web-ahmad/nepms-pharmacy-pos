@@ -215,7 +215,10 @@ class AccountsRepository:
             JournalEntryLine.debit,
             JournalEntryLine.credit,
             JournalEntry.status.label("journal_status"),
-            func.coalesce(PayrollRun.id, CashLedgerEntry.id, Sale.id).label("source_id"),
+            JournalEntry.source_module.label("source_module"),
+            # Prefer the explicit journal-entry source_id (e.g. purchase invoice id);
+            # fall back to the joined payroll/cash/sale id for older rows.
+            func.coalesce(JournalEntry.source_id, PayrollRun.id, CashLedgerEntry.id, Sale.id).label("source_id"),
             User.full_name.label("created_by_name")
         ).join(JournalEntryLine, JournalEntry.id == JournalEntryLine.journal_entry_id)\
          .join(Account, Account.id == JournalEntryLine.account_id)\

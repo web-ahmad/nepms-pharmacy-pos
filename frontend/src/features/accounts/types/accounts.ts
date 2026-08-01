@@ -39,6 +39,7 @@ export interface LedgerRow {
   credit: number;
   balance: number;
   status?: string;
+  source_module?: string;
   source_id?: string;
   created_by_name?: string;
 }

@@ -15,7 +15,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Activity,
   Package,
   ShoppingBag,
   FileText,
@@ -33,6 +32,7 @@ import {
   PlusCircle,
   Building2,
   Megaphone,
+  Barcode,
 } from 'lucide-react';
 
 interface SidebarState {
@@ -100,6 +100,7 @@ export const NAV_ITEMS = [
   { label: 'Inventory Core',  href: '/inventory',                 icon: Package,         permission: 'inventory:view',          moduleKey: 'inventory',      color: 'indigo' as IconColor },
   { label: 'Low Stock Alerts',href: '/inventory/low-stock',       icon: AlertTriangle,   permission: 'inventory:view',          moduleKey: 'low_stock',      color: 'amber' as IconColor },
   { label: 'Physical Audit',  href: '/inventory/audit',           icon: ClipboardList,   permission: 'physical_audit:view',     moduleKey: 'physical_audit', color: 'violet' as IconColor },
+  { label: 'Barcode Studio',  href: '/inventory/barcode',         icon: Barcode,         permission: 'inventory:view',          moduleKey: 'inventory',      color: 'fuchsia' as IconColor },
   // ── Purchase ──────────────────────────────────────────────────────────────────
   { label: 'Purchases',       href: '/purchase',                  icon: ShoppingBag,     permission: 'purchase:view',           moduleKey: 'purchases',      color: 'orange' as IconColor },
   // ── Finance ───────────────────────────────────────────────────────────────────
@@ -111,7 +112,6 @@ export const NAV_ITEMS = [
   // ── Clinical ──────────────────────────────────────────────────────────────────
   { label: 'Prescriptions',   href: '/prescriptions',             icon: Stethoscope,     permission: 'prescriptions:view',      moduleKey: 'prescriptions',  color: 'fuchsia' as IconColor },
   // ── Analytics & Reports ───────────────────────────────────────────────────────
-  { label: 'Analytics',       href: '/analytics',                 icon: Activity,        permission: 'analytics:view',          moduleKey: 'analytics',      color: 'purple' as IconColor },
   { label: 'Reports',         href: '/reports',                   icon: PieChart,        permission: 'reports:view',            moduleKey: 'reports',        color: 'blue' as IconColor },
   // ── HR ────────────────────────────────────────────────────────────────────────
   { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',                 moduleKey: 'hr',             color: 'teal' as IconColor },

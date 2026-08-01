@@ -48,14 +48,17 @@ export default function GeneralLedgerTable({ data, isLoading, searchRef = '', bo
     const ref = row.reference || '';
     if (!ref) return <span className="font-mono text-gray-500 dark:text-zinc-500">—</span>;
 
-    // Purchase invoices share the INV- prefix with cash sales. Disambiguate via
-    // the entry's description / account so clicking opens the PURCHASE invoice
-    // detail, not the sales screen. (Purchase-invoice detail resolves by number.)
+    // Purchase invoices share the INV- prefix with cash sales. The row's
+    // source_module disambiguates so clicking opens the correct (purchase vs
+    // sale) invoice; description/account are a fallback for older rows.
     const desc = (row.journal_desc || '').toLowerCase();
     const acct = (row.account_name || '').toLowerCase();
-    const isPurchaseInvoice = ref.startsWith('INV-') && (desc.includes('purchase invoice') || acct.includes('payable'));
+    let sourceModule = row.source_module as string | undefined;
+    if (!sourceModule && ref.startsWith('INV-') && (desc.includes('purchase invoice') || acct.includes('payable'))) {
+      sourceModule = 'Purchase';
+    }
 
-    const link = isPurchaseInvoice ? `/purchase/invoices/${ref}` : getReferenceLink(ref);
+    const link = getReferenceLink(ref, { source_module: sourceModule, source_id: row.source_id });
     if (link) {
       return (
         <Link href={link} className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold font-mono whitespace-nowrap">

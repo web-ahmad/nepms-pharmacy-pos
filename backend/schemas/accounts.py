@@ -82,6 +82,7 @@ class LedgerRow(BaseModel):
     credit: float
     balance: float
     status: Optional[str] = None
+    source_module: Optional[str] = None
     source_id: Optional[str] = None
     created_by_name: Optional[str] = None
 

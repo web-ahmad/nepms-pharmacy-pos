@@ -128,7 +128,7 @@ export default function AccountLedgerPage() {
                     </tr>
                   ) : (
                     filteredRows.map((row: any, idx: number) => {
-                      const href = getReferenceLink(row.reference);
+                      const href = getReferenceLink(row.reference, { source_module: row.source_module, source_id: row.source_id });
                       return (
                         <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors">
                           <td className="px-4 py-3 text-gray-600 dark:text-zinc-300">

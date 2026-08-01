@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useMedicines, useBatches } from '../services/inventory.api';
 import { useExpiryAlerts, useLowStockAlerts, useInventoryOverview } from '@/features/dashboard/services/dashboard.api';
@@ -30,6 +31,9 @@ export default function InventoryTable() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  // Fixed-position anchor for the actions menu so it can be portalled out of the
+  // table's horizontal-scroll container (which otherwise clips the dropdown).
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [adjustingMedicine, setAdjustingMedicine] = useState<Medicine | null>(null);
   const [deletingMedicine, setDeletingMedicine] = useState<Medicine | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -54,6 +58,18 @@ export default function InventoryTable() {
   const canCreate = hasPermission('inventory:manage');
   const canEdit = canCreate;
   const canAdjust = hasPermission('inventory:manage');
+
+  // Close the actions menu on scroll/resize so it can't float detached from its row.
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const close = () => setActiveMenuId(null);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [activeMenuId]);
 
   // Debounce search input so we don't fire a request on every keystroke.
   useEffect(() => {
@@ -405,35 +421,58 @@ export default function InventoryTable() {
                             </Link>
                           )}
                           <button
-                            onClick={() => setActiveMenuId(activeMenuId === med.id ? null : med.id)}
+                            onClick={(e) => {
+                              if (activeMenuId === med.id) { setActiveMenuId(null); return; }
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              // Open downward, attached under the button. If it would spill past
+                              // the viewport bottom, nudge it up just enough to fit (stays near
+                              // the button — no big jump).
+                              const estHeight = 230;
+                              let top = rect.bottom + 4;
+                              if (top + estHeight > window.innerHeight - 8) {
+                                top = Math.max(8, window.innerHeight - estHeight - 8);
+                              }
+                              setMenuPos({ top, right: window.innerWidth - rect.right });
+                              setActiveMenuId(med.id);
+                            }}
                             className="p-1.5 text-[#76777d] hover:text-[#0b1c30] transition-colors rounded-sm hover:bg-[#e2e8f0]"
                             title="More Actions"
                           >
                             <MoreVertical size={16} />
                           </button>
 
-                          {activeMenuId === med.id && (
+                          {activeMenuId === med.id && menuPos && createPortal(
                             <>
-                              <div className="fixed inset-0 z-30" onClick={() => setActiveMenuId(null)} />
-                              <div className="absolute right-0 top-full mt-1 w-48 rounded-[4px] border border-[#e2e8f0] bg-white p-1 shadow-lg z-40 text-left animate-in fade-in zoom-in-95 duration-100">
+                              <div className="fixed inset-0 z-[998]" onClick={() => setActiveMenuId(null)} />
+                              <div
+                                style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, maxHeight: 'calc(100vh - 16px)', overflowY: 'auto' }}
+                                className="w-48 rounded-[4px] border border-[#e2e8f0] bg-white p-1 shadow-lg z-[999] text-left animate-in fade-in zoom-in-95 duration-100 dark:border-zinc-700 dark:bg-zinc-900"
+                              >
                                 <Link
                                   href={`/inventory/${med.id}?tab=batches`}
                                   onClick={() => setActiveMenuId(null)}
-                                  className="block rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium"
+                                  className="block rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium dark:text-zinc-100 dark:hover:bg-zinc-800"
                                 >
                                   View Batches
                                 </Link>
                                 <Link
                                   href={`/inventory/${med.id}?tab=movements`}
                                   onClick={() => setActiveMenuId(null)}
-                                  className="block rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium"
+                                  className="block rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium dark:text-zinc-100 dark:hover:bg-zinc-800"
                                 >
                                   Stock Movements
+                                </Link>
+                                <Link
+                                  href={`/inventory/medicines/${med.id}/edit`}
+                                  onClick={() => setActiveMenuId(null)}
+                                  className="block rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium dark:text-zinc-100 dark:hover:bg-zinc-800"
+                                >
+                                  Edit Details
                                 </Link>
                                 {canAdjust && (
                                   <button
                                     onClick={() => { setActiveMenuId(null); setAdjustingMedicine(med); }}
-                                    className="w-full text-left rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium"
+                                    className="w-full text-left rounded-sm px-3 py-2 text-[13px] text-[#0b1c30] hover:bg-[#eff4ff] hover:text-[#0058be] transition-colors font-medium dark:text-zinc-100 dark:hover:bg-zinc-800"
                                   >
                                     Adjust Stock
                                   </button>
@@ -447,7 +486,8 @@ export default function InventoryTable() {
                                   </button>
                                 )}
                               </div>
-                            </>
+                            </>,
+                            document.body
                           )}
                         </div>
                       </td>

@@ -220,6 +220,7 @@ class AccountsService:
                 "credit": credit,
                 "balance": running_bal,
                 "status": row_status,
+                "source_module": getattr(r, "source_module", None),
                 "source_id": getattr(r, "source_id", None),
                 "created_by_name": getattr(r, "created_by_name", "System")
             })

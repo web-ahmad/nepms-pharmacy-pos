@@ -14,6 +14,13 @@ from schemas.dashboard import (
 )
 from models.purchase import PurchaseRequest, PurchaseApproval
 
+# A "real" sale for reporting = any completed transaction. Historically only the
+# verify-flow set status "Completed"; the direct POS checkout sets "Paid" /
+# "Partially Paid" / "Unpaid" / "Returned". Filtering on "Completed" alone hid
+# every direct-checkout sale from the dashboard. Count all except the states
+# that never represent money taken at the counter.
+EXCLUDED_SALE_STATUSES = ["Voided", "Void", "Held", "On Hold", "Pending Verification", "Draft", "Cancelled"]
+
 def get_utc_bounds(date_str: str, tz_name: str, is_end_of_day: bool = False):
     """Convert local date string (YYYY-MM-DD) to UTC datetime boundary."""
     try:
@@ -38,7 +45,7 @@ def get_sales_overview(db: Session, tenant_id: str, branch_id: str = None, cashi
         func.sum(Sale.discount_amount).label('discounts'),
         func.sum(Sale.total_amount + Sale.discount_amount).label('gross_sales'),
         func.count(Sale.id).label('invoice_count')
-    ).filter(Sale.status == "Completed", Sale.tenant_id == tenant_id)
+    ).filter(Sale.status.notin_(EXCLUDED_SALE_STATUSES), Sale.tenant_id == tenant_id)
 
     if branch_id:
         query = query.filter(Sale.branch_id == branch_id)
@@ -64,7 +71,7 @@ def get_sales_overview(db: Session, tenant_id: str, branch_id: str = None, cashi
     cogs_query = db.query(
         func.sum(SaleItem.quantity * Batch.purchase_price)
     ).select_from(SaleItem).join(Sale).join(Batch, SaleItem.batch_id == Batch.id).filter(
-        Sale.status == "Completed",
+        Sale.status.notin_(EXCLUDED_SALE_STATUSES),
         Sale.tenant_id == tenant_id
     )
     if branch_id:
@@ -110,7 +117,7 @@ def get_sales_overview(db: Session, tenant_id: str, branch_id: str = None, cashi
     # Today's Cash Drawer (only Cash payment method)
     today_utc_from = get_utc_bounds(now.strftime("%Y-%m-%d"), tz_name, is_end_of_day=False)
     cash_drawer_query = db.query(func.sum(Sale.amount_paid - Sale.change_due)).filter(
-        Sale.status == "Completed",
+        Sale.status.notin_(EXCLUDED_SALE_STATUSES),
         Sale.payment_method == "Cash",
         Sale.sale_date >= today_utc_from,
         Sale.tenant_id == tenant_id
@@ -322,7 +329,7 @@ def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_
     tz_name = tenant.timezone if tenant and tenant.timezone else "UTC"
 
     # Setup base sale query
-    sale_query = db.query(Sale).filter(Sale.status == "Completed", Sale.tenant_id == tenant_id)
+    sale_query = db.query(Sale).filter(Sale.status.notin_(EXCLUDED_SALE_STATUSES), Sale.tenant_id == tenant_id)
     if branch_id:
         sale_query = sale_query.filter(Sale.branch_id == branch_id)
     if cashier_id:
@@ -342,7 +349,7 @@ def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_
         Sale.id,
         func.sum(SaleItem.quantity * Batch.purchase_price).label('cogs')
     ).select_from(SaleItem).join(Sale).join(Batch, SaleItem.batch_id == Batch.id).filter(
-        Sale.status == "Completed",
+        Sale.status.notin_(EXCLUDED_SALE_STATUSES),
         Sale.tenant_id == tenant_id
     )
     if branch_id:
@@ -390,7 +397,7 @@ def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_
         Medicine.name,
         func.sum(SaleItem.quantity).label('qty'),
         func.sum(SaleItem.total).label('rev')
-    ).select_from(SaleItem).join(Sale).join(Medicine).filter(Sale.status == "Completed", Medicine.tenant_id == tenant_id)
+    ).select_from(SaleItem).join(Sale).join(Medicine).filter(Sale.status.notin_(EXCLUDED_SALE_STATUSES), Medicine.tenant_id == tenant_id)
     
     if branch_id:
         item_query = item_query.filter(Sale.branch_id == branch_id)
@@ -413,7 +420,7 @@ def get_charts_data(db: Session, tenant_id: str, branch_id: str = None, cashier_
     leaderboard_query = db.query(
         User.full_name.label("cashier_name"),
         func.sum(Sale.total_amount).label('total_rev')
-    ).join(User, Sale.cashier_id == User.id).filter(Sale.status == "Completed", Sale.tenant_id == tenant_id)
+    ).join(User, Sale.cashier_id == User.id).filter(Sale.status.notin_(EXCLUDED_SALE_STATUSES), Sale.tenant_id == tenant_id)
     if branch_id:
         leaderboard_query = leaderboard_query.filter(Sale.branch_id == branch_id)
     if from_date:

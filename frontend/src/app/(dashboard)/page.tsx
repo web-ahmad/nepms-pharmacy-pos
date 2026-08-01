@@ -27,16 +27,22 @@ function SectionHeading({ icon: Icon, title, tint }: { icon: React.ElementType; 
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuthStore();
-  const isCashier          = !hasPermission('sales:manage') && hasPermission('pos:view');
-  const isInventoryManager = hasPermission('inventory:manage') && !hasPermission('sales:manage');
   const hasFullAccess      = (user?.hierarchy_level ?? 4) <= 3;
+  // Full-access owners (L2/L3) are never "just a cashier" or "just inventory".
+  const isCashier          = !hasFullAccess && !hasPermission('sales:manage') && hasPermission('pos:view');
+  const isInventoryManager = !hasFullAccess && hasPermission('inventory:manage') && !hasPermission('sales:manage');
 
   const [dateRange, setDateRange] = useState<DateRange>({
     from_date: format(new Date(), 'yyyy-MM-dd'),
     to_date: format(new Date(), 'yyyy-MM-dd'),
   });
 
-  const canSeeSales = !isInventoryManager && hasPermission('sales:view');
+  // Full-access owners (L2 Pharmacy Owner + L3 Franchise/Branch Owner) always see
+  // the complete dashboard — their sales data is branch-scoped on the backend.
+  // Staff (L4) still gate on the granular sales:view permission.
+  const canSeeSales = !isInventoryManager && (hasFullAccess || hasPermission('sales:view'));
+  const canSeeCharts = !isInventoryManager && !isCashier &&
+    (hasFullAccess || (hasPermission('sales:view') && hasPermission('reports:view')));
   const today = format(new Date(), 'EEEE, MMMM d, yyyy');
 
   return (
@@ -87,7 +93,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Charts ───────────────────────────────────────────────────────── */}
-      {(!isInventoryManager && !isCashier && hasPermission('sales:view') && hasPermission('reports:view')) && (
+      {canSeeCharts && (
         <section>
           <SalesChart dateRange={dateRange} />
         </section>
