@@ -89,6 +89,8 @@ export interface Permission {
 
 export interface PermissionGrouped {
   module: string;
+  group?: string;          // parent category, e.g. "HR & Payroll"
+  module_label?: string;   // friendly sub-module name
   permissions: Permission[];
 }
 
@@ -269,6 +271,7 @@ export interface EnterpriseUserListItem {
   phone?: string;
   avatar_url?: string;
   employee_id?: string;
+  employee_code?: string;
   enterprise_role?: RoleListItem;
   branch_count: number;
   last_login_at?: string;
@@ -307,6 +310,7 @@ export interface EnterpriseUser {
 
   // Staff info
   employee_id?: string;
+  employee_code?: string;
   cnic?: string;
   license_number?: string;
   qualification?: string;
@@ -350,6 +354,7 @@ export interface EnterpriseUserCreate {
   user_type?: string;
   enterprise_role_id?: string;
   employee_id?: string;
+  employee_code?: string;
   cnic?: string;
   license_number?: string;
   qualification?: string;
@@ -378,6 +383,7 @@ export interface EnterpriseUserUpdate {
   timezone?: string;
   notes?: string;
   employee_id?: string;
+  employee_code?: string;
   cnic?: string;
   license_number?: string;
   qualification?: string;

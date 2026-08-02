@@ -11,10 +11,10 @@ from __future__ import annotations
 import os, uuid, shutil
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File, Body
 from sqlalchemy.orm import Session
 
-from core.deps import get_current_user, requires_permission
+from core.deps import get_current_user, requires_permission, oauth2_scheme
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from database import get_db
 from models.enterprise.user import EnterpriseRole  # RBAC 4.0: elevation guard
@@ -83,6 +83,42 @@ def _get_eu_or_404(db: Session, eu_id: str, pharmacy_id: str):
     return eu
 
 
+def _employee_code_map(db: Session, employee_ids) -> dict:
+    """Resolve HR employee codes (e.g. EMP-1002) for a set of employee ids.
+    The human code lives in Employee.employee_id (Employee.id is the UUID)."""
+    ids = [i for i in set(employee_ids) if i]
+    if not ids:
+        return {}
+    try:
+        from models.hr import Employee
+        rows = db.query(Employee.id, Employee.employee_id, Employee.employee_code).filter(Employee.id.in_(ids)).all()
+        return {r[0]: (r[1] or r[2]) for r in rows if (r[1] or r[2])}
+    except Exception:
+        return {}
+
+
+def _employee_code(db: Session, employee_id) -> Optional[str]:
+    return _employee_code_map(db, [employee_id]).get(employee_id)
+
+
+def require_users_view_or_self(
+    eu_id: str,
+    token: str = Depends(oauth2_scheme),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Read guard for the user-detail page: any user may view their OWN profile
+    (even without users:view); otherwise users:view is required."""
+    pid = _resolve_pharmacy_id(scope)
+    eu = enterprise_user_repository.get_by_id(db, eu_id, pid)
+    if eu and eu.user_id == current_user.id:
+        return current_user  # self — always allowed to read own profile
+    # Not self → enforce the normal permission.
+    requires_permission("users:view")(token=token, db=db)
+    return current_user
+
+
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
 @router.get("/dashboard", response_model=UserDashboardSummary, summary="Security & user dashboard KPIs")
@@ -133,6 +169,9 @@ def list_users(
         sort_by=sort_by, sort_dir=sort_dir,
         page=page, limit=limit,
     )
+    # Batch-resolve the human employee codes for linked employees.
+    code_map = _employee_code_map(db, [eu.employee_id for eu in items])
+
     list_items = []
     for eu in items:
         u = eu.user
@@ -147,6 +186,7 @@ def list_users(
             phone=u.phone if u else None,
             avatar_url=eu.avatar_url,
             employee_id=eu.employee_id,
+            employee_code=code_map.get(eu.employee_id),
             enterprise_role=eu.enterprise_role,
             branch_count=len([a for a in eu.branch_assignments if a.is_active]),
             last_login_at=eu.last_login_at,
@@ -220,16 +260,40 @@ def create_user(
 
 # ── Get single ────────────────────────────────────────────────────────────────
 
+# NOTE: defined BEFORE "/{eu_id}" so "me" isn't captured as a dynamic id.
+@router.get("/me", summary="Current user's own enterprise profile id")
+def get_my_profile(
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Resolve the logged-in user's enterprise-user id so the client can open
+    their own profile detail page (/users/{eu_id})."""
+    pid = _resolve_pharmacy_id(scope)
+    from models.enterprise.user import EnterpriseUser
+    eu = db.query(EnterpriseUser).filter(
+        EnterpriseUser.user_id == current_user.id,
+        EnterpriseUser.pharmacy_id == pid,
+        EnterpriseUser.is_deleted == False,
+    ).first()
+    if not eu:
+        # Fall back to any enterprise-user row for this core user.
+        eu = db.query(EnterpriseUser).filter(EnterpriseUser.user_id == current_user.id).first()
+    if not eu:
+        raise HTTPException(status_code=404, detail="Profile not found.")
+    return {"enterprise_user_id": eu.id, "user_id": eu.user_id}
+
+
 @router.get("/{eu_id}", response_model=EnterpriseUserRead, summary="Get user detail")
 def get_user(
     eu_id: str,
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    _ = Depends(require_users_view_or_self),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
-    return _build_read(eu)
+    return _build_read(eu, employee_code=_employee_code(db, eu.employee_id))
 
 
 # ── Update ────────────────────────────────────────────────────────────────────
@@ -296,7 +360,7 @@ def update_user(
 
 # ── Delete (soft) ─────────────────────────────────────────────────────────────
 
-@router.delete("/{eu_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Soft-delete user")
+@router.delete("/{eu_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Permanently delete user")
 def delete_user(
     eu_id: str,
     scope: PharmacyScope = Depends(get_pharmacy_scope),
@@ -404,7 +468,7 @@ def list_user_branches(
     eu_id: str,
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    _ = Depends(require_users_view_or_self),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
@@ -458,11 +522,36 @@ def get_user_permissions(
     branch_id: Optional[str] = Query(None),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    _ = Depends(require_users_view_or_self),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
-    perms = user_service.compute_effective_permissions(db, enterprise_user=eu, branch_id=branch_id)
+    bid = branch_id or scope.branch_id
+    perms = user_service.compute_effective_permissions(db, enterprise_user=eu, branch_id=bid)
+    base = user_service.role_base_permissions(eu)
+    role_name = eu.enterprise_role.name if eu.enterprise_role else None
+    level = eu.enterprise_role.hierarchy_level if eu.enterprise_role else 4
+    return {
+        "permissions": perms, "count": len(perms),
+        "role_permissions": base, "role_name": role_name, "hierarchy_level": level,
+        # L1/L2 are wildcard owners — per-permission editing doesn't apply to them.
+        "is_wildcard": level is not None and level <= 2,
+    }
+
+
+@router.put("/{eu_id}/permissions", summary="Set (grant/revoke) permissions for a user")
+def set_user_permissions(
+    eu_id: str,
+    payload: dict = Body(...),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    db: Session = Depends(get_db),
+    token: dict = Depends(requires_permission("users:manage")),
+):
+    pid = _resolve_pharmacy_id(scope)
+    eu = _get_eu_or_404(db, eu_id, pid)
+    granted = payload.get("permissions") or []
+    branch_id = payload.get("branch_id") or scope.branch_id
+    perms = user_service.set_user_permissions(db, enterprise_user=eu, granted=granted, branch_id=branch_id)
     return {"permissions": perms, "count": len(perms)}
 
 
@@ -475,7 +564,7 @@ def list_sessions(
     limit: int = Query(20, ge=1, le=100),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    _ = Depends(require_users_view_or_self),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
@@ -518,7 +607,7 @@ def list_devices(
     limit: int = Query(20, ge=1, le=100),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    _ = Depends(require_users_view_or_self),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
@@ -562,7 +651,7 @@ def login_history(
     limit: int = Query(20, ge=1, le=100),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    _ = Depends(require_users_view_or_self),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
@@ -579,7 +668,7 @@ def activity_log(
     limit: int = Query(20, ge=1, le=100),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    _ = Depends(require_users_view_or_self),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
@@ -596,7 +685,7 @@ def list_approvals(
     limit: int = Query(20, ge=1, le=100),
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    _: dict = Depends(requires_permission("users:view")),
+    _ = Depends(require_users_view_or_self),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)
@@ -624,7 +713,7 @@ def review_approval(
 
 # ── Helper ────────────────────────────────────────────────────────────────────
 
-def _build_read(eu: "EnterpriseUser") -> EnterpriseUserRead:
+def _build_read(eu: "EnterpriseUser", employee_code: Optional[str] = None) -> EnterpriseUserRead:
     u = eu.user
     from schemas.enterprise.user import BranchAssignmentRead, BranchInfoNested
     assignments = []
@@ -665,6 +754,7 @@ def _build_read(eu: "EnterpriseUser") -> EnterpriseUserRead:
         notif_in_app=eu.notif_in_app,
         notif_whatsapp=eu.notif_whatsapp,
         employee_id=eu.employee_id,
+        employee_code=employee_code,
         cnic=eu.cnic,
         license_number=eu.license_number,
         qualification=eu.qualification,

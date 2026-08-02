@@ -239,6 +239,33 @@ export const useMonthlyAttendance = (employeeId?: string, month?: number, year?:
   });
 };
 
+// ── Self attendance (logged-in employee clocks themselves) ──────────────────────
+export interface MyAttendance {
+  employee_id: string;
+  employee_name: string;
+  attendance: Attendance | null;
+}
+export const useMyTodayAttendance = () => useQuery({
+  queryKey: ['hr', 'attendance', 'my-today'],
+  queryFn: async () => (await api.get('/api/v1/hr/attendance/my/today')).data as MyAttendance,
+  retry: false,
+  refetchInterval: 60000,
+});
+export const useMyClockIn = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post('/api/v1/hr/attendance/my/clock-in')).data as Attendance,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'attendance'] }),
+  });
+};
+export const useMyClockOut = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post('/api/v1/hr/attendance/my/clock-out')).data as Attendance,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'attendance'] }),
+  });
+};
+
 export const useTodayAttendance = (employeeId: string | null) => {
   return useQuery({
     queryKey: ['hr', 'attendance', 'today', employeeId],
@@ -595,6 +622,19 @@ export const useEmployeeDocuments = (employeeId?: string) => {
       const res = await api.get(url);
       return res.data as EmployeeDocument[];
     }
+  });
+};
+
+export const useUploadEmployeeDocument = () => {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post('/api/v1/hr/employee-documents/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data as { url: string; name: string };
+    },
   });
 };
 

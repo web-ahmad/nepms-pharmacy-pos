@@ -3,9 +3,10 @@
 import React, { useState, useMemo } from 'react';
 import { useExpenseVouchers, useCreatePettyCashVoucher, useVoidExpenseVoucher } from '@/features/accounts/services/expense.api';
 import { usePettyCashCategories, useCreatePettyCashCategory, useDeletePettyCashCategory } from '@/features/accounts/services/petty_cash.api';
-import { Receipt, Check, Trash2, ArrowRight, Settings, Plus, Download } from 'lucide-react';
+import { Receipt, Check, Trash2, ArrowRight, Settings, Plus, Download, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuthStore } from '@/stores/auth-store';
+import { useSettings, resolveAssetUrl } from '@/features/settings/services/settings.api';
 import toast from 'react-hot-toast';
 import { GlobalPrintTemplate } from '@/components/shared/GlobalPrintTemplate';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -79,6 +80,62 @@ export default function PettyCashPage() {
 
   const handleDownloadPDF = () => {
     window.print();
+  };
+
+  const { data: appSettings } = useSettings();
+  const { user } = useAuthStore();
+
+  const printExpenseSlip = (v: any) => {
+    const co: any = (appSettings as any)?.company_settings || {};
+    const coName = co.name || 'Pharmacy';
+    const logo = co.show_logo === false ? '' : resolveAssetUrl(co.logo_url);
+    const catName = categories?.find((c: any) => c.id === v.petty_cash_category_id)?.name || 'General';
+    const amount = Number(v.amount || 0);
+    const statusColor = v.status === 'Approved' ? '#16a34a' : v.status === 'Void' ? '#dc2626' : '#d97706';
+
+    const w = window.open('', '_blank', 'width=380,height=700');
+    if (!w) { toast.error('Popup blocked — allow popups to print.'); return; }
+    w.document.write(`<!doctype html><html><head><title>Expense Voucher — ${v.reference || ''}</title>
+      <style>
+        @page { size: 80mm auto; margin: 3mm; }
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { font-family: 'Roboto', Arial, sans-serif; color: #111827; margin: 0; padding: 6px 8px; width: 80mm; }
+        .logo { text-align:center; padding: 4px 0 8px; }
+        .logo img { max-height: 54px; max-width: 90%; width:auto; object-fit:contain; }
+        .logo .fallback { font-size:16px; font-weight:800; letter-spacing:.3px; }
+        .title { text-align:center; background:#111827; color:#fff; font-weight:800; letter-spacing:2px; font-size:12px; padding:6px; margin: 4px 0 8px; }
+        .row { display:flex; justify-content:space-between; gap:8px; padding:5px 2px; border-bottom:1px dashed #d1d5db; font-size:12px; }
+        .row .k { color:#6b7280; }
+        .row .v { font-weight:700; text-align:right; word-break:break-word; }
+        .amount { display:flex; justify-content:space-between; align-items:center; margin-top:10px; padding:8px 10px; background:#f3f4f6; border-radius:6px; }
+        .amount .lbl { font-size:10px; color:#6b7280; text-transform:uppercase; letter-spacing:1px; }
+        .amount .val { font-size:22px; font-weight:900; }
+        .badge { display:inline-block; padding:1px 8px; border-radius:999px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:#fff; background:${statusColor}; }
+        .signs { display:flex; gap:14px; padding:30px 4px 8px; }
+        .sign { flex:1; text-align:center; }
+        .sign .line { border-top:1px solid #111827; margin-bottom:5px; }
+        .sign .lbl { font-size:10px; color:#374151; font-weight:600; }
+        .foot { text-align:center; font-size:9px; color:#9ca3af; padding:8px 0 2px; border-top:1px dashed #d1d5db; margin-top:6px; }
+      </style></head><body>
+      <div class="logo">
+        ${logo ? `<img src="${logo}" />` : `<div class="fallback">${coName}</div>`}
+      </div>
+      <div class="title">EXPENSE VOUCHER</div>
+      <div class="row"><span class="k">Voucher No.</span><span class="v">${v.reference || '-'}</span></div>
+      <div class="row"><span class="k">Date</span><span class="v">${format(new Date(v.date), 'MMM d, yyyy')}</span></div>
+      <div class="row"><span class="k">Category</span><span class="v">${catName}</span></div>
+      <div class="row"><span class="k">Branch</span><span class="v">${(user as any)?.pharmacy_name || co.name || '-'}</span></div>
+      <div class="row"><span class="k">Description</span><span class="v">${v.description || '-'}</span></div>
+      <div class="row"><span class="k">Status</span><span class="v"><span class="badge">${v.status}</span></span></div>
+      <div class="amount"><span class="lbl">Total</span><span class="val">Rs ${amount.toLocaleString()}</span></div>
+      <div class="signs">
+        <div class="sign"><div class="line"></div><div class="lbl">Prepared By</div></div>
+        <div class="sign"><div class="line"></div><div class="lbl">Manager Signature</div></div>
+      </div>
+      <div class="foot">NEPMS · ${format(new Date(), 'dd MMM yyyy, hh:mm a')}</div>
+      <script>window.onload=()=>{setTimeout(()=>{window.print();},250);};<\/script>
+      </body></html>`);
+    w.document.close();
   };
 
   return (
@@ -265,21 +322,30 @@ export default function PettyCashPage() {
                         </span>
                       </td>
                       <td className="px-8 py-5 text-center">
-                        {v.status !== 'Void' && (
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if(window.confirm('Are you sure you want to void this expense?')) {
-                                const reason = window.prompt('Reason for voiding this expense (optional):') || undefined;
-                                voidVoucher({ id: v.id, reason });
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                            title="Void Expense"
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); printExpenseSlip(v); }}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all"
+                            title="Print Voucher Slip"
                           >
-                            <Trash2 size={16} />
+                            <Printer size={16} />
                           </button>
-                        )}
+                          {v.status !== 'Void' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if(window.confirm('Are you sure you want to void this expense?')) {
+                                  const reason = window.prompt('Reason for voiding this expense (optional):') || undefined;
+                                  voidVoucher({ id: v.id, reason });
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
+                              title="Void Expense"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )

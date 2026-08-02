@@ -244,26 +244,29 @@ function RoleDetail({ roleId, onDeleted }: { roleId: string; onDeleted: () => vo
     return false;
   }, [selected, initial]);
 
-  // One section per real module (module-wise), ordered like the app.
-  const modules = useMemo(() => {
+  // Two-level: Category (e.g. "HR & Payroll") → sub-modules → permissions.
+  // The backend already returns modules ordered by category, so we preserve it.
+  const categories = useMemo(() => {
     const groups: PermissionGrouped[] = catalogue ?? [];
     const q = search.trim().toLowerCase();
     const filtered = groups
       .map((g) => ({
         module: g.module,
+        group: g.group || 'Other',
+        module_label: g.module_label || prettyModule(g.module),
         permissions: q
-          ? g.permissions.filter((p) => p.code.toLowerCase().includes(q) || prettyModule(g.module).toLowerCase().includes(q))
+          ? g.permissions.filter((p) => p.code.toLowerCase().includes(q)
+              || (g.module_label || g.module).toLowerCase().includes(q)
+              || (g.group || '').toLowerCase().includes(q))
           : g.permissions,
       }))
       .filter((g) => g.permissions.length > 0);
-    return filtered.sort((a, b) => {
-      const ia = MODULE_ORDER.indexOf(a.module);
-      const ib = MODULE_ORDER.indexOf(b.module);
-      if (ia === -1 && ib === -1) return a.module.localeCompare(b.module);
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
-    });
+    const byCat = new Map<string, typeof filtered>();
+    for (const g of filtered) {
+      if (!byCat.has(g.group)) byCat.set(g.group, []);
+      byCat.get(g.group)!.push(g);
+    }
+    return Array.from(byCat.entries()).map(([category, mods]) => ({ category, modules: mods }));
   }, [catalogue, search]);
 
   const toggle = (id: string) => {
@@ -378,7 +381,7 @@ function RoleDetail({ roleId, onDeleted }: { roleId: string; onDeleted: () => vo
           />
         </div>
         <div className="flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-          <button onClick={() => setExpanded(new Set(modules.map((m) => m.module)))} className="hover:text-indigo-600">Expand all</button>
+          <button onClick={() => setExpanded(new Set(categories.flatMap((c) => c.modules.map((m) => m.module))))} className="hover:text-indigo-600">Expand all</button>
           <span className="h-3 w-px bg-zinc-300 dark:bg-zinc-700" />
           <button onClick={() => setExpanded(new Set())} className="hover:text-indigo-600">Collapse all</button>
           <span className="rounded-full bg-indigo-50 px-2 py-0.5 font-semibold text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300">
@@ -387,76 +390,68 @@ function RoleDetail({ roleId, onDeleted }: { roleId: string; onDeleted: () => vo
         </div>
       </div>
 
-      {/* matrix — one section per module, checkbox based */}
-      <div className="max-h-[calc(100vh-340px)] space-y-2.5 overflow-y-auto p-3 sm:p-4">
-        {modules.length === 0 && (
+      {/* matrix — Category → sub-module → permission checkboxes */}
+      <div className="max-h-[calc(100vh-340px)] space-y-5 overflow-y-auto p-3 sm:p-4">
+        {categories.length === 0 && (
           <div className="py-12 text-center text-sm text-zinc-400">No permissions match “{search}”.</div>
         )}
-        {modules.map(({ module, permissions }) => {
-          const isOpen = expanded.has(module) || !!search.trim();
-          const onCount = permissions.filter((p) => selected.has(p.id)).length;
-          const allOn = onCount === permissions.length;
-          const someOn = onCount > 0 && !allOn;
+        {categories.map(({ category, modules }) => {
+          const catPerms = modules.flatMap((m) => m.permissions);
+          const catOn = catPerms.filter((p) => selected.has(p.id)).length;
           return (
-            <div key={module} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
-              {/* module header row with a master checkbox */}
-              <div className="flex items-center gap-3 bg-zinc-50/80 px-3 py-2.5 sm:px-4 dark:bg-zinc-900/50">
-                <Checkbox
-                  checked={allOn}
-                  indeterminate={someOn}
-                  disabled={readOnly}
-                  onChange={() => toggleModule(permissions)}
-                />
-                <button
-                  onClick={() => setExpanded((prev) => {
-                    const n = new Set(prev); n.has(module) ? n.delete(module) : n.add(module); return n;
-                  })}
-                  className="flex flex-1 items-center justify-between gap-2 text-left"
-                >
-                  <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{prettyModule(module)}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700">
-                      {onCount}/{permissions.length}
-                    </span>
-                    <ChevronDown size={16} className={`shrink-0 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                  </div>
-                </button>
+            <div key={category} className="space-y-2">
+              {/* Category header */}
+              <div className="flex items-center gap-2 px-1">
+                <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-indigo-500 to-violet-600" />
+                <h4 className="text-sm font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-200">{category}</h4>
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{catOn}/{catPerms.length}</span>
+                <div className="ml-2 h-px flex-1 bg-zinc-100 dark:bg-zinc-800" />
               </div>
 
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.18 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 p-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {permissions.map((p) => {
-                        const on = selected.has(p.id);
-                        return (
-                          <label
-                            key={p.id}
-                            title={p.code}
-                            className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${
-                              readOnly ? 'cursor-default' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
-                            }`}
-                          >
-                            <Checkbox checked={on} disabled={readOnly} onChange={() => toggle(p.id)} />
-                            <span className={`flex-1 ${on ? 'font-medium text-zinc-800 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>
-                              {prettyAction(p.action)}
-                            </span>
-                            {p.is_sensitive && (
-                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" title="Sensitive permission" />
-                            )}
-                          </label>
-                        );
-                      })}
+              {/* Sub-modules */}
+              {modules.map(({ module, module_label, permissions }) => {
+                const isOpen = expanded.has(module) || !!search.trim();
+                const onCount = permissions.filter((p) => selected.has(p.id)).length;
+                const allOn = onCount === permissions.length;
+                const someOn = onCount > 0 && !allOn;
+                return (
+                  <div key={module} className="ml-2 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-3 bg-zinc-50/80 px-3 py-2.5 sm:px-4 dark:bg-zinc-900/50">
+                      <Checkbox checked={allOn} indeterminate={someOn} disabled={readOnly} onChange={() => toggleModule(permissions)} />
+                      <button
+                        onClick={() => setExpanded((prev) => { const n = new Set(prev); n.has(module) ? n.delete(module) : n.add(module); return n; })}
+                        className="flex flex-1 items-center justify-between gap-2 text-left"
+                      >
+                        <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{module_label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700">{onCount}/{permissions.length}</span>
+                          <ChevronDown size={16} className={`shrink-0 text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
+                          <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 p-2 sm:grid-cols-2 xl:grid-cols-3">
+                            {permissions.map((p) => {
+                              const on = selected.has(p.id);
+                              return (
+                                <label key={p.id} title={p.code}
+                                  className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${readOnly ? 'cursor-default' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/60'}`}>
+                                  <Checkbox checked={on} disabled={readOnly} onChange={() => toggle(p.id)} />
+                                  <span className={`flex-1 ${on ? 'font-medium text-zinc-800 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>{prettyAction(p.action)}</span>
+                                  {p.is_sensitive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" title="Sensitive permission" />}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
             </div>
           );
         })}

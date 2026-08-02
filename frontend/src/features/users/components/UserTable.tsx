@@ -236,9 +236,14 @@ export function UserTable({ onEditUser }: Props) {
     }),
     col.accessor('employee_id', {
       header: 'Employee ID',
-      cell: ({ getValue }) => (
-        <span className="text-xs text-zinc-500 font-mono">{getValue() ?? '—'}</span>
-      ),
+      cell: ({ row, getValue }) => {
+        const code = (row.original as any).employee_code;   // e.g. EMP-1002
+        const raw = getValue() as string | undefined;
+        const display = code ? code
+          : !raw ? '—'
+          : /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(raw) ? raw.split('-')[0].toUpperCase() : raw;
+        return <span className="text-xs text-zinc-500 font-mono">{display}</span>;
+      },
     }),
     col.accessor('last_login_at', {
       header: 'Last Login',

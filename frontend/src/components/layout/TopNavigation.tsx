@@ -1,9 +1,10 @@
 'use client';
 
 import { useAuthStore } from '@/stores/auth-store';
+import { useMyProfileId } from '@/features/users/services/user.api';
 import { useExpiryAlerts } from '@/features/dashboard/services/dashboard.api';
 import { useLowStockAlerts, LowStockAlert } from '@/features/inventory/services/alerts.api';
-import { LogOut, User as UserIcon, Moon, Sun, X, ChevronRight, Package, Clock, AlertTriangle, TrendingDown, ChevronDown, Settings, Mail, Building2, ShieldCheck } from 'lucide-react';
+import { LogOut, User as UserIcon, Moon, Sun, X, ChevronRight, Package, Clock, AlertTriangle, TrendingDown, ChevronDown, Settings, Mail, Building2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useState, useRef, useEffect } from 'react';
@@ -326,6 +327,13 @@ export function TopNavigation() {
   const { user, logout, branchId } = useAuthStore();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
+  const { data: myProfile } = useMyProfileId();
+
+  const openMyProfile = () => {
+    setProfileOpen(false);
+    if (myProfile?.enterprise_user_id) router.push(`/users/${myProfile.enterprise_user_id}`);
+    else router.push('/settings/company');  // fallback if not an enterprise user
+  };
 
   const { data: expiryAlerts } = useExpiryAlerts();
   const { data: lowStockData } = useLowStockAlerts({ skip: 0, limit: 100 });
@@ -463,16 +471,15 @@ export function TopNavigation() {
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800/70">
                   {user?.email && <ProfileRow icon={Mail} label="Email" value={user.email} />}
                   <ProfileRow icon={Building2} label="Active Branch" value={currentBranch} />
-                  <ProfileRow icon={ShieldCheck} label="Access" value={`Level ${user?.hierarchy_level ?? 4} · ${user?.permissions?.length ?? 0} permissions`} />
                 </div>
 
                 {/* Actions */}
                 <div className="border-t border-zinc-100 p-1.5 dark:border-zinc-800">
                   <button
-                    onClick={() => { router.push('/settings/company'); setProfileOpen(false); }}
+                    onClick={openMyProfile}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
                   >
-                    <Settings size={15} className="text-zinc-400" /> Account &amp; Settings
+                    <Settings size={15} className="text-zinc-400" /> My Profile
                   </button>
                   <button
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

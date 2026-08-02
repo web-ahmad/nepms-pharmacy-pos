@@ -284,17 +284,47 @@ export function useTransferBranch(id: string) {
 
 // ── Permissions ───────────────────────────────────────────────────────────────
 
+export interface UserPermissionsInfo {
+  permissions: string[];
+  count: number;
+  role_permissions: string[];
+  role_name: string | null;
+  hierarchy_level: number;
+  is_wildcard: boolean;
+}
+
+export function useMyProfileId() {
+  return useQuery({
+    queryKey: [...userKeys.all, 'me'],
+    queryFn: async () => {
+      const res = await api.get<{ enterprise_user_id: string; user_id: string }>(`${BASE}/me`);
+      return res.data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useUserPermissions(id: string, branchId?: string) {
   return useQuery({
     queryKey: userKeys.perms(id, branchId),
     queryFn: async () => {
       const q = branchId ? `?branch_id=${branchId}` : '';
-      const res = await api.get<{ permissions: string[]; count: number }>(
-        `${BASE}/${id}/permissions${q}`
-      );
+      const res = await api.get<UserPermissionsInfo>(`${BASE}/${id}/permissions${q}`);
       return res.data;
     },
     enabled: !!id,
+  });
+}
+
+export function useUpdateUserPermissions(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (permissions: string[]) => {
+      const res = await api.put<{ permissions: string[]; count: number }>(
+        `${BASE}/${id}/permissions`, { permissions });
+      return res.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: [...userKeys.all, 'permissions', id] }),
   });
 }
 

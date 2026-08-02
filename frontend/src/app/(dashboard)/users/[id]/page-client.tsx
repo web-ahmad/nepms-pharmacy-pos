@@ -2,13 +2,14 @@
 // app/(dashboard)/users/[id]/page.tsx
 // Enterprise User Detail — tabbed profile page.
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, User, Shield, Building2, Monitor, Smartphone,
   Clock, Activity, FileCheck, Lock, Unlock, UserX, UserCheck,
   KeyRound, RefreshCw, Loader2, CheckCircle2, XCircle, AlertTriangle,
+  ShieldCheck, Search, Save, Check, ChevronDown, Sparkles,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -25,14 +26,18 @@ import {
   useLoginHistory, useUserActivity,
   useSuspendUser, useActivateUser, useLockUser, useUnlockUser,
   useResetPassword,
+  useUserPermissions, useUpdateUserPermissions, useMyProfileId,
 } from '@/features/users/services/user.api';
+import { useAuthStore } from '@/stores/auth-store';
+import { usePermissionsCatalogue } from '@/features/users/services/role.api';
 import { USER_TYPE_LABELS } from '@/features/users/types/user';
 
-type Tab = 'profile' | 'access' | 'branches' | 'sessions' | 'devices' | 'logins' | 'activity';
+type Tab = 'profile' | 'access' | 'permissions' | 'branches' | 'sessions' | 'devices' | 'logins' | 'activity';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'profile',   label: 'Profile',      icon: <User size={15} /> },
   { id: 'access',    label: 'Access',       icon: <Shield size={15} /> },
+  { id: 'permissions', label: 'Permissions', icon: <ShieldCheck size={15} /> },
   { id: 'branches',  label: 'Branches',     icon: <Building2 size={15} /> },
   { id: 'sessions',  label: 'Sessions',     icon: <Monitor size={15} /> },
   { id: 'devices',   label: 'Devices',      icon: <Smartphone size={15} /> },
@@ -42,6 +47,15 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
 
 // ── Sub-panels ────────────────────────────────────────────────────────────────
 
+// Show a clean, short Employee ID. If the stored value is an internal UUID
+// (from an HR link), display just its first segment uppercased (e.g. 7B22ACBC)
+// so it reads like a code instead of a long random string.
+function fmtEmpId(id: string): string {
+  if (!id) return '';
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id);
+  return isUuid ? id.split('-')[0].toUpperCase() : id;
+}
+
 function ProfileTab({ user }: { user: any }) {
   const rows = [
     { label: 'Username',        value: user.username },
@@ -49,7 +63,7 @@ function ProfileTab({ user }: { user: any }) {
     { label: 'Phone',           value: user.phone },
     { label: 'User Type',       value: USER_TYPE_LABELS[user.user_type as keyof typeof USER_TYPE_LABELS] ?? user.user_type },
     { label: 'Role',            value: user.enterprise_role?.name },
-    { label: 'Employee ID',     value: user.employee_id },
+    { label: 'Employee ID',     value: user.employee_code || (user.employee_id ? fmtEmpId(user.employee_id) : '') },
     { label: 'CNIC',            value: user.cnic },
     { label: 'License No.',     value: user.license_number },
     { label: 'Qualification',   value: user.qualification },
@@ -113,19 +127,174 @@ function AccessTab({ user }: { user: any }) {
   );
 }
 
-function BranchesTab({ user }: { user: any }) {
+const prettyModule = (m: string) =>
+  m.replace(/[_-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const prettyAction = (code: string) => {
+  const a = code.includes(':') ? code.split(':')[1] : code;
+  return a.replace(/[:_.]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+function PermissionsTab({ userId }: { userId: string }) {
+  const { data: info, isLoading } = useUserPermissions(userId);
+  const { data: catalogue } = usePermissionsCatalogue();
+  const update = useUpdateUserPermissions(userId);
+
+  const [selected, setSelected] = useState<Set<string> | null>(null);
+  const [search, setSearch] = useState('');
+  const [openMods, setOpenMods] = useState<Set<string>>(new Set());
+
+  // Seed the editable selection from the user's effective permissions (by code).
+  useEffect(() => {
+    if (info && selected === null) setSelected(new Set(info.permissions));
+  }, [info, selected]);
+
+  const roleBase = useMemo(() => new Set(info?.role_permissions ?? []), [info]);
+  const sel = selected ?? new Set<string>();
+  const dirty = useMemo(() => {
+    if (!info) return false;
+    const a = new Set(info.permissions);
+    if (a.size !== sel.size) return true;
+    for (const c of sel) if (!a.has(c)) return true;
+    return false;
+  }, [info, sel]);
+
+  const modules = useMemo(() => {
+    const groups = catalogue ?? [];
+    const q = search.trim().toLowerCase();
+    return groups
+      .map((g) => ({ module: g.module, permissions: q
+        ? g.permissions.filter((p) => p.code.toLowerCase().includes(q) || prettyModule(g.module).toLowerCase().includes(q))
+        : g.permissions }))
+      .filter((g) => g.permissions.length > 0);
+  }, [catalogue, search]);
+
+  const toggle = (code: string) => setSelected((prev) => {
+    const n = new Set(prev ?? []);
+    n.has(code) ? n.delete(code) : n.add(code);
+    return n;
+  });
+  const toggleModule = (perms: { code: string }[]) => setSelected((prev) => {
+    const n = new Set(prev ?? []);
+    const allOn = perms.every((p) => n.has(p.code));
+    perms.forEach((p) => (allOn ? n.delete(p.code) : n.add(p.code)));
+    return n;
+  });
+
+  const save = () => {
+    toast.promise(update.mutateAsync([...sel]), {
+      loading: 'Permissions save ho rahi hain…',
+      success: 'Permissions update ho gayin ✅',
+      error: (e: any) => e?.response?.data?.detail || 'Save nahi hui — shayad permission nahi.',
+    });
+  };
+  const resetToRole = () => setSelected(new Set(roleBase));
+
+  if (isLoading) return <div className="h-40 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800" />;
+
+  if (info?.is_wildcard) {
+    return (
+      <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-6 text-center dark:border-violet-900/40 dark:bg-violet-900/10">
+        <Sparkles className="mx-auto mb-2 h-7 w-7 text-violet-500" />
+        <p className="font-semibold text-zinc-800 dark:text-zinc-100">{info.role_name} — Full Access</p>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          Ye user owner-level hai, is ke paas saari permissions hain (wildcard). Per-permission editing sirf staff roles ke liye hai.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
+          Role: <b className="text-zinc-800 dark:text-zinc-100">{info?.role_name ?? '—'}</b> ·{' '}
+          <span className="font-semibold text-emerald-600 dark:text-emerald-400">{sel.size}</span> permissions selected
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…"
+              className="w-40 rounded-lg border border-zinc-200 py-1.5 pl-8 pr-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-800" />
+          </div>
+          <button onClick={resetToRole} className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
+            Role default
+          </button>
+          <button onClick={save} disabled={!dirty || update.isPending}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:brightness-110 active:scale-95 disabled:opacity-40">
+            {update.isPending ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />} Save
+          </button>
+        </div>
+      </div>
+
+      {/* Module sections */}
+      <div className="space-y-2">
+        {modules.map(({ module, permissions }) => {
+          const open = openMods.has(module) || !!search.trim();
+          const onCount = permissions.filter((p) => sel.has(p.code)).length;
+          const allOn = onCount === permissions.length;
+          const someOn = onCount > 0 && !allOn;
+          return (
+            <div key={module} className="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+              <div className="flex items-center gap-3 bg-zinc-50/80 px-3 py-2.5 dark:bg-zinc-900/50">
+                <button type="button" onClick={() => toggleModule(permissions)}
+                  className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition ${
+                    allOn || someOn ? 'border-indigo-500 bg-indigo-500 text-white' : 'border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800'}`}>
+                  {allOn && <Check size={12} strokeWidth={3} />}
+                  {someOn && !allOn && <span className="h-0.5 w-2.5 rounded-full bg-white" />}
+                </button>
+                <button onClick={() => setOpenMods((p) => { const n = new Set(p); n.has(module) ? n.delete(module) : n.add(module); return n; })}
+                  className="flex flex-1 items-center justify-between gap-2 text-left">
+                  <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{prettyModule(module)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700">{onCount}/{permissions.length}</span>
+                    <ChevronDown size={15} className={`text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                  </div>
+                </button>
+              </div>
+              {open && (
+                <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 p-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {permissions.map((p) => {
+                    const on = sel.has(p.code);
+                    const fromRole = roleBase.has(p.code);
+                    return (
+                      <label key={p.id} title={p.code} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800/60">
+                        <button type="button" onClick={() => toggle(p.code)}
+                          className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition ${
+                            on ? 'border-indigo-500 bg-indigo-500 text-white' : 'border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800'}`}>
+                          {on && <Check size={12} strokeWidth={3} />}
+                        </button>
+                        <span className={`flex-1 ${on ? 'font-medium text-zinc-800 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>{prettyAction(p.code)}</span>
+                        {on && !fromRole && <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">EXTRA</span>}
+                        {!on && fromRole && <span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-600 dark:bg-red-900/30 dark:text-red-300">REVOKED</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BranchesTab({ user, canManage }: { user: any; canManage?: boolean }) {
   const [isAssignOpen, setIsAssignOpen] = useState(false);
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Assigned Branches</h3>
-        <button
-          onClick={() => setIsAssignOpen(true)}
-          className="text-xs font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors flex items-center gap-1.5"
-        >
-          <Building2 size={14} /> Assign Branch
-        </button>
+        {canManage && (
+          <button
+            onClick={() => setIsAssignOpen(true)}
+            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-1.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors flex items-center gap-1.5"
+          >
+            <Building2 size={14} /> Assign Branch
+          </button>
+        )}
       </div>
 
       {!user.branch_assignments?.length ? (
@@ -335,6 +504,12 @@ export default function UserDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
 
   const { data: user, isLoading } = useEnterpriseUser(id);
+  const { data: myProfile } = useMyProfileId();
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  // Admin actions (Suspend / Lock / Reset / Edit) are for managers viewing OTHER
+  // users — never for a user looking at their own profile.
+  const isSelf = !!myProfile && myProfile.enterprise_user_id === id;
+  const showAdminActions = !isSelf && (hasPermission('users:manage') || hasPermission('users:suspend'));
   const suspendMut  = useSuspendUser(id);
   const activateMut = useActivateUser(id);
   const lockMut     = useLockUser(id);
@@ -405,7 +580,7 @@ export default function UserDetailPage() {
                   <Building2 size={13} className="text-emerald-500" />
                   {user.branch_assignments?.length ?? 0} branches
                 </span>
-                {user.employee_id && <span className="font-mono">{user.employee_id}</span>}
+                {(user.employee_code || user.employee_id) && <span className="font-mono">Emp ID: {user.employee_code || fmtEmpId(user.employee_id || '')}</span>}
                 {user.last_login_at && (
                   <span>Last login: {format(new Date(user.last_login_at), 'dd MMM yyyy HH:mm')}</span>
                 )}
@@ -413,7 +588,8 @@ export default function UserDetailPage() {
             </div>
           </div>
 
-          {/* Actions — own row below the identity, never overlapping the cover */}
+          {/* Actions — only for managers viewing OTHER users (hidden on self-view) */}
+          {showAdminActions && (
           <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
             {user.status === 'active' ? (
               <button disabled={suspendMut.isPending}
@@ -455,6 +631,7 @@ export default function UserDetailPage() {
               <Pencil size={13} /> Edit Details
             </button>
           </div>
+          )}
         </div>
       </motion.div>
 
@@ -485,7 +662,8 @@ export default function UserDetailPage() {
       >
         {tab === 'profile'  && <ProfileTab user={user} />}
         {tab === 'access'   && <AccessTab user={user} />}
-        {tab === 'branches' && <BranchesTab user={user} />}
+        {tab === 'permissions' && <PermissionsTab userId={id} />}
+        {tab === 'branches' && <BranchesTab user={user} canManage={showAdminActions} />}
         {tab === 'sessions' && <SessionsTab userId={id} />}
         {tab === 'devices'  && <DevicesTab userId={id} />}
         {tab === 'logins'   && <LoginHistoryTab userId={id} />}

@@ -112,11 +112,22 @@ class DynamicReportEngine:
 
     # ── Shared filter helpers ─────────────────────────────────────────────────
 
+    # Statuses that are NOT a real completed sale (mirror dashboard_service).
+    EXCLUDED_SALE_STATUSES = ['Voided', 'Void', 'Held', 'On Hold', 'Pending Verification', 'Draft', 'Cancelled']
+
     def _sale_filters(self, tenant_id: str, params: DateRangeParams, extra_status: str = 'Completed'):
-        """Return base Sale filter list: tenant + status + optional branch + optional date range."""
+        """Return base Sale filter list: tenant + status + optional branch + optional date range.
+
+        Historically only the verify-flow set status 'Completed'; the direct POS
+        checkout sets 'Paid' / 'Partially Paid' / 'Unpaid' / 'Returned'. Filtering
+        on 'Completed' alone hid every direct-checkout sale from the reports, so the
+        default now counts ALL sales except the non-sale states. A caller can still
+        pass an explicit status (other than the 'Completed' default) to force it."""
         filters = [Sale.tenant_id == tenant_id]
-        if extra_status:
+        if extra_status and extra_status != 'Completed':
             filters.append(Sale.status == extra_status)
+        else:
+            filters.append(Sale.status.notin_(self.EXCLUDED_SALE_STATUSES))
         if params and params.branch_id:
             filters.append(Sale.branch_id == params.branch_id)
         if params and params.start_date:

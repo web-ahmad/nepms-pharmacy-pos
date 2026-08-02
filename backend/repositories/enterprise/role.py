@@ -69,9 +69,16 @@ _MODULES: List[Tuple[str, List[str]]] = [
     ("reports",         ["view", "export", "print", "sales", "inventory", "purchase",
                          "financial", "hr", "customers"]),
 
-    # ── HR & Payroll ───────────────────────────────────────────────────────────
+    # ── HR & Payroll (with sub-modules) ──────────────────────────────────────────
     ("hr",              ["view", "create", "update", "manage", "export"]),
-    ("payroll",         ["view", "create", "approve"]),
+    ("payroll",         ["view", "create", "approve", "export"]),
+    ("attendance",      ["view", "mark", "approve", "export"]),
+    ("leaves",          ["view", "apply", "approve"]),
+    ("advances",        ["view", "create", "approve"]),
+    ("performance",     ["view", "manage"]),
+    ("training",        ["view", "manage"]),
+    ("tasks",           ["view", "manage"]),
+    ("hr_documents",    ["view", "manage"]),
 
     # ── Governance ─────────────────────────────────────────────────────────────
     ("compliance",      ["view", "export"]),
@@ -91,6 +98,39 @@ _MODULES: List[Tuple[str, List[str]]] = [
     ("backup",          ["manage"]),
     ("super_admin",     ["view", "manage"]),
 ]
+
+
+# ── Module → Category grouping (for a tidy, detailed permission page) ───────────
+MODULE_GROUP: Dict[str, str] = {
+    "dashboard": "Overview", "analytics": "Overview",
+    "pos": "Sales & POS", "cashier": "Sales & POS", "sales": "Sales & POS",
+    "customers": "CRM & Marketing", "prescriptions": "CRM & Marketing", "marketing": "CRM & Marketing",
+    "inventory": "Inventory", "medicines": "Inventory", "stock": "Inventory", "physical_audit": "Inventory",
+    "purchase": "Purchase", "suppliers": "Purchase",
+    "accounts": "Accounts & Finance", "expenses": "Accounts & Finance",
+    "reports": "Reports",
+    "hr": "HR & Payroll", "payroll": "HR & Payroll", "attendance": "HR & Payroll",
+    "leaves": "HR & Payroll", "advances": "HR & Payroll", "performance": "HR & Payroll",
+    "training": "HR & Payroll", "tasks": "HR & Payroll", "hr_documents": "HR & Payroll",
+    "compliance": "Governance & Audit", "audit": "Governance & Audit",
+    "branches": "Administration", "users": "Administration", "roles": "Administration",
+    "settings": "Administration", "notifications": "Administration",
+    "system_health": "System", "backup": "System", "super_admin": "System",
+}
+
+# Display order of the categories in the permission page.
+GROUP_ORDER: List[str] = [
+    "Overview", "Sales & POS", "CRM & Marketing", "Inventory", "Purchase",
+    "Accounts & Finance", "Reports", "HR & Payroll", "Governance & Audit",
+    "Administration", "System",
+]
+
+# Friendly module display names (for sub-module headers).
+MODULE_LABELS: Dict[str, str] = {
+    "pos": "POS Terminal", "cashier": "Cashier Portal", "sales": "Sales & Returns",
+    "physical_audit": "Physical Audit", "hr": "HR (Employees)", "hr_documents": "Documents",
+    "system_health": "System Health", "super_admin": "Super Admin",
+}
 
 
 # ── Sensitive permission codes ─────────────────────────────────────────────────
@@ -114,13 +154,16 @@ _SENSITIVE_CODES: Set[str] = {
 def _build_permission_seed() -> List[Dict]:
     result: List[Dict] = []
     for module, actions in _MODULES:
+        mod_label = MODULE_LABELS.get(module, module.replace('_', ' ').title())
         for action in actions:
             code = f"{module}:{action}"
             result.append({
                 "module":       module,
                 "action":       action,
                 "code":         code,
-                "label":        f"{module.replace('_', ' ').title()} — {action.replace('_', ' ').replace(':', ' ').title()}",
+                "group":        MODULE_GROUP.get(module, "Other"),
+                "module_label": mod_label,
+                "label":        f"{mod_label} — {action.replace('_', ' ').replace(':', ' ').title()}",
                 "description":  None,
                 "is_sensitive": code in _SENSITIVE_CODES,
             })
@@ -288,7 +331,14 @@ DEFAULT_ROLES: Dict[str, Dict] = {
         "permissions":  _perm(
             "dashboard:view", "analytics:view",
             "hr:view", "hr:create", "hr:update", "hr:manage",
-            "payroll:view", "payroll:create", "payroll:approve",
+            "payroll:view", "payroll:create", "payroll:approve", "payroll:export",
+            "attendance:view", "attendance:mark", "attendance:approve", "attendance:export",
+            "leaves:view", "leaves:apply", "leaves:approve",
+            "advances:view", "advances:create", "advances:approve",
+            "performance:view", "performance:manage",
+            "training:view", "training:manage",
+            "tasks:view", "tasks:manage",
+            "hr_documents:view", "hr_documents:manage",
             "reports:view", "reports:hr",
         ),
     },
@@ -469,10 +519,13 @@ class RoleRepository(CRUDBase[EnterpriseRole, RoleCreate, RoleUpdate]):
             .filter(EnterprisePermission.pharmacy_id == pharmacy_id)
             .all()
         }
+        # Only the real DB columns — 'group'/'module_label' are UI metadata that
+        # the /permissions endpoint derives at read time (no schema change needed).
+        _db_keys = {"module", "action", "code", "label", "description", "is_sensitive"}
         created: List[EnterprisePermission] = []
         for seed in PERMISSION_SEED:
             if seed["code"] not in existing_codes:
-                perm = EnterprisePermission(pharmacy_id=pharmacy_id, **seed)
+                perm = EnterprisePermission(pharmacy_id=pharmacy_id, **{k: v for k, v in seed.items() if k in _db_keys})
                 db.add(perm)
                 created.append(perm)
                 existing_codes.add(seed["code"])

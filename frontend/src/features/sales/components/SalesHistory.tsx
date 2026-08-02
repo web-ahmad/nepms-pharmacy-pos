@@ -12,8 +12,9 @@ import {
   Filter, Receipt, Ban, CheckCircle2, Clock, AlertCircle,
   ArrowDownLeft, Minus
 } from 'lucide-react';
-import { useInvoiceSettings } from '@/features/settings/services/settings.api';
+import { useInvoiceSettings, useSettings, resolveAssetUrl } from '@/features/settings/services/settings.api';
 import { generateReceiptHtml } from '@/utils/receiptGenerator';
+import JsBarcode from 'jsbarcode';
 import PrintableReceipt from '@/components/invoice/PrintableReceipt';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/stores/auth-store';
@@ -73,6 +74,7 @@ export default function SalesHistory() {
 
   const { data, isLoading, isFetching, refetch } = useSalesHistory(filters);
   const { data: invoiceSettings } = useInvoiceSettings();
+  const { data: companySettings } = useSettings();
   const searchParams = useSearchParams();
   const viewId = searchParams.get('view_id');
 
@@ -133,10 +135,31 @@ export default function SalesHistory() {
     setFilters(p => ({ ...p, [key]: value, page: 1 }));
   };
 
-  const handlePrint = (sale: any) => {
+  const handlePrint = async (sale: any) => {
+    // Open the window synchronously (inside the click) to avoid popup blocking.
     const w = window.open('', '_blank');
     if (!w) return;
-    w.document.write(generateReceiptHtml(sale, invoiceSettings, 'sale'));
+    const co: any = (companySettings as any)?.company_settings || {};
+    const logo_url = resolveAssetUrl(co.logo_url);
+
+    // Footer WhatsApp barcode (Code128) — encodes the direct chat link.
+    const rawWa = String(co.whatsapp || co.whatsapp_number || '03000040305').trim();
+    const digits = rawWa.replace(/\D/g, '');
+    const intl = digits.startsWith('92') ? digits : digits.startsWith('0') ? '92' + digits.slice(1) : '92' + digits;
+    let barcode_data_url = '';
+    try {
+      const canvas = document.createElement('canvas');
+      JsBarcode(canvas, `https://wa.me/${intl}`, {
+        format: 'CODE128', width: 1.4, height: 46, displayValue: false, margin: 4, background: '#ffffff', lineColor: '#000000',
+      });
+      barcode_data_url = canvas.toDataURL('image/png');
+    } catch { /* ignore */ }
+
+    w.document.write(generateReceiptHtml(
+      sale,
+      { ...invoiceSettings, logo_url, barcode_data_url, barcode_caption: `WhatsApp: ${rawWa}` },
+      'sale',
+    ));
     w.document.close();
   };
 
@@ -282,7 +305,7 @@ export default function SalesHistory() {
                   >
                     {/* Invoice No */}
                     <td className="py-3.5 px-5">
-                      <span className="font-bold text-gray-900 group-hover:text-[var(--brand)] transition-colors font-mono text-[13px]">
+                      <span className="font-bold text-gray-900 group-hover:text-[var(--brand)] transition-colors text-[13px]">
                         {sale.invoice_number}
                       </span>
                     </td>
@@ -301,7 +324,7 @@ export default function SalesHistory() {
                       </span>
                     </td>
                     {/* Amount */}
-                    <td className="py-3.5 px-5 text-right font-bold text-gray-900 font-mono whitespace-nowrap">
+                    <td className="py-3.5 px-5 text-right font-bold text-gray-900 whitespace-nowrap">
                       Rs {sale.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     {/* Status */}
@@ -421,7 +444,7 @@ export default function SalesHistory() {
                       ].map(row => (
                         <div key={row.label}>
                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{row.label}</p>
-                          <div className={`mt-1 ${row.bold ? 'font-bold text-gray-900 font-mono' : 'font-semibold text-gray-700'} text-[13px]`}>
+                          <div className={`mt-1 ${row.bold ? 'font-bold text-gray-900' : 'font-semibold text-gray-700'} text-[13px]`}>
                             {row.value}
                           </div>
                         </div>
@@ -436,7 +459,7 @@ export default function SalesHistory() {
                           <div key={item.id} className="p-3.5 hover:bg-gray-50 transition-colors">
                             <div className="flex justify-between items-start font-semibold text-gray-900 text-[13px]">
                               <span>{item.medicine_name}</span>
-                              <span className="font-mono text-gray-800">Rs {item.total.toFixed(2)}</span>
+                              <span className="text-gray-800">Rs {item.total.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px] text-gray-400 mt-1">
                               <span>Qty: {item.quantity} &bull; Rs {item.unit_price.toFixed(2)} each</span>
@@ -459,12 +482,12 @@ export default function SalesHistory() {
                         ...(saleDetail.tax_amount > 0 ? [{ label: 'Tax', value: `Rs ${saleDetail.tax_amount?.toFixed(2)}`, cls: 'text-gray-600' }] : []),
                       ].map(row => (
                         <div key={row.label} className={`flex justify-between text-[13px] ${row.cls}`}>
-                          <span>{row.label}</span><span className="font-mono font-medium">{row.value}</span>
+                          <span>{row.label}</span><span className="font-medium">{row.value}</span>
                         </div>
                       ))}
                       <div className="flex justify-between text-[15px] font-extrabold text-[var(--brand)] pt-2 border-t border-emerald-200">
                         <span>Grand Total</span>
-                        <span className="font-mono">Rs {saleDetail.total_amount?.toFixed(2)}</span>
+                        <span className="">Rs {saleDetail.total_amount?.toFixed(2)}</span>
                       </div>
                     </div>
 

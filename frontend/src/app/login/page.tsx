@@ -69,9 +69,20 @@ export default function LoginPage() {
       setAuth(access_token, user, tenant_id, branch_id);
       await Promise.resolve();
 
-      if (user?.is_super_admin) router.push('/super-admin');
-      else if (user?.role === 'Cashier') router.push('/pos/cashier');
-      else router.push('/');
+      // Role-based landing: send each staff role to its most relevant module.
+      // Owners (L2/L3) land on the full dashboard.
+      const ROLE_HOME: Record<string, string> = {
+        'Cashier': '/pos/cashier',
+        'Salesman': '/pos',
+        'Pharmacist': '/pos',
+        'Accountant': '/accounts',
+        'HR': '/hr',
+      };
+      const level = user?.hierarchy_level ?? 4;
+      const home = user?.is_super_admin ? '/super-admin'
+        : (level >= 4 && user?.role && ROLE_HOME[user.role]) ? ROLE_HOME[user.role]
+        : '/';
+      router.push(home);
     } catch (error: any) {
       if (error.response?.status === 401) setErrorMsg('Invalid username or password');
       else setErrorMsg('An error occurred during login. Please try again.');

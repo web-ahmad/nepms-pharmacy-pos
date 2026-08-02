@@ -111,7 +111,7 @@ export default function SalesPage() {
             <div className="flex items-start justify-between">
               <div className="space-y-1 flex-1 min-w-0">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{kpi.label}</span>
-                <p className="text-[22px] font-extrabold text-gray-900 font-mono tracking-tight truncate">{kpi.value}</p>
+                <p className="text-[22px] font-extrabold text-gray-900 tracking-tight truncate">{kpi.value}</p>
               </div>
               <div className={`ml-3 p-2.5 rounded-xl ${kpi.bg} ${kpi.text} border ${kpi.border} group-hover:scale-110 transition-transform duration-300 shrink-0`}>
                 {kpi.icon}

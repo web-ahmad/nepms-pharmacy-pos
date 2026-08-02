@@ -1,9 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuthStore, useIsSuperAdmin } from '@/stores/auth-store';
 import { useModules } from '@/lib/modules';
@@ -15,6 +16,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Package,
   ShoppingBag,
   FileText,
@@ -33,6 +35,7 @@ import {
   Building2,
   Megaphone,
   Barcode,
+  Bot,
 } from 'lucide-react';
 
 interface SidebarState {
@@ -88,9 +91,13 @@ const CHIP: Record<IconColor, string> = {
  * - moduleKey: the system_modules key that must be enabled (null = always visible)
  * - color:      colorful icon-chip accent
  */
+type NavChild = { label: string; href: string };
+type NavItemWithChildren = { label: string; href: string; children?: NavChild[] };
+
 export const NAV_ITEMS = [
   // ── Core ─────────────────────────────────────────────────────────────────────
   { label: 'Dashboard',       href: '/',                          icon: LayoutDashboard, permission: 'dashboard:view',           moduleKey: 'dashboard',      color: 'sky' as IconColor },
+  { label: 'AI Autopilot',    href: '/autopilot',                 icon: Bot,             permission: 'reports:view',            moduleKey: 'reports',        color: 'violet' as IconColor },
   // ── POS & Sales ──────────────────────────────────────────────────────────────
   { label: 'POS Terminal',    href: '/pos',                       icon: ShoppingCart,    permission: 'pos:create',              moduleKey: 'pos',            color: 'emerald' as IconColor },
   { label: 'Cashier Portal',  href: '/pos/cashier',               icon: Wallet,          permission: 'cashier:view',            moduleKey: 'cashier',        color: 'teal' as IconColor },
@@ -112,9 +119,41 @@ export const NAV_ITEMS = [
   // ── Clinical ──────────────────────────────────────────────────────────────────
   { label: 'Prescriptions',   href: '/prescriptions',             icon: Stethoscope,     permission: 'prescriptions:view',      moduleKey: 'prescriptions',  color: 'fuchsia' as IconColor },
   // ── Analytics & Reports ───────────────────────────────────────────────────────
-  { label: 'Reports',         href: '/reports',                   icon: PieChart,        permission: 'reports:view',            moduleKey: 'reports',        color: 'blue' as IconColor },
+  { label: 'Reports',         href: '/reports',                   icon: PieChart,        permission: 'reports:view',            moduleKey: 'reports',        color: 'blue' as IconColor,
+    children: [
+      { label: 'Analytics Hub',         href: '/reports' },
+      { label: 'Sales',                 href: '/reports/sales' },
+      { label: 'Inventory',             href: '/reports/inventory' },
+      { label: 'Purchases',             href: '/reports/purchases' },
+      { label: 'Financial',             href: '/reports/financial' },
+      { label: 'Customers',             href: '/reports/customers' },
+      { label: 'Suppliers',             href: '/reports/suppliers' },
+      { label: 'Staff Performance',     href: '/reports/staff' },
+      { label: 'HR Reports',            href: '/reports/hr' },
+      { label: 'Audit Trail',           href: '/reports/audit' },
+      { label: 'Controlled Substances', href: '/reports/controlled' },
+      { label: 'Custom Builder',        href: '/reports/custom' },
+    ] },
   // ── HR ────────────────────────────────────────────────────────────────────────
-  { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',                 moduleKey: 'hr',             color: 'teal' as IconColor },
+  { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',                 moduleKey: 'hr',             color: 'teal' as IconColor,
+    children: [
+      { label: 'Dashboard',     href: '/hr' },
+      { label: 'Employees',     href: '/hr/employees' },
+      { label: 'Departments',   href: '/hr/departments' },
+      { label: 'Designations',  href: '/hr/designations' },
+      { label: 'Org Chart',     href: '/hr/org-chart' },
+      { label: 'Shifts',        href: '/hr/shifts' },
+      { label: 'Attendance',    href: '/hr/attendance' },
+      { label: 'Leaves',        href: '/hr/leaves' },
+      { label: 'Advances',      href: '/hr/advances' },
+      { label: 'Salary Setup',  href: '/hr/payroll/setup' },
+      { label: 'Payroll Rules', href: '/hr/payroll-settings' },
+      { label: 'Payroll',       href: '/hr/payroll' },
+      { label: 'Performance',   href: '/hr/performance' },
+      { label: 'Training',      href: '/hr/training' },
+      { label: 'Tasks',         href: '/hr/tasks' },
+      { label: 'Documents',     href: '/hr/documents' },
+    ] },
   // ── Org ───────────────────────────────────────────────────────────────────────
   { label: 'Branches',        href: '/branches',                  icon: Building2,       permission: 'branches:view',           moduleKey: null,             color: 'slate' as IconColor },
   // ── Compliance & Audit ────────────────────────────────────────────────────────
@@ -131,6 +170,7 @@ export const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { isCollapsed, toggleSidebar } = useSidebarStore();
   const { user } = useAuthStore();
 
@@ -153,6 +193,24 @@ export function Sidebar() {
     }
     return true;
   });
+
+  // Only ONE item should highlight: the most specific (longest) href that matches
+  // the current path. This prevents e.g. both "/inventory" and "/inventory/low-stock"
+  // lighting up when you're on the low-stock page.
+  const activeHref = (() => {
+    const matches = visibleItems.filter(
+      (i) => pathname === i.href || (i.href !== '/' && pathname.startsWith(i.href + '/')),
+    );
+    if (!matches.length) return null;
+    return matches.reduce((a, b) => (b.href.length > a.href.length ? b : a)).href;
+  })();
+
+  // Expandable groups (items with `children`). Auto-open the one matching the path.
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const currentGroup = visibleItems.find(
+    (i) => (i as NavItemWithChildren).children && (pathname === i.href || pathname.startsWith(i.href + '/')),
+  )?.label ?? null;
+  const isGroupOpen = (label: string) => (openGroup ?? currentGroup) === label;
 
   return (
     <div
@@ -192,7 +250,9 @@ export function Sidebar() {
           variants={{ show: { transition: { staggerChildren: 0.025 } } }}
         >
           {visibleItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+            const isActive = item.href === activeHref;
+            const children = (item as NavItemWithChildren).children;
+            const groupOpen = !!children && !isCollapsed && isGroupOpen(item.label);
             return (
               <motion.div
                 key={item.href}
@@ -201,6 +261,36 @@ export function Sidebar() {
                   show: { opacity: 1, x: 0, transition: { ease: [0.16, 1, 0.3, 1], duration: 0.35 } },
                 }}
               >
+                {/* Row: a Link normally; a toggle button when it has children (expanded) */}
+                {children && !isCollapsed ? (
+                  <button
+                    onClick={() => {
+                      const onGroup = pathname === item.href || pathname.startsWith(item.href + '/');
+                      if (onGroup) {
+                        // Already inside the group → just toggle expand/collapse.
+                        setOpenGroup(isGroupOpen(item.label) ? '__none__' : item.label);
+                      } else {
+                        // Open the group AND land on its dashboard.
+                        setOpenGroup(item.label);
+                        router.push(item.href);
+                      }
+                    }}
+                    className={`group relative flex w-full items-center gap-3 rounded-xl px-2 py-2 text-sm transition-all duration-200 ${
+                      isActive
+                        ? 'brand-surface brand-shadow font-bold'
+                        : 'font-medium text-zinc-600 hover:-translate-y-px hover:bg-zinc-50 hover:text-zinc-900 hover:shadow-sm dark:text-zinc-300 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-50'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.span layoutId="sidebar-active-bar" className="absolute -left-2.5 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-white/70" aria-hidden="true" />
+                    )}
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${isActive ? 'bg-white/20 text-white shadow-inner' : `${CHIP[item.color]} group-hover:scale-105`}`}>
+                      <item.icon className="h-[18px] w-[18px]" aria-hidden="true" />
+                    </span>
+                    <span className="flex-1 truncate text-left">{item.label}</span>
+                    <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${groupOpen ? 'rotate-180' : ''} ${isActive ? 'text-white/80' : 'text-zinc-400'}`} aria-hidden="true" />
+                  </button>
+                ) : (
                 <Link
                   href={item.href}
                   title={isCollapsed ? item.label : undefined}
@@ -243,6 +333,43 @@ export function Sidebar() {
                     </span>
                   )}
                 </Link>
+                )}
+
+                {/* Nested children (e.g. Reports / HR sub-modules) */}
+                {children && groupOpen && (() => {
+                  // Most-specific child wins so only ONE child highlights (e.g.
+                  // /hr/payroll vs /hr/payroll/setup, or the index "Dashboard").
+                  const cMatches = children.filter((c) =>
+                    c.href === item.href ? pathname === c.href : (pathname === c.href || pathname.startsWith(c.href + '/')),
+                  );
+                  const activeChildHref = cMatches.length
+                    ? cMatches.reduce((a, b) => (b.href.length > a.href.length ? b : a)).href
+                    : null;
+                  return (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    className="ml-5 mt-0.5 space-y-0.5 overflow-hidden border-l border-zinc-200 pl-2 dark:border-zinc-800"
+                  >
+                    {children.map((child) => {
+                      const childActive = child.href === activeChildHref;
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          style={childActive ? { color: 'var(--brand)', backgroundColor: 'var(--brand-soft)' } : undefined}
+                          className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                            childActive ? 'shadow-sm' : 'text-zinc-500 hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/50 dark:hover:text-zinc-100'
+                          }`}
+                        >
+                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${childActive ? '' : 'bg-zinc-300 dark:bg-zinc-600'}`} style={childActive ? { backgroundColor: 'var(--brand)' } : undefined} />
+                          <span className="truncate">{child.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </motion.div>
+                  );
+                })()}
               </motion.div>
             );
           })}

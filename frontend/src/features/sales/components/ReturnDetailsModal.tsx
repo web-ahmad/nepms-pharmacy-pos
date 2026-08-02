@@ -111,7 +111,7 @@ export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }:
             ].map((row, i) => (
               <div key={i}>
                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{row.label}</p>
-                <div className={`mt-1 text-[13px] font-semibold text-gray-800 ${row.mono ? 'font-mono font-bold' : ''}`}>
+                <div className={`mt-1 text-[13px] font-semibold text-gray-800 ${row.mono ? 'font-bold' : ''}`}>
                   {row.value}
                 </div>
               </div>
@@ -130,7 +130,7 @@ export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }:
                         <Package size={13} className="text-gray-400 shrink-0 mt-0.5" />
                         {item.medicine_name}
                       </span>
-                      <span className="font-mono text-[var(--brand)] font-bold shrink-0 ml-2">
+                      <span className="text-[var(--brand)] font-bold shrink-0 ml-2">
                         Rs {item.total_refund.toFixed(2)}
                       </span>
                     </div>
@@ -166,7 +166,7 @@ export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }:
           <div className="bg-[#f4faf7] rounded-2xl border border-emerald-100 p-4 flex justify-between items-center">
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Refund</p>
-              <p className="text-[22px] font-extrabold text-[var(--brand)] font-mono mt-0.5 leading-none">
+              <p className="text-[22px] font-extrabold text-[var(--brand)] mt-0.5 leading-none">
                 Rs {selectedReturn.total_amount.toFixed(2)}
               </p>
             </div>

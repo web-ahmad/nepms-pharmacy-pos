@@ -55,6 +55,8 @@ class PermissionRead(BaseModel):
 
 class PermissionGrouped(BaseModel):
     module:         str
+    group:          Optional[str] = None      # parent category, e.g. "HR & Payroll"
+    module_label:   Optional[str] = None      # friendly sub-module name
     permissions:    List[PermissionRead]
 
 
@@ -269,6 +271,7 @@ class EnterpriseUserRead(BaseModel):
 
     # Staff
     employee_id:            Optional[str]
+    employee_code:          Optional[str] = None
     cnic:                   Optional[str]
     license_number:         Optional[str]
     qualification:          Optional[str]
@@ -318,6 +321,7 @@ class EnterpriseUserListItem(BaseModel):
     phone:              Optional[str]
     avatar_url:         Optional[str]
     employee_id:        Optional[str]
+    employee_code:      Optional[str] = None
     enterprise_role:    Optional[RoleListItem] = None
     branch_count:       int = 0
     last_login_at:      Optional[datetime]

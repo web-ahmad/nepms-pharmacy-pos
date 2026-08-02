@@ -154,7 +154,7 @@ export default function ReturnLogs() {
                 >
                   {/* Return Number */}
                   <td className="py-3.5 px-4">
-                    <span className="flex items-center gap-1.5 font-bold text-gray-900 group-hover:text-[var(--brand)] transition-colors font-mono text-[13px]">
+                    <span className="flex items-center gap-1.5 font-bold text-gray-900 group-hover:text-[var(--brand)] transition-colors text-[13px]">
                       <ArrowRightLeft size={12} className="text-[var(--brand)] shrink-0" />
                       {log.return_number}
                     </span>
@@ -162,7 +162,7 @@ export default function ReturnLogs() {
 
                   {/* Original Invoice */}
                   <td className="py-3.5 px-4">
-                    <span className="flex items-center gap-1.5 font-semibold text-gray-700 font-mono text-[13px]">
+                    <span className="flex items-center gap-1.5 font-semibold text-gray-700 text-[13px]">
                       <FileText size={12} className="text-gray-400 shrink-0" />
                       {log.invoice_number}
                     </span>
@@ -191,7 +191,7 @@ export default function ReturnLogs() {
                   </td>
 
                   {/* Refund Total */}
-                  <td className="py-3.5 px-4 text-right font-bold text-[var(--brand)] font-mono whitespace-nowrap">
+                  <td className="py-3.5 px-4 text-right font-bold text-[var(--brand)] whitespace-nowrap">
                     Rs {log.total_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
 

@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { LayoutDashboard, Boxes, TrendingUp, Receipt, BellRing, Sparkles } from 'lucide-react';
-import { useAuthStore } from '@/stores/auth-store';
+import { useAuthStore, useIsSuperAdmin } from '@/stores/auth-store';
+import { NAV_ITEMS } from '@/components/layout/Sidebar';
+import { useModules } from '@/lib/modules';
 import { DateRange } from '@/features/dashboard/services/dashboard.api';
 import DashboardFilter from '@/features/dashboard/components/DashboardFilter';
 import SalesOverview from '@/features/dashboard/components/SalesOverview';
@@ -11,6 +14,7 @@ import InventoryOverview from '@/features/dashboard/components/InventoryOverview
 import AlertsTable from '@/features/dashboard/components/AlertsTable';
 import SalesChart from '@/features/dashboard/components/SalesChart';
 import RecentReceipts from '@/features/dashboard/components/RecentReceipts';
+import SelfClockWidget from '@/features/hr/components/SelfClockWidget';
 import { format } from 'date-fns';
 
 // Small animated section wrapper with an icon-led heading.
@@ -27,7 +31,22 @@ function SectionHeading({ icon: Icon, title, tint }: { icon: React.ElementType; 
 
 export default function DashboardPage() {
   const { user, hasPermission } = useAuthStore();
+  const router = useRouter();
+  const isSuperAdmin = useIsSuperAdmin();
+  const { isModuleEnabled } = useModules();
   const hasFullAccess      = (user?.hierarchy_level ?? 4) <= 3;
+
+  // Staff who can't see the main dashboard shouldn't land on an empty page —
+  // send them to their first accessible module (e.g. an HR user → HR & Payroll).
+  const canSeeDashboard = hasFullAccess || hasPermission('dashboard:view');
+  const landing = !canSeeDashboard
+    ? NAV_ITEMS.find((it) => it.href !== '/' &&
+        (isSuperAdmin || !it.permission || hasPermission(it.permission)) &&
+        (!it.moduleKey || isModuleEnabled(it.moduleKey)))?.href
+    : undefined;
+  useEffect(() => {
+    if (user && landing) router.replace(landing);
+  }, [user, landing, router]);
   // Full-access owners (L2/L3) are never "just a cashier" or "just inventory".
   const isCashier          = !hasFullAccess && !hasPermission('sales:manage') && hasPermission('pos:view');
   const isInventoryManager = !hasFullAccess && hasPermission('inventory:manage') && !hasPermission('sales:manage');
@@ -44,6 +63,15 @@ export default function DashboardPage() {
   const canSeeCharts = !isInventoryManager && !isCashier &&
     (hasFullAccess || (hasPermission('sales:view') && hasPermission('reports:view')));
   const today = format(new Date(), 'EEEE, MMMM d, yyyy');
+
+  // Redirecting a staff user to their module — don't flash the empty dashboard.
+  if (landing) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 pb-10">
@@ -83,6 +111,9 @@ export default function DashboardPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* ── Attendance clock (self clock-in/out for linked employees) ─────── */}
+      <SelfClockWidget />
 
       {/* ── Sales KPIs ───────────────────────────────────────────────────── */}
       {canSeeSales && (

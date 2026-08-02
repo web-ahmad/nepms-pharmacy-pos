@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+import os, shutil, uuid as _uuid
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -6,7 +7,7 @@ from datetime import date
 
 from database import get_db
 from models.users import User
-from core.deps import requires_permission
+from core.deps import requires_permission, get_current_user
 from core.pharmacy_scope import get_pharmacy_scope, PharmacyScope
 from dependencies.module_guard import require_module
 from schemas.hr import (
@@ -242,6 +243,43 @@ def clock_out(
     except Exception as e:
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"clock_out failed: {str(e)}")
+
+# ── Self attendance (any logged-in employee clocks themselves in/out) ──────────
+def _my_employee(db: Session, current_user: User):
+    from models.hr import Employee
+    emp = db.query(Employee).filter(Employee.user_id == current_user.id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="No employee record is linked to your account. Please contact HR.")
+    return emp
+
+
+@router.get("/attendance/my/today")
+def my_today_attendance(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    emp = _my_employee(db, current_user)
+    svc = HRService(db)
+    rec = svc.repo.get_today_attendance(current_user.tenant_id, emp.id)
+    return {
+        "employee_id": emp.id,
+        "employee_name": f"{emp.first_name} {emp.last_name}".strip(),
+        "attendance": AttendanceResponse.model_validate(rec) if rec else None,
+    }
+
+
+@router.post("/attendance/my/clock-in", response_model=AttendanceResponse)
+def my_clock_in(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    emp = _my_employee(db, current_user)
+    return HRService(db).clock_in(current_user.tenant_id, emp.id)
+
+
+@router.post("/attendance/my/clock-out", response_model=AttendanceResponse)
+def my_clock_out(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    emp = _my_employee(db, current_user)
+    svc = HRService(db)
+    rec = svc.repo.get_today_attendance(current_user.tenant_id, emp.id)
+    if not rec:
+        raise HTTPException(status_code=409, detail="You haven't clocked in today — please clock in first.")
+    return svc.clock_out(current_user.tenant_id, rec.id)
+
 
 @router.get("/attendance/today/{employee_id}", response_model=Optional[AttendanceResponse])
 def get_today_attendance(
@@ -524,6 +562,22 @@ def get_hr_analytics(db: Session = Depends(get_db), current_user: User = Depends
 # =====================================================================
 
 # Employee Documents
+_HR_DOC_DIR = os.path.join(os.getcwd(), "storage", "hr_documents")
+os.makedirs(_HR_DOC_DIR, exist_ok=True)
+_ALLOWED_DOC_EXT = {"pdf", "png", "jpg", "jpeg", "webp", "doc", "docx", "xls", "xlsx"}
+
+
+@router.post("/employee-documents/upload", summary="Upload a document file → returns its URL")
+def upload_employee_document(file: UploadFile = File(...), current_user: User = Depends(require_hr_create)):
+    ext = (file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "")
+    if ext not in _ALLOWED_DOC_EXT:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type '.{ext}'. Allowed: PDF, images, DOC, XLS.")
+    filename = f"{_uuid.uuid4().hex}.{ext}"
+    with open(os.path.join(_HR_DOC_DIR, filename), "wb") as buf:
+        shutil.copyfileobj(file.file, buf)
+    return {"url": f"/storage/hr_documents/{filename}", "name": file.filename}
+
+
 @router.get("/employee-documents", response_model=List[EmployeeDocumentResponse])
 def get_employee_documents(employee_id: Optional[str] = None, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view), scope: PharmacyScope = Depends(get_pharmacy_scope)):
     effective_branch_id = get_effective_branch_id(db, current_user.tenant_id, scope)

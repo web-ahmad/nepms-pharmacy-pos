@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  User, Shield, ClipboardCheck,
+  User, Shield, ClipboardCheck, UserPlus,
   ChevronLeft, ChevronRight, Loader2, CheckCircle2, X, Link as LinkIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -61,6 +61,11 @@ function Step1({ register, errors, setValue, watch, employees }: { register: any
         setValue('full_name', `${emp.first_name || ''} ${emp.last_name || ''}`.trim(), { shouldValidate: true });
         if (emp.phone) setValue('phone', emp.phone, { shouldValidate: true });
         if (emp.email && !watch('email')) setValue('email', emp.email, { shouldValidate: true });
+        // Auto-fill the username from the HR record (username → employee code →
+        // email prefix), so it matches what was created in HR.
+        const empUsername = emp.username || emp.employee_code
+          || (emp.email ? String(emp.email).split('@')[0] : '');
+        if (empUsername) setValue('username', empUsername, { shouldValidate: true });
       }
     } else {
       // If unlinked, we don't automatically clear to allow manual entry,
@@ -285,6 +290,10 @@ export function CreateUserWizard({ open, onClose }: Props) {
   const { register, handleSubmit, watch, setValue, trigger, formState: { errors, isSubmitting } } = methods;
 
   const onSubmit = async (values: FormValues) => {
+    // Only create on the final Review step + explicit click. Guards against
+    // premature submits (e.g. pressing Enter on an earlier step).
+    if (step !== STEPS.length - 1) return;
+
     const payload: EnterpriseUserCreate = {
       username: values.username,
       email: values.email,
@@ -346,13 +355,25 @@ export function CreateUserWizard({ open, onClose }: Props) {
         transition={{ duration: 0.2 }}
         className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 shadow-2xl"
       >
+        {/* Gradient accent bar */}
+        <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500" />
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-zinc-100 dark:border-zinc-800">
-          <div>
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Create User</h2>
-            <p className="text-sm text-zinc-500">Step {step + 1} of {STEPS.length}</p>
+          <div className="flex items-center gap-3">
+            <motion.div
+              initial={{ scale: 0, rotate: -12 }} animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 14 }}
+              className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/25"
+            >
+              <UserPlus size={22} />
+            </motion.div>
+            <div>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Create User</h2>
+              <p className="text-sm text-zinc-500">{STEPS[step]?.label} · Step {step + 1} of {STEPS.length}</p>
+            </div>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          <button onClick={onClose} className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 active:scale-90 dark:hover:bg-zinc-800">
             <X size={18} />
           </button>
         </div>
@@ -361,15 +382,26 @@ export function CreateUserWizard({ open, onClose }: Props) {
         <div className="flex items-center gap-0 px-6 pt-5">
           {STEPS.map((s, i) => (
             <div key={i} className="flex items-center gap-0 flex-1">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-all ${
-                i < step   ? 'bg-indigo-600 text-white' :
-                i === step ? 'bg-indigo-600 text-white ring-4 ring-indigo-100 dark:ring-indigo-900' :
-                             'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
-              }`}>
-                {i < step ? <CheckCircle2 size={14} /> : <span>{i + 1}</span>}
-              </div>
+              <motion.div
+                animate={{ scale: i === step ? 1.1 : 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+                className={`relative flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold transition-colors ${
+                  i <= step
+                    ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/30'
+                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400'
+                }`}
+              >
+                {i === step && (
+                  <motion.span aria-hidden className="absolute inset-0 rounded-full ring-2 ring-indigo-400"
+                    animate={{ scale: [1, 1.35], opacity: [0.6, 0] }} transition={{ duration: 1.6, repeat: Infinity }} />
+                )}
+                {i < step ? <CheckCircle2 size={16} /> : <span>{i + 1}</span>}
+              </motion.div>
               {i < STEPS.length - 1 && (
-                <div className={`h-0.5 flex-1 transition-all ${i < step ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'}`} />
+                <div className="relative mx-1 h-1 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                  <motion.div className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-indigo-500 to-violet-600"
+                    initial={false} animate={{ width: i < step ? '100%' : '0%' }} transition={{ duration: 0.4 }} />
+                </div>
               )}
             </div>
           ))}
@@ -386,7 +418,7 @@ export function CreateUserWizard({ open, onClose }: Props) {
 
         {/* Content */}
         <FormProvider {...methods}>
-          <form onSubmit={handleSubmit(onSubmit as any)}>
+          <form onSubmit={(e) => e.preventDefault()}>
             <div className="px-6 pb-4">
               <AnimatePresence mode="wait">
                 {createdPassword ? (
@@ -396,18 +428,23 @@ export function CreateUserWizard({ open, onClose }: Props) {
                     animate={{ opacity: 1, y: 0 }}
                     className="py-8 flex flex-col items-center gap-4 text-center"
                   >
-                    <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                      <CheckCircle2 size={32} className="text-emerald-600" />
-                    </div>
+                    <motion.div
+                      initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 12 }}
+                      className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-green-600 text-white shadow-lg shadow-emerald-500/30"
+                    >
+                      <motion.span aria-hidden className="absolute inset-0 rounded-full bg-emerald-400"
+                        animate={{ scale: [1, 1.5], opacity: [0.5, 0] }} transition={{ duration: 1.8, repeat: Infinity }} />
+                      <CheckCircle2 size={36} className="relative" />
+                    </motion.div>
                     <div>
-                      <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">User Created!</p>
+                      <p className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100">User Created! 🎉</p>
                       <p className="text-sm text-zinc-500 mt-1">Share the temporary password securely:</p>
                     </div>
-                    <div className="rounded-xl bg-zinc-100 dark:bg-zinc-800 px-6 py-3 font-mono text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-widest">
+                    <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-3 font-mono text-lg font-bold tracking-widest text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100">
                       {createdPassword}
                     </div>
                     <button type="button" onClick={handleDone}
-                      className="rounded-xl bg-indigo-600 px-8 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors">
+                      className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-8 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:brightness-110 active:scale-95">
                       Done
                     </button>
                   </motion.div>
@@ -434,7 +471,7 @@ export function CreateUserWizard({ open, onClose }: Props) {
                   type="button"
                   onClick={prev}
                   disabled={step === 0}
-                  className="flex items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-700 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 disabled:opacity-40 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition-all hover:bg-zinc-50 active:scale-95 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 >
                   <ChevronLeft size={16} /> Back
                 </button>
@@ -443,15 +480,16 @@ export function CreateUserWizard({ open, onClose }: Props) {
                   <button
                     type="button"
                     onClick={next}
-                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+                    className="group flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition-all hover:shadow-indigo-500/40 hover:brightness-110 active:scale-95"
                   >
-                    Next <ChevronRight size={16} />
+                    Next <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
                   </button>
                 ) : (
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleSubmit(onSubmit as any)}
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 rounded-xl bg-[var(--brand)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--brand-strong)] disabled:opacity-60 transition-colors"
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40 hover:brightness-110 active:scale-95 disabled:opacity-60"
                   >
                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                     Create User

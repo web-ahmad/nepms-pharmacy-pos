@@ -126,7 +126,14 @@ export function UserCard({ user, index = 0, onEdit }: Props) {
           <div className="flex items-center gap-2">
             <Building2 size={12} className="shrink-0" />
             <span>{user.branch_count} branch{user.branch_count !== 1 ? 'es' : ''}</span>
-            {user.employee_id && <span className="ml-auto font-mono">{user.employee_id}</span>}
+            {/* Employee ID — prefer the real HR code (EMP-1002); UUIDs shortened. */}
+            {(user.employee_code || user.employee_id) && (
+              <span className="ml-auto font-mono">
+                {user.employee_code
+                  ? user.employee_code
+                  : /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(user.employee_id!) ? user.employee_id!.split('-')[0].toUpperCase() : user.employee_id}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Calendar size={12} className="shrink-0" />

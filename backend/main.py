@@ -123,9 +123,15 @@ async def startup_event():
         
         # Run at the top of every hour to dispatch user-configured scheduled reports
         scheduler.add_job(run_scheduled_reports_sync, 'cron', minute=0)
-        
+
+        # AI Autopilot — rozana subah 9 baje WhatsApp briefing (scan-wala WhatsApp)
+        from services.autopilot_service import run_daily_briefings, run_expiry_auto_discounts
+        scheduler.add_job(run_daily_briefings, 'cron', hour=9, minute=0)
+        # AI Autopilot — rozana raat 1 baje expiry auto-discount lagana
+        scheduler.add_job(run_expiry_auto_discounts, 'cron', hour=1, minute=0)
+
         scheduler.start()
-        print("Background cron scheduler started (Risk Scores, Inventory Audit, Scheduled Reports).")
+        print("Background cron scheduler started (Risk Scores, Inventory Audit, Scheduled Reports, AI Briefing, Expiry Discounts).")
     except ImportError:
         print("Warning: APScheduler is not installed. Background jobs will not run automatically. Run `pip install apscheduler` to enable.")
 

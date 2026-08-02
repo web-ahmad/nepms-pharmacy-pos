@@ -156,7 +156,13 @@ class UserService:
                 e_tid = e_obj.tenant_id if e_obj else "NONE"
                 raise HTTPException(status_code=400, detail=f"Employee not found or belongs to another tenant. Debug: ID={data.employee_id}, e_tid={e_tid}, p_id={pharmacy_id}, t_filter={tenant_filter}")
             if employee.user_id:
-                raise HTTPException(status_code=400, detail="This employee is already linked to another system user.")
+                # Only block if the linked user STILL EXISTS (not deleted). If the
+                # previous user was removed, the link is stale → free it and reuse.
+                from models.users import User as _User
+                existing = db.query(_User).filter(
+                    _User.id == employee.user_id, _User.is_deleted == False).first()
+                if existing:
+                    raise HTTPException(status_code=400, detail="This employee is already linked to another system user.")
             employee.user_id = auth_user.id
             db.flush()
 
@@ -229,12 +235,48 @@ class UserService:
     def delete_user(
         self, db: Session, *, enterprise_user: EnterpriseUser, performed_by_id: Optional[str] = None
     ) -> None:
-        enterprise_user.is_deleted = True
-        enterprise_user.status = EnterpriseUserStatus.INACTIVE.value
-        if enterprise_user.user:
-            enterprise_user.user.is_active = False
-        # Terminate all sessions
-        enterprise_user_repository.terminate_all_sessions(db, enterprise_user.id, reason="account_deleted")
+        """HARD delete — completely removes the user and every related row so
+        nothing is left behind in the database."""
+        from models.enterprise.user import (
+            BranchUserAssignment, UserSession, UserTrustedDevice,
+            UserLoginHistory, UserActivityLog, UserApprovalRequest,
+        )
+        eu_id = enterprise_user.id
+        core_user = enterprise_user.user
+
+        # Free up any linked HR employee so it can be re-linked later.
+        try:
+            from models.hr import Employee
+            if core_user:
+                for emp in db.query(Employee).filter(Employee.user_id == core_user.id).all():
+                    emp.user_id = None
+        except Exception:
+            pass
+
+        # Remove all child rows tied to this enterprise user.
+        for M in (BranchUserAssignment, UserSession, UserTrustedDevice,
+                  UserLoginHistory, UserActivityLog, UserApprovalRequest):
+            db.query(M).filter(M.enterprise_user_id == eu_id).delete(synchronize_session=False)
+
+        # Clear legacy per-user branch links so nothing dangles.
+        if core_user:
+            try:
+                from sqlalchemy import text
+                for tbl in ("user_branches", "branch_staff_assignments"):
+                    db.execute(text(f"DELETE FROM {tbl} WHERE user_id = :uid"), {"uid": core_user.id})
+            except Exception:
+                pass
+
+        # Remove the enterprise user, then the core login account itself.
+        db.delete(enterprise_user)
+        if core_user:
+            try:
+                db.delete(core_user)
+            except Exception:
+                # If the core user is still referenced elsewhere, at least the
+                # enterprise account is gone; deactivate the login instead.
+                core_user.is_active = False
+
         db.commit()
 
     # ── Status lifecycle ──────────────────────────────────────────────────────
@@ -485,6 +527,40 @@ class UserService:
                     base_permissions.extend(p for p in added if p not in base_permissions)
 
         return list(set(base_permissions))
+
+    def role_base_permissions(self, enterprise_user: EnterpriseUser) -> List[str]:
+        if enterprise_user.enterprise_role and enterprise_user.enterprise_role.role_permissions:
+            return [rp.permission.code for rp in enterprise_user.enterprise_role.role_permissions if rp.permission]
+        return []
+
+    def set_user_permissions(
+        self, db: Session, *, enterprise_user: EnterpriseUser, granted: List[str], branch_id: Optional[str] = None,
+    ) -> List[str]:
+        """Owner grants/revokes permissions for a user at a branch. We diff the
+        desired `granted` set against the role's base permissions and store the
+        delta as branch-level overrides (extra codes to add, '-'code to revoke)."""
+        base = set(self.role_base_permissions(enterprise_user))
+        desired = set(granted)
+        added = desired - base                     # extra grants
+        revoked = base - desired                    # taken away
+        overrides = sorted(added) + sorted(f"-{c}" for c in revoked)
+
+        # Target the assignment for this branch (or the default / first active one).
+        assignments = [a for a in enterprise_user.branch_assignments if a.is_active]
+        target = None
+        if branch_id:
+            target = next((a for a in assignments if a.branch_id == branch_id), None)
+        if not target:
+            target = next((a for a in assignments if a.is_default_branch), None) or (assignments[0] if assignments else None)
+        if not target:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="User has no branch assignment to attach permissions to.")
+
+        target.permission_overrides = overrides
+        db.add(target)
+        db.commit()
+        db.refresh(enterprise_user)
+        return self.compute_effective_permissions(db, enterprise_user=enterprise_user, branch_id=target.branch_id)
 
     # ── Session management ────────────────────────────────────────────────────
 

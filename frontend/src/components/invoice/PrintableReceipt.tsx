@@ -1,4 +1,5 @@
 import React from 'react';
+import JsBarcode from 'jsbarcode';
 import { useSettings, resolveAssetUrl } from '@/features/settings/services/settings.api';
 
 export interface PrintableReceiptProps {
@@ -13,6 +14,20 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
   // consumer shows it automatically once uploaded in Settings → Company.
   const { data: companySettings } = useSettings();
   const logoUrl = resolveAssetUrl(companySettings?.company_settings?.logo_url);
+
+  // Footer WhatsApp barcode (Code128) — encodes the direct chat link.
+  const co: any = companySettings?.company_settings || {};
+  const rawWa = String(co.whatsapp || co.whatsapp_number || '03000040305').trim();
+  const barcodeUrl = React.useMemo(() => {
+    if (typeof document === 'undefined') return '';
+    try {
+      const digits = rawWa.replace(/\D/g, '');
+      const intl = digits.startsWith('92') ? digits : digits.startsWith('0') ? '92' + digits.slice(1) : '92' + digits;
+      const canvas = document.createElement('canvas');
+      JsBarcode(canvas, `https://wa.me/${intl}`, { format: 'CODE128', width: 1.4, height: 46, displayValue: false, margin: 4, background: '#ffffff', lineColor: '#000000' });
+      return canvas.toDataURL('image/png');
+    } catch { return ''; }
+  }, [rawWa]);
 
   if (!invoice) return null;
 
@@ -190,6 +205,14 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
           <div className="text-center space-y-1 text-[9px] text-zinc-600 border-t border-dashed border-zinc-200 pt-3">
             <p className="font-semibold">{settings?.footer_text || 'Thank you for your visit!'}</p>
             <p>Software Powered by NEPMS</p>
+          </div>
+        )}
+
+        {/* WhatsApp barcode */}
+        {barcodeUrl && (
+          <div className="mt-3 border-t border-dashed border-zinc-300 pt-3 text-center">
+            <img src={barcodeUrl} alt="Barcode" className="mx-auto max-w-[95%] h-auto" />
+            <p className="mt-1 text-[9px] text-zinc-600">WhatsApp: {rawWa}</p>
           </div>
         )}
       </div>

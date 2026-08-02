@@ -1,6 +1,7 @@
 'use client';
 
 import { useTheme } from 'next-themes';
+import { motion } from 'framer-motion';
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -377,8 +378,7 @@ export default function CashierPortalPage() {
 
   useEffect(() => {
     if (!isAuthenticated) router.push('/login');
-    else if (workflowData && workflowData.mode === 'SINGLE_COUNTER') router.push('/pos');
-  }, [isAuthenticated, workflowData, router]);
+  }, [isAuthenticated, router]);
 
   if (!isAuthenticated) return null;
 
@@ -386,6 +386,80 @@ export default function CashierPortalPage() {
     return (
       <div className="flex h-screen items-center justify-center bg-surface">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Cashier Portal only applies to the Dual-Counter workflow. If it's OFF,
+  // show a clear, animated validation instead of silently bouncing away.
+  if (workflowData && workflowData.mode === 'SINGLE_COUNTER') {
+    return (
+      <div className="relative flex min-h-screen w-screen items-center justify-center overflow-hidden bg-gradient-to-br from-zinc-50 via-white to-zinc-100 p-6 dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900">
+        {/* Decorative animated glows */}
+        <motion.div aria-hidden className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-amber-400/20 blur-3xl"
+          animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }} transition={{ duration: 6, repeat: Infinity }} />
+        <motion.div aria-hidden className="pointer-events-none absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl"
+          animate={{ scale: [1.1, 1, 1.1], opacity: [0.4, 0.7, 0.4] }} transition={{ duration: 7, repeat: Infinity }} />
+
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-zinc-200 bg-white/90 p-8 text-center shadow-2xl backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90"
+        >
+          {/* Top accent bar */}
+          <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-amber-400 via-orange-500 to-amber-400" />
+
+          {/* Pulsing icon */}
+          <motion.div
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ delay: 0.15, type: 'spring', stiffness: 200, damping: 12 }}
+            className="relative mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg"
+          >
+            <motion.span aria-hidden className="absolute inset-0 rounded-2xl bg-amber-400"
+              animate={{ scale: [1, 1.4], opacity: [0.5, 0] }} transition={{ duration: 1.8, repeat: Infinity }} />
+            <AlertTriangle className="relative h-10 w-10" />
+          </motion.div>
+
+          <motion.span
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+            className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+          >
+            Feature Disabled
+          </motion.span>
+
+          <motion.h1 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="mb-3 text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Cashier Portal is Turned Off
+          </motion.h1>
+
+          <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+            className="mb-5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+            The Cashier Portal is only available in <b className="text-zinc-800 dark:text-zinc-200">Dual&nbsp;Counter</b> mode.
+            Your pharmacy is currently set to <b className="text-zinc-800 dark:text-zinc-200">Single&nbsp;Counter</b>.
+          </motion.p>
+
+          {/* Hint box */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+            className="mb-6 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-400">
+            To enable it, go to&nbsp;
+            <span className="font-semibold text-zinc-700 dark:text-zinc-200">Settings → POS → Workflow Mode</span>
+            &nbsp;and switch to <span className="font-semibold text-blue-600 dark:text-blue-400">Dual Counter</span>.
+          </motion.div>
+
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+            className="flex flex-col gap-2.5 sm:flex-row sm:justify-center">
+            <Link href="/settings/pos"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:shadow-lg hover:brightness-110 active:scale-95">
+              <Settings size={16} /> Open POS Settings
+            </Link>
+            <Link href="/pos"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-95 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700">
+              <ShoppingCart size={16} /> Go to POS Terminal
+            </Link>
+          </motion.div>
+        </motion.div>
       </div>
     );
   }

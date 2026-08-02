@@ -170,9 +170,13 @@ class Batch(BaseModel):
     cycle_count_due = Column(Date, nullable=True)
     
     cost_per_base_unit = Column(Float, nullable=True) # Override default medicine cost for this batch
-    
-    status = Column(String(50), default="Active") 
-    
+
+    status = Column(String(50), default="Active")
+
+    # AI Autopilot — expiry auto-discount engine (reversible)
+    auto_discount_percentage = Column(Float, default=0.0)   # applied markdown %
+    original_selling_price = Column(Float, nullable=True)    # price before the auto-discount
+
     medicine = relationship("Medicine", back_populates="batches")
     supplier = relationship("Supplier")
     

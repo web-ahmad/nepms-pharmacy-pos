@@ -121,7 +121,23 @@ def list_permissions(
             code=p.code, label=p.label, description=p.description,
             is_sensitive=p.is_sensitive,
         ))
-    return [PermissionGrouped(module=m, permissions=perms) for m, perms in grouped.items()]
+    # Attach category + friendly label, and order modules by their category.
+    from repositories.enterprise.role import MODULE_GROUP, MODULE_LABELS, GROUP_ORDER, _MODULES
+    module_order = [m for m, _ in _MODULES]
+    def _sort_key(m: str):
+        grp = MODULE_GROUP.get(m, "Other")
+        gi = GROUP_ORDER.index(grp) if grp in GROUP_ORDER else len(GROUP_ORDER)
+        mi = module_order.index(m) if m in module_order else 999
+        return (gi, mi)
+    result = []
+    for m in sorted(grouped.keys(), key=_sort_key):
+        result.append(PermissionGrouped(
+            module=m,
+            group=MODULE_GROUP.get(m, "Other"),
+            module_label=MODULE_LABELS.get(m, m.replace('_', ' ').title()),
+            permissions=grouped[m],
+        ))
+    return result
 
 
 # ── Role list ─────────────────────────────────────────────────────────────────
