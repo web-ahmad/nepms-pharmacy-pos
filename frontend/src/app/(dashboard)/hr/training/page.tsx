@@ -39,7 +39,7 @@ export default function TrainingPage() {
   const save = () => {
     if (!form.title) { toast.error('Title zaroori hai.'); return; }
     toast.promise(create.mutateAsync(form).then(() => { setOpen(false); setForm({ completion_status: 'Upcoming', capacity: 10 }); }),
-      { loading: 'Save ho raha…', success: 'Training program ban gaya ✅', error: 'Add nahi hua.' });
+      { loading: 'Saving…', success: 'Training program created ✅', error: 'Could not create program.' });
   };
 
   const rows = programs ?? [];
@@ -62,7 +62,7 @@ export default function TrainingPage() {
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-40 animate-pulse rounded-2xl bg-zinc-100 dark:bg-zinc-800" />)}</div>
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed border-zinc-200 py-16 text-center text-sm text-zinc-400 dark:border-zinc-800">Abhi koi training program nahi. &quot;New Program&quot; se add karein.</div>
+        <div className="rounded-2xl border-2 border-dashed border-zinc-200 py-16 text-center text-sm text-zinc-400 dark:border-zinc-800">No training programs yet. Use &quot;New Program&quot; to add one.</div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((p: any) => (
@@ -77,7 +77,7 @@ export default function TrainingPage() {
                 {(p.capacity ?? 0) > 0 && <p className="flex items-center gap-1.5"><Users size={14} /> Capacity: {p.capacity}</p>}
                 {p.start_date && <p>{format(new Date(p.start_date), 'dd MMM')} {p.end_date ? `– ${format(new Date(p.end_date), 'dd MMM yyyy')}` : ''}</p>}
               </div>
-              <button onClick={() => toast.promise(del.mutateAsync(p.id), { loading: 'Delete…', success: 'Delete ho gaya', error: 'Delete nahi hua' })}
+              <button onClick={() => toast.promise(del.mutateAsync(p.id), { loading: 'Deleting…', success: 'Deleted', error: 'Could not delete' })}
                 className="absolute bottom-4 right-4 rounded-lg p-1.5 text-zinc-300 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"><Trash2 size={16} /></button>
             </div>
           ))}

@@ -91,8 +91,8 @@ const CHIP: Record<IconColor, string> = {
  * - moduleKey: the system_modules key that must be enabled (null = always visible)
  * - color:      colorful icon-chip accent
  */
-type NavChild = { label: string; href: string };
-type NavItemWithChildren = { label: string; href: string; children?: NavChild[] };
+type NavChild = { label: string; href: string; permission?: string; hideIfPermission?: string };
+type NavItemWithChildren = { label: string; href: string; children?: NavChild[]; anyPermission?: string[] };
 
 export const NAV_ITEMS = [
   // ── Core ─────────────────────────────────────────────────────────────────────
@@ -135,24 +135,30 @@ export const NAV_ITEMS = [
       { label: 'Custom Builder',        href: '/reports/custom' },
     ] },
   // ── HR ────────────────────────────────────────────────────────────────────────
-  { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',                 moduleKey: 'hr',             color: 'teal' as IconColor,
+  { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',   anyPermission: ['hr:view', 'hr:self'], moduleKey: 'hr', color: 'teal' as IconColor,
     children: [
-      { label: 'Dashboard',     href: '/hr' },
-      { label: 'Employees',     href: '/hr/employees' },
-      { label: 'Departments',   href: '/hr/departments' },
-      { label: 'Designations',  href: '/hr/designations' },
-      { label: 'Org Chart',     href: '/hr/org-chart' },
-      { label: 'Shifts',        href: '/hr/shifts' },
-      { label: 'Attendance',    href: '/hr/attendance' },
-      { label: 'Leaves',        href: '/hr/leaves' },
-      { label: 'Advances',      href: '/hr/advances' },
-      { label: 'Salary Setup',  href: '/hr/payroll/setup' },
-      { label: 'Payroll Rules', href: '/hr/payroll-settings' },
-      { label: 'Payroll',       href: '/hr/payroll' },
-      { label: 'Performance',   href: '/hr/performance' },
-      { label: 'Training',      href: '/hr/training' },
-      { label: 'Tasks',         href: '/hr/tasks' },
-      { label: 'Documents',     href: '/hr/documents' },
+      // Self-service — visible to staff who only have hr:self (e.g. Cashier).
+      // Hidden from anyone who already has hr:view (full HR admin) — those
+      // users (Owner/Franchise Owner/HR) manage the whole module already and
+      // typically have no linked Employee record, so self-service would just
+      // show a confusing "No employee record linked" error for them.
+      { label: 'My HR',         href: '/hr/me',              permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'Dashboard',     href: '/hr',                 permission: 'hr:view' },
+      { label: 'Employees',     href: '/hr/employees',       permission: 'hr:view' },
+      { label: 'Departments',   href: '/hr/departments',     permission: 'hr:view' },
+      { label: 'Designations',  href: '/hr/designations',    permission: 'hr:view' },
+      { label: 'Org Chart',     href: '/hr/org-chart',       permission: 'hr:view' },
+      { label: 'Shifts',        href: '/hr/shifts',          permission: 'hr:view' },
+      { label: 'Attendance',    href: '/hr/attendance',      permission: 'hr:view' },
+      { label: 'Leaves',        href: '/hr/leaves',          permission: 'hr:view' },
+      { label: 'Advances',      href: '/hr/advances',        permission: 'hr:view' },
+      { label: 'Salary Setup',  href: '/hr/payroll/setup',   permission: 'hr:view' },
+      { label: 'Payroll Rules', href: '/hr/payroll-settings',permission: 'hr:view' },
+      { label: 'Payroll',       href: '/hr/payroll',         permission: 'hr:view' },
+      { label: 'Performance',   href: '/hr/performance',     permission: 'hr:view' },
+      { label: 'Training',      href: '/hr/training',        permission: 'hr:view' },
+      { label: 'Tasks',         href: '/hr/tasks',           permission: 'hr:view' },
+      { label: 'Documents',     href: '/hr/documents',       permission: 'hr:view' },
     ] },
   // ── Org ───────────────────────────────────────────────────────────────────────
   { label: 'Branches',        href: '/branches',                  icon: Building2,       permission: 'branches:view',           moduleKey: null,             color: 'slate' as IconColor },
@@ -182,9 +188,15 @@ export function Sidebar() {
   const { isModuleEnabled } = useModules();
 
   const visibleItems = NAV_ITEMS.filter((item) => {
-    // 1. RBAC check using the helper
-    if (item.permission && !isSuperAdmin && !hasPermission(item.permission)) {
-      return false;
+    // 1. RBAC check. `anyPermission` = show if the user has ANY of the listed
+    // permissions (e.g. HR is visible to full HR admins AND self-service staff).
+    if (!isSuperAdmin) {
+      const anyPerm = (item as NavItemWithChildren).anyPermission;
+      if (anyPerm) {
+        if (!anyPerm.some((p) => hasPermission(p))) return false;
+      } else if (item.permission && !hasPermission(item.permission)) {
+        return false;
+      }
     }
     // 2. Module gate: if this link belongs to a module that the tenant has
     // disabled in Settings → Modules, hide it immediately.
@@ -193,6 +205,16 @@ export function Sidebar() {
     }
     return true;
   });
+
+  // Filter a group's children by their own per-child permission. Children with
+  // no `permission` are always shown (e.g. Reports sub-modules). `hideIfPermission`
+  // hides an otherwise-visible child from users who already hold a broader
+  // permission (e.g. "My HR" self-service is redundant for full HR admins).
+  const childrenFor = (item: NavItemWithChildren): NavChild[] =>
+    (item.children ?? []).filter((c) => {
+      if (!isSuperAdmin && c.hideIfPermission && hasPermission(c.hideIfPermission)) return false;
+      return isSuperAdmin || !c.permission || hasPermission(c.permission);
+    });
 
   // Only ONE item should highlight: the most specific (longest) href that matches
   // the current path. This prevents e.g. both "/inventory" and "/inventory/low-stock"
@@ -251,8 +273,10 @@ export function Sidebar() {
         >
           {visibleItems.map((item) => {
             const isActive = item.href === activeHref;
-            const children = (item as NavItemWithChildren).children;
-            const groupOpen = !!children && !isCollapsed && isGroupOpen(item.label);
+            const allChildren = (item as NavItemWithChildren).children;
+            const children = allChildren ? childrenFor(item as NavItemWithChildren) : undefined;
+            const hasChildren = !!children && children.length > 0;
+            const groupOpen = hasChildren && !isCollapsed && isGroupOpen(item.label);
             return (
               <motion.div
                 key={item.href}
@@ -262,7 +286,7 @@ export function Sidebar() {
                 }}
               >
                 {/* Row: a Link normally; a toggle button when it has children (expanded) */}
-                {children && !isCollapsed ? (
+                {hasChildren && !isCollapsed ? (
                   <button
                     onClick={() => {
                       const onGroup = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -270,9 +294,13 @@ export function Sidebar() {
                         // Already inside the group → just toggle expand/collapse.
                         setOpenGroup(isGroupOpen(item.label) ? '__none__' : item.label);
                       } else {
-                        // Open the group AND land on its dashboard.
+                        // Open the group AND land on its dashboard — but if the user
+                        // can't access the group's own page (e.g. a self-service-only
+                        // Cashier who lacks hr:view), land on their first visible child.
                         setOpenGroup(item.label);
-                        router.push(item.href);
+                        const canOpenSelf = isSuperAdmin || !item.permission || hasPermission(item.permission);
+                        const target = !canOpenSelf && children && children.length ? children[0].href : item.href;
+                        router.push(target);
                       }
                     }}
                     className={`group relative flex w-full items-center gap-3 rounded-xl px-2 py-2 text-sm transition-all duration-200 ${
@@ -336,7 +364,7 @@ export function Sidebar() {
                 )}
 
                 {/* Nested children (e.g. Reports / HR sub-modules) */}
-                {children && groupOpen && (() => {
+                {hasChildren && children && groupOpen && (() => {
                   // Most-specific child wins so only ONE child highlights (e.g.
                   // /hr/payroll vs /hr/payroll/setup, or the index "Dashboard").
                   const cMatches = children.filter((c) =>

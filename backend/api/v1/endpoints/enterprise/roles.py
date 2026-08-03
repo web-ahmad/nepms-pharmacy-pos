@@ -56,54 +56,42 @@ def list_permissions(
     # Seed if not present
     role_repository.seed_permissions(db, pid)
     all_perms = role_repository.get_all_permissions(db, pid)
-    
-    user_perms = token_payload.get("permissions", [])
+
     is_sa = token_payload.get("is_super_admin", False)
     hierarchy_level = token_payload.get("hierarchy_level", 4)
-    
-    if not user_perms and not is_sa and hierarchy_level >= 3:
-        # Dynamically fetch permissions since they are stripped from JWT for L3/L4
-        from models.enterprise.user import EnterpriseUser
-        from services.enterprise.user_service import user_service
-        user_id = token_payload.get("sub")
-        branch_id = token_payload.get("branch_id")
-        eu = db.query(EnterpriseUser).filter(EnterpriseUser.user_id == user_id).first()
-        if eu:
-            user_perms = user_service.compute_effective_permissions(db, enterprise_user=eu, branch_id=branch_id)
-            
-    has_wildcard = "*" in user_perms or "*tenant-branch" in user_perms or "*tenant" in user_perms
 
     SAAS_PREFIXES = (
-        "tenant:", "subscription:", "billing:", "saas_settings:", 
-        "feature_flags:", "system_health:", "system_logs:", 
+        "tenant:", "subscription:", "billing:", "saas_settings:",
+        "feature_flags:", "system_health:", "system_logs:",
         "backups:", "superadmin_audit:", "superadmin:", "system:",
         "super_admin:"
     )
 
+    # NOTE: this catalogue is scoped structurally (SaaS-only codes, branch-
+    # management codes for L3 staff) — it deliberately does NOT also require
+    # the caller to already personally hold each code. That "can only grant
+    # what you have" rule sounds safer but causes a real self-lockout: an
+    # Owner/Franchise Owner editing their OWN role who unchecks a permission
+    # and saves would then have that code vanish from their own catalogue
+    # forever (their own permission set no longer contains it), with no way
+    # to see it to re-grant it back. Access to this whole endpoint is already
+    # gated by requires_permission("users:view") above, and the actual write
+    # endpoint by "users:manage" — that's the real security boundary.
     def _can_assign(code: str) -> bool:
+        if is_sa:
+            return True
+        if code.startswith("system:"):
+            return False
         if hierarchy_level > 1:
             if code.startswith(SAAS_PREFIXES):
                 return False
-            
             # Level 3+ (Branch Roles) cannot see the branches module AT ALL
             if hierarchy_level >= 3 and (code.startswith("branches:") or code.startswith("branch_settings:")):
                 return False
-            
             # Level 3+ cannot assign branches to users
             if hierarchy_level >= 3 and code == "users:assign_branch":
                 return False
-                
-            # Level 2 (Pharmacy Owner) can ONLY see branches:view
-            if hierarchy_level == 2 and code.startswith("branches:") and code != "branches:view":
-                return False
-            
-        if is_sa: return True
-        if code.startswith("system:"): return False
-        if has_wildcard: return True
-        if code in user_perms: return True
-        resource = code.split(':')[0]
-        if f"{resource}:manage" in user_perms: return True
-        return False
+        return True
 
     # Deduplicate by code (safety net against any DB duplicates)
     seen_codes: set = set()

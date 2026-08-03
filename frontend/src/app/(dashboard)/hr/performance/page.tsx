@@ -31,7 +31,7 @@ export default function PerformancePage() {
   const save = () => {
     if (!form.employee_id || !form.reviewer_id || !form.review_period) { toast.error('Employee, reviewer aur period zaroori hai.'); return; }
     toast.promise(create.mutateAsync(form as any).then(() => { setOpen(false); setForm({ rating: 3 }); }),
-      { loading: 'Save ho raha…', success: 'Review add ho gaya ✅', error: 'Add nahi hua.' });
+      { loading: 'Saving…', success: 'Review added ✅', error: 'Could not add review.' });
   };
 
   const rows = reviews ?? [];
@@ -68,7 +68,7 @@ export default function PerformancePage() {
               {isLoading ? (
                 <tr><td colSpan={5} className="px-6 py-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-emerald-500" /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-14 text-center text-sm text-zinc-400">Abhi koi review nahi.</td></tr>
+                <tr><td colSpan={5} className="px-6 py-14 text-center text-sm text-zinc-400">No reviews yet.</td></tr>
               ) : rows.map((r) => (
                 <tr key={r.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
                   <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">{r.employee_name || '—'}</td>

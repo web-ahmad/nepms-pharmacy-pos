@@ -365,7 +365,7 @@ def delete_user(
     eu_id: str,
     scope: PharmacyScope = Depends(get_pharmacy_scope),
     db: Session = Depends(get_db),
-    token: dict = Depends(requires_permission("users:manage")),
+    token: dict = Depends(requires_permission("users:delete")),
 ):
     pid = _resolve_pharmacy_id(scope)
     eu = _get_eu_or_404(db, eu_id, pid)

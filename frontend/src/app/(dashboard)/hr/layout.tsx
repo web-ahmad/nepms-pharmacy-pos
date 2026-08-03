@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuthStore, useIsSuperAdmin } from '@/stores/auth-store';
 import {
   LayoutDashboard, Users, Building2, Contact2,
   Clock, CalendarCheck, Palmtree, Wallet, Banknote, HandCoins, Settings2,
@@ -30,6 +31,15 @@ const links = [
 
 export default function HRLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const isSuperAdmin = useIsSuperAdmin();
+  const hasPermission = useAuthStore((s) => s.hasPermission);
+  // Self-service-only staff (e.g. a Cashier with hr:self but not hr:view) should
+  // NOT see the full admin HR hero + tab bar — just their own self-service page.
+  const isHrAdmin = isSuperAdmin || hasPermission('hr:view');
+
+  if (!isHrAdmin) {
+    return <div className="flex h-full flex-col gap-0">{children}</div>;
+  }
 
   return (
     <div className="flex h-full flex-col gap-0">

@@ -40,7 +40,7 @@ export default function ExpiryForecastCard() {
             </div>
           </div>
           {!data?.items?.length ? (
-            <div className="flex h-24 items-center justify-center text-center text-sm text-zinc-400">90 din me koi batch expire nahi ho rahi. 🎉</div>
+            <div className="flex h-24 items-center justify-center text-center text-sm text-zinc-400">90 din me koi batch expire nahi ho rahi. </div>
           ) : (
             <div className="max-h-56 space-y-1.5 overflow-y-auto">
               {data.items.map((it, i) => (

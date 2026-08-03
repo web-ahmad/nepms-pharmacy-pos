@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Body
 import os, shutil, uuid as _uuid
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -41,6 +41,7 @@ class PayloadUser:
 def require_hr_view(token_payload: dict = Depends(requires_permission("hr:view"))): return PayloadUser(token_payload)
 def require_hr_create(token_payload: dict = Depends(requires_permission("hr:create"))): return PayloadUser(token_payload)
 def require_hr_update(token_payload: dict = Depends(requires_permission("hr:update"))): return PayloadUser(token_payload)
+def require_hr_delete(token_payload: dict = Depends(requires_permission("hr:delete"))): return PayloadUser(token_payload)
 def require_hr_approve(token_payload: dict = Depends(requires_permission("hr:manage"))): return PayloadUser(token_payload)
 def require_payroll_view(token_payload: dict = Depends(requires_permission("payroll:view"))): return PayloadUser(token_payload)
 def require_payroll_run(token_payload: dict = Depends(requires_permission("payroll:create"))): return PayloadUser(token_payload)
@@ -97,7 +98,7 @@ def update_department(id: str, obj_in: DepartmentUpdate, db: Session = Depends(g
         raise HTTPException(status_code=400, detail=f"Failed to update department: {str(e)}")
 
 @router.delete("/departments/{id}")
-def delete_department(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create)):
+def delete_department(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_delete)):
     try:
         return HRService(db).delete_department(current_user.tenant_id, id)
     except HTTPException as he:
@@ -188,7 +189,7 @@ def update_employee(id: str, obj_in: EmployeeUpdate, db: Session = Depends(get_d
         return JSONResponse(status_code=400, content={"message": "Failed to update employee.", "error": str(e)})
 
 @router.delete("/employees/{id}")
-def delete_employee(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+def delete_employee(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_delete)):
     return HRService(db).delete_employee(current_user.tenant_id, current_user.id, id)
 
 # Attendance
@@ -281,6 +282,106 @@ def my_clock_out(db: Session = Depends(get_db), current_user: User = Depends(get
     return svc.clock_out(current_user.tenant_id, rec.id)
 
 
+# ── Employee Self-Service (ESS): each employee sees ONLY their own data ─────────
+@router.get("/me")
+def my_hr_profile(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    emp = _my_employee(db, current_user)
+    from models.hr import Department, Designation
+    dept = db.query(Department).filter(Department.id == emp.department_id).first() if emp.department_id else None
+    desig = db.query(Designation).filter(Designation.id == emp.designation_id).first() if emp.designation_id else None
+    return {
+        "id": emp.id,
+        "name": f"{emp.first_name} {emp.last_name}".strip(),
+        "employee_code": emp.employee_id,
+        "email": emp.email, "phone": emp.phone,
+        "department": dept.name if dept else None,
+        "designation": desig.name if desig else None,
+        "joining_date": str(emp.joining_date) if getattr(emp, "joining_date", None) else None,
+        "base_salary": getattr(emp, "base_salary", None),
+        "salary_type": getattr(emp, "salary_type", None),
+    }
+
+
+@router.get("/me/attendance")
+def my_attendance(month: Optional[int] = None, year: Optional[int] = None,
+                  db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.hr import Attendance
+    from datetime import date as _date
+    emp = _my_employee(db, current_user)
+    q = db.query(Attendance).filter(Attendance.employee_id == emp.id)
+    m = month or _date.today().month
+    y = year or _date.today().year
+    from sqlalchemy import extract
+    q = q.filter(extract('month', Attendance.date) == m, extract('year', Attendance.date) == y)
+    rows = q.order_by(Attendance.date.desc()).all()
+    return {
+        "month": m, "year": y,
+        "records": [AttendanceResponse.model_validate(r) for r in rows],
+        "present": sum(1 for r in rows if r.status in ("Present", "Late")),
+        "absent": sum(1 for r in rows if r.status == "Absent"),
+        "total": len(rows),
+    }
+
+
+@router.get("/me/payroll")
+def my_payroll(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.hr import PayrollLine, PayrollRun
+    emp = _my_employee(db, current_user)
+    rows = (db.query(PayrollLine, PayrollRun)
+            .join(PayrollRun, PayrollRun.id == PayrollLine.payroll_run_id)
+            .filter(PayrollLine.employee_id == emp.id)
+            .order_by(PayrollRun.year.desc(), PayrollRun.month.desc()).all())
+    return [{
+        "id": ln.id, "month": run.month, "year": run.year, "status": run.status,
+        "base_salary": ln.base_salary, "allowances": ln.allowances, "overtime": ln.overtime,
+        "bonuses": ln.bonuses, "deductions": ln.deductions, "tax": ln.tax, "net_pay": ln.net_pay,
+    } for ln, run in rows]
+
+
+@router.get("/me/leaves")
+def my_leaves(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.hr import LeaveRequest
+    emp = _my_employee(db, current_user)
+    rows = db.query(LeaveRequest).filter(LeaveRequest.employee_id == emp.id).order_by(LeaveRequest.start_date.desc()).all()
+    return [{
+        "id": l.id, "leave_type": l.leave_type, "start_date": str(l.start_date),
+        "end_date": str(l.end_date), "reason": l.reason, "status": l.status,
+    } for l in rows]
+
+
+@router.post("/me/leaves")
+def my_apply_leave(body: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    emp = _my_employee(db, current_user)
+    payload = LeaveRequestCreate(
+        employee_id=emp.id,
+        leave_type=body.get("leave_type") or "Casual",
+        start_date=body["start_date"],
+        end_date=body["end_date"],
+        reason=body.get("reason") or "",
+        status="Pending",
+    )
+    return HRService(db).create_leave(current_user.tenant_id, payload)
+
+
+@router.get("/me/training")
+def my_training(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.hr import TrainingAttendance, TrainingProgram
+    emp = _my_employee(db, current_user)
+    rows = (db.query(TrainingAttendance, TrainingProgram)
+            .join(TrainingProgram, TrainingProgram.id == TrainingAttendance.program_id)
+            .filter(TrainingAttendance.employee_id == emp.id)
+            .order_by(TrainingProgram.start_date.desc()).all())
+    return [{
+        "id": ta.id,
+        "title": prog.title,
+        "trainer": prog.trainer,
+        "start_date": str(prog.start_date) if prog.start_date else None,
+        "end_date": str(prog.end_date) if prog.end_date else None,
+        "program_status": prog.completion_status,
+        "my_status": ta.status,
+    } for ta, prog in rows]
+
+
 @router.get("/attendance/today/{employee_id}", response_model=Optional[AttendanceResponse])
 def get_today_attendance(
     employee_id: str,
@@ -330,7 +431,7 @@ def delete_monthly_batch(
     month: int,
     year: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_hr_create)
+    current_user: User = Depends(require_hr_delete)
 ):
     """Delete all attendance records for a specific employee in a specific month."""
     try:
@@ -592,7 +693,7 @@ def update_employee_document(id: str, obj_in: EmployeeDocumentUpdate, db: Sessio
     return HRService(db).update_employee_document(current_user.tenant_id, id, obj_in)
 
 @router.delete("/employee-documents/{id}")
-def delete_employee_document(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+def delete_employee_document(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_delete)):
     return HRService(db).delete_employee_document(current_user.tenant_id, id)
 
 
@@ -626,7 +727,7 @@ def update_employee_task(id: str, obj_in: EmployeeTaskUpdate, db: Session = Depe
     return HRService(db).update_employee_task(current_user.tenant_id, id, obj_in)
 
 @router.delete("/employee-tasks/{id}")
-def delete_employee_task(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+def delete_employee_task(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_delete)):
     return HRService(db).delete_employee_task(current_user.tenant_id, id)
 
 
@@ -644,7 +745,7 @@ def update_training_program(id: str, obj_in: TrainingProgramUpdate, db: Session 
     return HRService(db).update_training_program(current_user.tenant_id, id, obj_in)
 
 @router.delete("/training-programs/{id}")
-def delete_training_program(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+def delete_training_program(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_delete)):
     return HRService(db).delete_training_program(current_user.tenant_id, id)
 
 
@@ -664,5 +765,5 @@ def update_training_attendance(id: str, obj_in: TrainingAttendanceUpdate, db: Se
     return HRService(db).update_training_attendance(current_user.tenant_id, id, obj_in)
 
 @router.delete("/training-attendance/{id}")
-def delete_training_attendance(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_update)):
+def delete_training_attendance(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_delete)):
     return HRService(db).delete_training_attendance(current_user.tenant_id, id)

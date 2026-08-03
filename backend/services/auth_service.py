@@ -261,17 +261,24 @@ class AuthService:
 
         # ── Compute effective permissions ──────────────────────────────────────
         # L1 Super Admin:    system:* permissions only — NEVER pharmacy data
-        # L2 Pharmacy Owner: wildcard "*" in JWT (all operations, tenant scope)
-        # L3 Branch Owner:   explicit permission codes from role (same as L2 set),
-        #                    but data_scope='branch' in JWT enforces isolation at query layer
+        # L2 Pharmacy Owner: DB-driven permission codes (tenant scope via
+        #                    data_scope='tenant'/branch_scope='all_branches') —
+        #                    editable via Roles & Permissions UI.
+        # L3 Branch Owner:   explicit permission codes from role (same catalog),
+        #                    isolation via data_scope='branch' at the query layer
         # L4 Branch Staff:   granular codes only, assigned by L2/L3
         if is_sa:
             permissions = [
                 "system:view", "system:license", "system:subscription", "system:billing",
                 "system:updates", "system:monitoring", "system:impersonate",
             ]
+        elif hierarchy_level == 2 and eu:
+            permissions = user_service.compute_effective_permissions(
+                db, enterprise_user=eu, branch_id=branch_id
+            )
         elif hierarchy_level == 2:
-            # Pharmacy Owner: full wildcard access within their tenant
+            # Legacy Owner with no EnterpriseUser profile — no role_permissions
+            # to read, so fall back to full access rather than locking them out.
             permissions = ["*"]
         elif hierarchy_level == 3 and eu:
             # Branch Owner: full operational permission codes (isolation via data_scope=branch)

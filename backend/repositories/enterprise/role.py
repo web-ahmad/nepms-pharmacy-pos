@@ -70,7 +70,8 @@ _MODULES: List[Tuple[str, List[str]]] = [
                          "financial", "hr", "customers"]),
 
     # ── HR & Payroll (with sub-modules) ──────────────────────────────────────────
-    ("hr",              ["view", "create", "update", "manage", "export"]),
+    # 'self' = Employee Self-Service: own profile, attendance, payslips, leave requests.
+    ("hr",              ["view", "create", "update", "delete", "manage", "export", "self"]),
     ("payroll",         ["view", "create", "approve", "export"]),
     ("attendance",      ["view", "mark", "approve", "export"]),
     ("leaves",          ["view", "apply", "approve"]),
@@ -86,7 +87,7 @@ _MODULES: List[Tuple[str, List[str]]] = [
     ("branches",        ["view", "create", "edit", "delete", "export"]),
 
     # ── Access Control ─────────────────────────────────────────────────────────
-    ("users",           ["view", "create", "update", "manage", "suspend", "unlock", "reset_password"]),
+    ("users",           ["view", "create", "update", "delete", "manage", "suspend", "unlock", "reset_password"]),
     ("roles",           ["view", "create", "update", "delete", "manage"]),
 
     # ── Configuration ──────────────────────────────────────────────────────────
@@ -142,9 +143,10 @@ _SENSITIVE_CODES: Set[str] = {
     "accounts:closing", "accounts:manage_bank",
     "expenses:approve", "payroll:approve", "payroll:create",
     "backup:manage", "settings:manage",
-    "users:suspend", "users:unlock", "users:reset_password", "users:manage",
+    "users:suspend", "users:unlock", "users:reset_password", "users:manage", "users:delete",
     "roles:delete", "roles:manage",
     "branches:edit", "branches:delete",
+    "hr:delete",
     "super_admin:manage",
 }
 
@@ -266,6 +268,7 @@ DEFAULT_ROLES: Dict[str, Dict] = {
             "reports:view", "reports:export", "reports:financial",
             "reports:sales", "reports:purchase",
             "customers:view", "suppliers:view",
+            "hr:self",   # Employee self-service
         ),
     },
     "Pharmacist": {
@@ -286,6 +289,7 @@ DEFAULT_ROLES: Dict[str, Dict] = {
             "prescriptions:view", "prescriptions:create", "prescriptions:edit", "prescriptions:delete",
             "customers:view", "customers:create",
             "reports:view",
+            "hr:self",   # Employee self-service
         ),
     },
     "Cashier": {
@@ -302,6 +306,7 @@ DEFAULT_ROLES: Dict[str, Dict] = {
             "cashier:view", "cashier:manage",
             "sales:view", "sales:create", "sales:print",
             "customers:view", "customers:create",
+            "hr:self",   # Employee self-service (own attendance/payslip/leave)
         ),
     },
     "Salesman": {
@@ -318,6 +323,7 @@ DEFAULT_ROLES: Dict[str, Dict] = {
             "sales:view", "sales:create", "sales:print", "sales:discount",
             "customers:view", "customers:create", "customers:update",
             "reports:view",
+            "hr:self",   # Employee self-service
         ),
     },
     "HR": {
@@ -330,7 +336,7 @@ DEFAULT_ROLES: Dict[str, Dict] = {
         "is_system_role": False,
         "permissions":  _perm(
             "dashboard:view", "analytics:view",
-            "hr:view", "hr:create", "hr:update", "hr:manage",
+            "hr:view", "hr:create", "hr:update", "hr:delete", "hr:manage",
             "payroll:view", "payroll:create", "payroll:approve", "payroll:export",
             "attendance:view", "attendance:mark", "attendance:approve", "attendance:export",
             "leaves:view", "leaves:apply", "leaves:approve",
@@ -628,21 +634,20 @@ class RoleRepository(CRUDBase[EnterpriseRole, RoleCreate, RoleUpdate]):
                 codes_to_add = [code for code in all_perms.keys() if not code.startswith(saas_prefixes)]
                 
                 if "*tenant-branch" in perm_codes:
-                    # L3+ (Branch Level) gets ZERO access to branches & branch_settings
-                    # L3+ also cannot assign branches to users
+                    # L3 Branch Head: full operational access WITHIN their own
+                    # branch, but no rights to manage OTHER branches of the
+                    # tenant (create/edit/delete/switch) — that's an L2 concern.
                     codes_to_add = [
-                        code for code in codes_to_add 
-                        if not code.startswith("branches:") 
+                        code for code in codes_to_add
+                        if not code.startswith("branches:")
                         and not code.startswith("branch_settings:")
                         and code != "users:assign_branch"
                     ]
-                else:
-                    # L2 (Pharmacy Owner) gets ONLY view access to branches
-                    codes_to_add = [
-                        code for code in codes_to_add 
-                        if not (code.startswith("branches:") and code != "branches:view")
-                    ]
-                    
+                # L2 Pharmacy Owner keeps the FULL non-SaaS set — including
+                # full branches:* (create/edit/delete) since they manage every
+                # branch of the tenant. This is genuinely DB-driven (see
+                # auth_service.py) so the Roles UI can edit it meaningfully.
+
                 if "tenant:create" in codes_to_add:
                     codes_to_add.remove("tenant:create")
             else:

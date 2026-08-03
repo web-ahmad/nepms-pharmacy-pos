@@ -43,7 +43,7 @@ export default function DocumentsPage() {
     if (file.size > 5 * 1024 * 1024) { toast.error('File 5MB se choti honi chahiye.'); return; }
     try {
       const res = await toast.promise(upload.mutateAsync(file), {
-        loading: 'File upload ho rahi…', success: 'File upload ho gayi ✅', error: 'Upload nahi hui.',
+        loading: 'Uploading file…', success: 'File uploaded ✅', error: 'Upload failed.',
       });
       setForm((f) => ({ ...f, file_path: res.url }));
       setFileName(res.name || file.name);
@@ -55,7 +55,7 @@ export default function DocumentsPage() {
   const save = () => {
     if (!form.employee_id || !form.document_type || !form.file_path) { toast.error('Employee, type aur file zaroori hai.'); return; }
     toast.promise(create.mutateAsync(form).then(closeModal),
-      { loading: 'Save ho raha…', success: 'Document add ho gaya ✅', error: 'Add nahi hua.' });
+      { loading: 'Saving…', success: 'Document added ✅', error: 'Could not add document.' });
   };
 
   const rows = docs ?? [];
@@ -92,7 +92,7 @@ export default function DocumentsPage() {
               {isLoading ? (
                 <tr><td colSpan={6} className="px-6 py-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-emerald-500" /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-14 text-center text-sm text-zinc-400">Abhi koi document nahi.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-14 text-center text-sm text-zinc-400">No documents yet.</td></tr>
               ) : rows.map((d) => (
                 <tr key={d.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
                   <td className="px-6 py-4 font-medium text-zinc-900 dark:text-zinc-100">{d.employee_name || '—'}</td>
@@ -103,7 +103,7 @@ export default function DocumentsPage() {
                   <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300">{d.expiry_date ? format(new Date(d.expiry_date), 'dd MMM yyyy') : '—'}</td>
                   <td className="px-6 py-4"><VerifySelect doc={d} /></td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => toast.promise(del.mutateAsync(d.id), { loading: 'Delete…', success: 'Delete ho gaya', error: 'Delete nahi hua' })}
+                    <button onClick={() => toast.promise(del.mutateAsync(d.id), { loading: 'Deleting…', success: 'Deleted', error: 'Could not delete' })}
                       className="rounded-lg p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"><Trash2 size={16} /></button>
                   </td>
                 </tr>
@@ -132,11 +132,11 @@ export default function DocumentsPage() {
             <input type="file" className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
               onChange={(e) => onPickFile(e.target.files?.[0])} />
             {upload.isPending ? (
-              <><Loader2 size={22} className="animate-spin text-emerald-500" /><span className="text-sm text-zinc-500">Upload ho rahi…</span></>
+              <><Loader2 size={22} className="animate-spin text-emerald-500" /><span className="text-sm text-zinc-500">Uploading…</span></>
             ) : form.file_path ? (
-              <><CheckCircle2 size={22} className="text-emerald-500" /><span className="max-w-full truncate text-sm font-medium text-emerald-700 dark:text-emerald-300">{fileName || 'File uploaded'}</span><span className="text-xs text-zinc-400">Change karne ke liye dobara click karein</span></>
+              <><CheckCircle2 size={22} className="text-emerald-500" /><span className="max-w-full truncate text-sm font-medium text-emerald-700 dark:text-emerald-300">{fileName || 'File uploaded'}</span><span className="text-xs text-zinc-400">Click again to change</span></>
             ) : (
-              <><UploadCloud size={22} className="text-zinc-400" /><span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Click ya drag karke file choose karein</span><span className="text-xs text-zinc-400">PDF, image, DOC ya XLS · max 5 MB</span></>
+              <><UploadCloud size={22} className="text-zinc-400" /><span className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Click or drag a file to choose</span><span className="text-xs text-zinc-400">PDF, image, DOC or XLS · max 5 MB</span></>
             )}
           </label>
         </Field>

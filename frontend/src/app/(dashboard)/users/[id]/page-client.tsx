@@ -182,9 +182,9 @@ function PermissionsTab({ userId }: { userId: string }) {
 
   const save = () => {
     toast.promise(update.mutateAsync([...sel]), {
-      loading: 'Permissions save ho rahi hain…',
-      success: 'Permissions update ho gayin ✅',
-      error: (e: any) => e?.response?.data?.detail || 'Save nahi hui — shayad permission nahi.',
+      loading: 'Saving permissions…',
+      success: 'Permissions updated ✅',
+      error: (e: any) => e?.response?.data?.detail || "Could not save — you may not have permission.",
     });
   };
   const resetToRole = () => setSelected(new Set(roleBase));

@@ -41,7 +41,7 @@ export default function TasksPage() {
   const save = () => {
     if (!form.employee_id || !form.title) { toast.error('Employee aur title zaroori hai.'); return; }
     toast.promise(create.mutateAsync(form).then(() => { setOpen(false); setForm({ status: 'Pending', priority: 'Medium' }); }),
-      { loading: 'Task ban raha…', success: 'Task ban gaya ✅', error: 'Task nahi bana.' });
+      { loading: 'Creating task…', success: 'Task created ✅', error: 'Could not create task.' });
   };
 
   const rows = tasks ?? [];
@@ -86,7 +86,7 @@ export default function TasksPage() {
               {isLoading ? (
                 <tr><td colSpan={6} className="px-6 py-12 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-emerald-500" /></td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-14 text-center text-sm text-zinc-400">Abhi koi task nahi. &quot;New Task&quot; se add karein.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-14 text-center text-sm text-zinc-400">No tasks yet. Use &quot;New Task&quot; to add one.</td></tr>
               ) : rows.map((t) => (
                 <tr key={t.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
                   <td className="px-6 py-4">
@@ -98,7 +98,7 @@ export default function TasksPage() {
                   <td className="px-6 py-4 text-zinc-600 dark:text-zinc-300">{t.due_date ? format(new Date(t.due_date), 'dd MMM yyyy') : '—'}</td>
                   <td className="px-6 py-4"><StatusSelect task={t} /></td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => toast.promise(del.mutateAsync(t.id), { loading: 'Delete…', success: 'Task delete ho gaya', error: 'Delete nahi hua' })}
+                    <button onClick={() => toast.promise(del.mutateAsync(t.id), { loading: 'Deleting…', success: 'Task deleted', error: 'Could not delete' })}
                       className="rounded-lg p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"><Trash2 size={16} /></button>
                   </td>
                 </tr>

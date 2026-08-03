@@ -437,7 +437,7 @@ export function CreateUserWizard({ open, onClose }: Props) {
                       <CheckCircle2 size={36} className="relative" />
                     </motion.div>
                     <div>
-                      <p className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100">User Created! 🎉</p>
+                      <p className="text-xl font-extrabold text-zinc-900 dark:text-zinc-100">User Created! </p>
                       <p className="text-sm text-zinc-500 mt-1">Share the temporary password securely:</p>
                     </div>
                     <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-3 font-mono text-lg font-bold tracking-widest text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100">

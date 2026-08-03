@@ -266,6 +266,66 @@ export const useMyClockOut = () => {
   });
 };
 
+// ── Employee Self-Service (ESS): each employee sees ONLY their own HR data ──────
+export interface MyHrProfile {
+  id: string; name: string; employee_code: string | null;
+  email: string | null; phone: string | null;
+  department: string | null; designation: string | null;
+  joining_date: string | null; base_salary: number | null; salary_type: string | null;
+}
+export interface MyPayslip {
+  id: string; month: number; year: number; status: string;
+  base_salary: number; allowances: number; overtime: number;
+  bonuses: number; deductions: number; tax: number; net_pay: number;
+}
+export interface MyLeave {
+  id: string; leave_type: string; start_date: string; end_date: string;
+  reason: string | null; status: string;
+}
+export interface MyTraining {
+  id: string; title: string; trainer: string | null;
+  start_date: string | null; end_date: string | null;
+  program_status: string; my_status: string;
+}
+export interface MyAttendanceSummary {
+  month: number; year: number; records: Attendance[];
+  present: number; absent: number; total: number;
+}
+
+export const useMyHrProfile = () => useQuery({
+  queryKey: ['hr', 'me', 'profile'],
+  queryFn: async () => (await api.get('/api/v1/hr/me')).data as MyHrProfile,
+  retry: false,
+});
+export const useMyAttendanceSummary = (month?: number, year?: number) => useQuery({
+  queryKey: ['hr', 'me', 'attendance', month, year],
+  queryFn: async () => (await api.get('/api/v1/hr/me/attendance', { params: { month, year } })).data as MyAttendanceSummary,
+  retry: false,
+});
+export const useMyPayroll = () => useQuery({
+  queryKey: ['hr', 'me', 'payroll'],
+  queryFn: async () => (await api.get('/api/v1/hr/me/payroll')).data as MyPayslip[],
+  retry: false,
+});
+export const useMyLeaves = () => useQuery({
+  queryKey: ['hr', 'me', 'leaves'],
+  queryFn: async () => (await api.get('/api/v1/hr/me/leaves')).data as MyLeave[],
+  retry: false,
+});
+export const useMyTraining = () => useQuery({
+  queryKey: ['hr', 'me', 'training'],
+  queryFn: async () => (await api.get('/api/v1/hr/me/training')).data as MyTraining[],
+  retry: false,
+});
+export const useApplyLeave = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { leave_type: string; start_date: string; end_date: string; reason: string }) =>
+      (await api.post('/api/v1/hr/me/leaves', data)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'me', 'leaves'] }),
+  });
+};
+
 export const useTodayAttendance = (employeeId: string | null) => {
   return useQuery({
     queryKey: ['hr', 'attendance', 'today', employeeId],

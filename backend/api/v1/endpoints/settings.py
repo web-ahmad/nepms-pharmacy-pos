@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models.users import User
-from core.deps import requires_permission
+from core.deps import requires_permission, get_current_user
 from schemas.settings import (
     TenantSettingsUpdate, TenantSettingsResponse,
     SystemModuleResponse, SystemModuleUpdate,
@@ -70,8 +70,12 @@ def update_invoice_settings(obj_in: InvoiceSettingsUpdate, db: Session = Depends
     return SettingsService(db).update_invoice_settings(current_user.get("tenant_id"), obj_in)
 
 @router.get("/modules", response_model=List[SystemModuleResponse])
-def get_modules(db: Session = Depends(get_db), current_user: dict = Depends(require_settings_view)):
-    return SettingsService(db).get_modules(current_user.get("tenant_id"))
+def get_modules(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Read-only "which features are on" info — every authenticated user needs
+    # this (it drives the sidebar's module gating for ALL roles), not just
+    # settings:view holders. Only /modules/{id} PUT (the actual toggle) stays
+    # restricted to require_settings_update below.
+    return SettingsService(db).get_modules(current_user.tenant_id)
 
 @router.put("/modules/{id}", response_model=SystemModuleResponse)
 def update_module(id: str, obj_in: SystemModuleUpdate, db: Session = Depends(get_db), current_user: dict = Depends(require_settings_update)):

@@ -1,8 +1,8 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { motion } from 'framer-motion';
-import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth-store';
@@ -41,6 +41,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useVoidSale } from '@/features/sales/services/sales.api';
+import { useMyProfileId } from '@/features/users/services/user.api';
 import toast from 'react-hot-toast';
 import { NAV_ITEMS } from '@/components/layout/Sidebar';
 
@@ -284,6 +285,30 @@ export default function CashierPortalPage() {
   const [voidSaleId, setVoidSaleId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ── Profile menu (bottom of the sidebar) ────────────────────────────────
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const { data: myProfile } = useMyProfileId();
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [profileOpen]);
+
+  const openMyProfile = () => {
+    setProfileOpen(false);
+    if (myProfile?.enterprise_user_id) router.push(`/users/${myProfile.enterprise_user_id}`);
+    else router.push('/hr/me');   // fallback for staff without an enterprise profile
+  };
+
+  const handleLogout = () => { logout(); router.push('/login'); };
+
   // Global 'Alt + S' Key sequential navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -359,21 +384,46 @@ export default function CashierPortalPage() {
   const userPermissions: string[] = user?.permissions || [];
 
   const visibleItems = useMemo(() => {
-    return NAV_ITEMS.filter((item) => {
-      // Exclude Dashboard and POS from Cashier Portal explicitly
-      if (item.label === 'Dashboard' || item.label === 'POS Terminal') {
-        return false;
-      }
+    const hasWildcard = userPermissions.includes('*');
+    const can = (code?: string) =>
+      !code || isSuperAdmin || hasWildcard || userPermissions.includes(code);
 
-      const hasWildcard = userPermissions.includes('*');
-      if (item.permission && !isSuperAdmin && !hasWildcard && !userPermissions.includes(item.permission)) {
-        return false;
-      }
-      if (item.moduleKey && !isSuperAdmin) {
-        if (!isModuleEnabled(item.moduleKey)) return false;
-      }
-      return true;
-    });
+    type NavChild = { href: string; permission?: string; hideIfPermission?: string };
+    type NavExtras = { anyPermission?: string[]; children?: NavChild[] };
+
+    return NAV_ITEMS
+      .filter((item) => {
+        // Exclude Dashboard and POS from Cashier Portal explicitly
+        if (item.label === 'Dashboard' || item.label === 'POS Terminal') {
+          return false;
+        }
+
+        // `anyPermission` = show if the user holds ANY of the listed codes, so
+        // e.g. HR & Payroll stays visible to self-service staff (hr:self) as
+        // well as full HR admins (hr:view).
+        const anyPerm = (item as NavExtras).anyPermission;
+        if (anyPerm ? !anyPerm.some(can) : !can(item.permission)) {
+          return false;
+        }
+
+        if (item.moduleKey && !isSuperAdmin) {
+          if (!isModuleEnabled(item.moduleKey)) return false;
+        }
+        return true;
+      })
+      .map((item) => {
+        // This sidebar is flat (no expandable sub-items), so a group whose own
+        // landing page the user can't open must point at their first accessible
+        // child instead — a Cashier with only hr:self gets /hr/me, not /hr.
+        const { children } = item as NavExtras;
+        if (!can(item.permission) && children?.length) {
+          const child = children.find(
+            (c) => can(c.permission) && !(c.hideIfPermission && can(c.hideIfPermission)),
+          );
+          if (child) return { ...item, href: child.href };
+        }
+        return item;
+      });
   }, [userPermissions, isSuperAdmin, isModuleEnabled]);
 
   useEffect(() => {
@@ -742,6 +792,61 @@ export default function CashierPortalPage() {
               <Bell size={20} />
               <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-error" />
             </button>
+
+            {/* Profile menu — top-right, matching the main dashboard layout */}
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen((o) => !o)}
+                className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-surface-container-low"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-on-primary">
+                  {user?.username?.[0]?.toUpperCase() ?? 'U'}
+                </div>
+                <div className="hidden text-left sm:block">
+                  <p className="max-w-[140px] truncate text-sm font-bold leading-tight text-on-surface">{user?.username}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-on-surface-variant">{user?.role}</p>
+                </div>
+                <ChevronRight size={15} className={`shrink-0 text-on-surface-variant transition-transform ${profileOpen ? '-rotate-90' : 'rotate-90'}`} />
+              </button>
+
+              <AnimatePresence>
+                {profileOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest p-1.5 shadow-2xl"
+                  >
+                    <button
+                      onClick={openMyProfile}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low"
+                    >
+                      <Settings size={15} className="text-on-surface-variant" /> My Profile
+                    </button>
+                    <button
+                      onClick={() => { setProfileOpen(false); router.push('/hr/me'); }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low"
+                    >
+                      <UserCog size={15} className="text-on-surface-variant" /> My HR
+                    </button>
+                    <button
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-on-surface transition-colors hover:bg-surface-container-low"
+                    >
+                      {theme === 'dark' ? <Sun size={15} className="text-on-surface-variant" /> : <Moon size={15} className="text-on-surface-variant" />}
+                      {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-semibold text-error transition-colors hover:bg-error-container"
+                    >
+                      <LogOut size={15} /> Log out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </header>
 

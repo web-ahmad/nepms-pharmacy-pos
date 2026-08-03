@@ -1,0 +1,181 @@
+INFO:     Will watch for changes in these directories: ['C:\\Users\\DEVJiX\\Desktop\\NEPMS\\backend']
+C:\Users\DEVJiX\AppData\Local\Programs\Python\Python312\Lib\site-packages\pydantic\_internal\_config.py:386: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [16608] using WatchFiles
+C:\Users\DEVJiX\AppData\Local\Programs\Python\Python312\Lib\site-packages\pydantic\_internal\_config.py:386: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [19940]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+[ACCOUNTING] Background sync complete: 0 sales, 0 expenses, 0 payroll runs processed.
+Warning: APScheduler is not installed. Background jobs will not run automatically. Run `pip install apscheduler` to enable.
+INFO:     127.0.0.1:63484 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63479 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63482 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63480 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63483 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63481 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63479 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63484 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63483 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63482 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63481 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63480 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63479 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63496 - "GET /api/v1/hr/attendance/my/today HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:63493 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63492 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63495 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63493 - "GET /api/v1/sales?skip=0&limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63494 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63497 - "GET /api/v1/dashboard/overview?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63495 - "GET /api/v1/dashboard/alerts/low-stock HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63492 - "GET /api/v1/dashboard/inventory HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63496 - "GET /api/v1/dashboard/charts?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63493 - "GET /api/v1/settings/modules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63509 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63510 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63506 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63508 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63505 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63507 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63509 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63510 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63507 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63505 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63506 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63509 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63508 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63510 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63529 - "OPTIONS /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63530 - "OPTIONS /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63531 - "OPTIONS /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63532 - "OPTIONS /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63532 - "OPTIONS /api/v1/settings/modules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63535 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63536 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63534 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63533 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63538 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63535 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63537 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'api\v1\endpoints\hr.py'. Reloading...
+ INFO:     127.0.0.1:63653 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63654 - "GET /api/v1/hr/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:63672 - "OPTIONS /api/v1/hr/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63672 - "OPTIONS /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63673 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63677 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63676 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63674 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63678 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63675 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63692 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63694 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63693 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63691 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63692 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63695 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63696 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63703 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63702 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63778 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63782 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63780 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63779 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63783 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63781 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63827 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63829 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63828 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63843 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63842 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63844 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63829 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63827 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63828 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63843 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63847 - "OPTIONS /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63847 - "OPTIONS /api/v1/settings/modules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63851 - "GET /api/v1/hr/attendance/my/today HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:63848 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63849 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63850 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63848 - "GET /api/v1/sales?skip=0&limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63852 - "GET /api/v1/dashboard/overview?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63849 - "GET /api/v1/dashboard/inventory HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63851 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63853 - "GET /api/v1/dashboard/charts?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63848 - "GET /api/v1/settings/modules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63850 - "GET /api/v1/dashboard/alerts/low-stock HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63844 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63828 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63843 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63829 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63827 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63842 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:63844 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:63869 - "OPTIONS /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63870 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63869 - "OPTIONS /api/v1/cashier/session/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63872 - "OPTIONS /api/v1/sales/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63869 - "OPTIONS /api/v1/sales/workflow-mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63873 - "GET /api/v1/sales/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63874 - "GET /api/v1/sales/workflow-mode HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63870 - "GET /api/v1/cashier/session/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63869 - "OPTIONS /api/v1/cashier/session/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63870 - "GET /api/v1/cashier/session/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63879 - "OPTIONS /api/v1/crm/customers?search= HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63881 - "GET /api/v1/crm/customers?search= HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63880 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63880 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63880 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61625 - "OPTIONS /api/v1/settings/modules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61624 - "OPTIONS /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61621 - "OPTIONS /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61620 - "OPTIONS /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61622 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61630 - "OPTIONS /api/v1/sales?skip=0&limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61634 - "OPTIONS /api/v1/hr/attendance/my/today HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61631 - "OPTIONS /api/v1/dashboard/charts?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61633 - "OPTIONS /api/v1/dashboard/overview?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61635 - "OPTIONS /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61637 - "OPTIONS /api/v1/dashboard/alerts/low-stock HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61630 - "OPTIONS /api/v1/dashboard/inventory HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61634 - "OPTIONS /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61623 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:61626 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:61639 - "GET /api/v1/hr/attendance/my/today HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:61628 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61629 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61627 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61638 - "GET /api/v1/sales?skip=0&limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61632 - "GET /api/v1/settings/modules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61641 - "GET /api/v1/dashboard/overview?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61640 - "GET /api/v1/dashboard/charts?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61636 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50627 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:50629 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:50630 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50634 - "GET /api/v1/hr/attendance/my/today HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50626 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50625 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50628 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50636 - "GET /api/v1/sales?skip=0&limit=8 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50635 - "GET /api/v1/settings/modules HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50631 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50633 - "GET /api/v1/dashboard/charts?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50632 - "GET /api/v1/dashboard/overview?from_date=2026-08-02&to_date=2026-08-02 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57668 - "OPTIONS /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57667 - "OPTIONS /api/v1/hr/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57668 - "OPTIONS /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57672 - "GET /api/v1/settings/modules HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:57669 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=100 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57675 - "GET /api/v1/hr/me HTTP/1.1" 500 Internal Server Error
+INFO:     127.0.0.1:57671 - "GET /api/v1/inventory/alerts/low-stock?skip=0&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57672 - "GET /api/v1/hr/me/payroll HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57674 - "GET /api/v1/enterprise/users/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57670 - "GET /api/v1/dashboard/alerts/expiry HTTP/1.1" 200 OK
