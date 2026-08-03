@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import ModuleGuard from '@/components/ModuleGuard';
 import { useEmployees, useDeleteEmployee } from '@/features/hr/services/hr.api';
 import EmployeeTable from '@/features/hr/components/EmployeeTable';
@@ -65,10 +66,13 @@ export default function EmployeesPage() {
             initialData={editingEmployee || undefined} 
           />
         ) : viewingEmployee ? (
-          <ViewEmployeeModal 
-            employee={viewingEmployee} 
-            onClose={() => setViewingEmployee(null)} 
-          />
+          // AnimatePresence lets the modal play its exit animation on close.
+          <AnimatePresence>
+            <ViewEmployeeModal
+              employee={viewingEmployee}
+              onClose={() => setViewingEmployee(null)}
+            />
+          </AnimatePresence>
         ) : (
           <EmployeeTable 
             data={data!} 

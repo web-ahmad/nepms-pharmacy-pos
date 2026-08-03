@@ -280,7 +280,7 @@ export interface MyPayslip {
 }
 export interface MyLeave {
   id: string; leave_type: string; start_date: string; end_date: string;
-  reason: string | null; status: string;
+  reason: string | null; status: string; rejection_reason?: string | null;
 }
 export interface MyTraining {
   id: string; title: string; trainer: string | null;
@@ -323,6 +323,105 @@ export const useApplyLeave = () => {
     mutationFn: async (data: { leave_type: string; start_date: string; end_date: string; reason: string }) =>
       (await api.post('/api/v1/hr/me/leaves', data)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'me', 'leaves'] }),
+  });
+};
+
+// ── Admin: one employee's payroll / training (same shape as the ESS versions) ──
+export const useEmployeePayroll = (employeeId?: string) => useQuery({
+  queryKey: ['hr', 'employee', employeeId, 'payroll'],
+  queryFn: async () => (await api.get(`/api/v1/hr/employees/${employeeId}/payroll`)).data as MyPayslip[],
+  enabled: !!employeeId,
+  retry: false,
+});
+export const useEmployeeTraining = (employeeId?: string) => useQuery({
+  queryKey: ['hr', 'employee', employeeId, 'training'],
+  queryFn: async () => (await api.get(`/api/v1/hr/employees/${employeeId}/training`)).data as MyTraining[],
+  enabled: !!employeeId,
+  retry: false,
+});
+
+// ── ESS: shift / advances / performance / tasks / documents ────────────────────
+export interface MyShift {
+  id: string; name: string; start_time: string; end_time: string;
+  grace_period: number; is_active: boolean;
+}
+export interface MyAdvance {
+  id: string; amount: number; request_date: string | null;
+  deduction_month: string | null; reason: string | null; status: string;
+  rejection_reason?: string | null;
+}
+export interface MyReview {
+  id: string; review_period: string | null; rating: number | null;
+  comments: string | null; goals: unknown; achievements: unknown;
+  next_review_date: string | null; reviewer: string | null;
+}
+export interface MyTask {
+  id: string; title: string; description: string | null;
+  status: string; priority: string; due_date: string | null;
+}
+export interface MyDocument {
+  id: string; document_type: string; file_path: string;
+  expiry_date: string | null; verification_status: string; created_at: string | null;
+}
+
+export const useMyShift = () => useQuery({
+  queryKey: ['hr', 'me', 'shift'],
+  queryFn: async () => (await api.get('/api/v1/hr/me/shift')).data as MyShift | null,
+  retry: false,
+});
+export const useMyAdvances = () => useQuery({
+  queryKey: ['hr', 'me', 'advances'],
+  queryFn: async () => (await api.get('/api/v1/hr/me/advances')).data as MyAdvance[],
+  retry: false,
+});
+export const useRequestAdvance = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { amount: number; deduction_month?: string; reason?: string }) =>
+      (await api.post('/api/v1/hr/me/advances', data)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'me', 'advances'] }),
+  });
+};
+export const useMyPerformance = () => useQuery({
+  queryKey: ['hr', 'me', 'performance'],
+  queryFn: async () => (await api.get('/api/v1/hr/me/performance')).data as MyReview[],
+  retry: false,
+});
+export const useMyTasks = () => useQuery({
+  queryKey: ['hr', 'me', 'tasks'],
+  queryFn: async () => (await api.get('/api/v1/hr/me/tasks')).data as MyTask[],
+  retry: false,
+});
+export const useUpdateMyTaskStatus = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) =>
+      (await api.patch(`/api/v1/hr/me/tasks/${id}`, { status })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'me', 'tasks'] }),
+  });
+};
+export const useMyDocuments = () => useQuery({
+  queryKey: ['hr', 'me', 'documents'],
+  queryFn: async () => (await api.get('/api/v1/hr/me/documents')).data as MyDocument[],
+  retry: false,
+});
+export const useUploadMyDocumentFile = () =>
+  useMutation({
+    mutationFn: async (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await api.post('/api/v1/hr/me/documents/upload', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data as { url: string; name: string };
+    },
+  });
+export const useAddMyDocument = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { document_type: string; file_path: string; expiry_date?: string }) =>
+      (await api.post('/api/v1/hr/me/documents', data)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'me', 'documents'] }),
   });
 };
 
@@ -475,11 +574,12 @@ export const useApproveLeave = () => {
   });
 };
 
+// Rejecting always carries a reason so the employee knows why.
 export const useRejectLeave = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await api.post(`/api/v1/hr/leaves/${id}/reject`);
+    mutationFn: async ({ id, rejection_reason }: { id: string; rejection_reason: string }) => {
+      const res = await api.post(`/api/v1/hr/leaves/${id}/reject`, { rejection_reason });
       return res.data;
     },
     onSuccess: () => {
@@ -661,6 +761,20 @@ export const useApproveAdvance = () => {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.post(`/api/v1/hr/advances/${id}/approve`);
+      return res.data as AdvanceSalary;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'advances'] });
+    }
+  });
+};
+
+// Rejecting always carries a reason so the employee knows why.
+export const useRejectAdvance = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, rejection_reason }: { id: string; rejection_reason: string }) => {
+      const res = await api.post(`/api/v1/hr/advances/${id}/reject`, { rejection_reason });
       return res.data as AdvanceSalary;
     },
     onSuccess: () => {

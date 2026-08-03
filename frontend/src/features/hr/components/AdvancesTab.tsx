@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useAdvances, useApproveAdvance } from '../services/hr.api';
+import { useAdvances, useApproveAdvance, useRejectAdvance } from '../services/hr.api';
+import { RejectReasonModal } from './RejectReasonModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { IssueAdvanceModal } from './IssueAdvanceModal';
@@ -12,7 +13,9 @@ import { parseApiError } from '@/utils/errorParser';
 export function AdvancesTab() {
   const { data: advances, isLoading } = useAdvances();
   const { mutate: approveAdvance, isPending: isApproving } = useApproveAdvance();
+  const { mutate: rejectAdvance, isPending: isRejecting } = useRejectAdvance();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [rejecting, setRejecting] = useState<any>(null);
 
   const handleApprove = (id: string) => {
     if (confirm("Are you sure you want to approve and disburse this advance? This will post to accounting immediately.")) {
@@ -21,6 +24,13 @@ export function AdvancesTab() {
         onError: (err: any) => toast.error(parseApiError(err))
       });
     }
+  };
+
+  const handleReject = (rejection_reason: string) => {
+    rejectAdvance({ id: rejecting.id, rejection_reason }, {
+      onSuccess: () => { toast.success("Advance request rejected"); setRejecting(null); },
+      onError: (err: any) => toast.error(parseApiError(err))
+    });
   };
 
   const exportColumns: ExportColumn[] = [
@@ -86,24 +96,46 @@ export function AdvancesTab() {
                   {adv.reason || '-'}
                 </td>
                 <td className="px-6 py-4">
-                  <Badge 
+                  <Badge
                     variant={adv.status === 'Paid' ? 'default' : 'secondary'}
-                    className={adv.status === 'Paid' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-amber-100 text-amber-800 border-amber-200'}
+                    className={
+                      adv.status === 'Paid'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                        : adv.status === 'Rejected'
+                          ? 'bg-red-100 text-red-800 border-red-200'
+                          : 'bg-amber-100 text-amber-800 border-amber-200'
+                    }
                   >
                     {adv.status}
                   </Badge>
+                  {adv.status === 'Rejected' && adv.rejection_reason && (
+                    <p className="mt-1 max-w-[220px] truncate text-xs text-red-500" title={adv.rejection_reason}>
+                      {adv.rejection_reason}
+                    </p>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-right">
                   {adv.status === 'Pending' && (
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                      onClick={() => handleApprove(adv.id)}
-                      disabled={isApproving}
-                    >
-                      Approve & Pay
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        onClick={() => handleApprove(adv.id)}
+                        disabled={isApproving || isRejecting}
+                      >
+                        Approve & Pay
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-200 text-red-600 hover:bg-red-50"
+                        onClick={() => setRejecting(adv)}
+                        disabled={isApproving || isRejecting}
+                      >
+                        Reject
+                      </Button>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -113,10 +145,27 @@ export function AdvancesTab() {
         </div>
       </div>
 
-      <IssueAdvanceModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      <IssueAdvanceModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
       />
+
+      {rejecting && (
+        <RejectReasonModal
+          title="Reject advance request"
+          subject={`${formatCurrency(rejecting.amount)} · ${rejecting.employee_name || 'Employee'}`}
+          quickReasons={[
+            'Insufficient balance',
+            'Recent advance already taken',
+            'Amount too high',
+            'Incomplete information',
+            'Not eligible yet',
+          ]}
+          isPending={isRejecting}
+          onCancel={() => setRejecting(null)}
+          onConfirm={handleReject}
+        />
+      )}
     </div>
   );
 }

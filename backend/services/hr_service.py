@@ -270,14 +270,16 @@ class HRService:
     def create_leave(self, tenant_id: str, obj_in: LeaveRequestCreate):
         return self.repo.create_leave(tenant_id, obj_in)
 
-    def reject_leave(self, tenant_id: str, user_id: str, leave_id: str):
+    def reject_leave(self, tenant_id: str, user_id: str, leave_id: str, rejection_reason: str = None):
         leave = self.repo.get_leave(tenant_id, leave_id)
         if not leave:
             raise HTTPException(404, "Leave not found")
-        
+        if not (rejection_reason or "").strip():
+            raise HTTPException(400, "A reason is required to reject this leave request.")
+
+        leave.rejection_reason = rejection_reason.strip()
         updated = self.repo.update_leave_status(leave, "Rejected", user_id)
 
-        
         self.db.commit()
         return updated
 
@@ -408,13 +410,32 @@ class HRService:
     def create_advance(self, tenant_id: str, obj_in: AdvanceSalaryCreate):
         return self.repo.create_advance(tenant_id, obj_in)
 
+    def reject_advance(self, tenant_id: str, user_id: str, advance_id: str, rejection_reason: str = None):
+        adv = self.repo.get_advance(tenant_id, advance_id)
+        if not adv:
+            raise HTTPException(404, "Advance Salary not found")
+        if adv.status == "Paid":
+            raise HTTPException(400, "A paid advance can no longer be rejected.")
+        if not (rejection_reason or "").strip():
+            raise HTTPException(400, "A reason is required to reject this advance request.")
+
+        adv.status = "Rejected"
+        adv.approved_by = user_id
+        adv.rejection_reason = rejection_reason.strip()
+        self.db.add(adv)
+        self.db.commit()
+        self.db.refresh(adv)
+        return adv
+
     def approve_advance(self, tenant_id: str, user_id: str, advance_id: str):
         adv = self.repo.get_advance(tenant_id, advance_id)
         if not adv:
             raise HTTPException(404, "Advance Salary not found")
         if adv.status == "Paid":
             raise HTTPException(400, "Advance Salary is already paid")
-            
+        if adv.status == "Rejected":
+            raise HTTPException(400, "This advance was rejected and can no longer be approved.")
+
         adv.status = "Paid"
         adv.approved_by = user_id
         

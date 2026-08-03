@@ -255,6 +255,7 @@ class LeaveRequestUpdate(BaseModel):
 class LeaveRequestResponse(LeaveRequestBase):
     id: str
     approved_by: Optional[str] = None
+    rejection_reason: Optional[str] = None
     created_at: datetime
     employee_name: Optional[str] = None
 
@@ -353,6 +354,7 @@ class AdvanceSalaryResponse(AdvanceSalaryBase):
     id: str
     status: str
     approved_by: Optional[str] = None
+    rejection_reason: Optional[str] = None
     journal_entry_id: Optional[str] = None
     created_at: datetime
     

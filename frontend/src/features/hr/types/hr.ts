@@ -199,6 +199,7 @@ export interface AdvanceSalary {
   reason?: string;
   status: 'Pending' | 'Approved' | 'Rejected' | 'Paid';
   approved_by?: string;
+  rejection_reason?: string | null;
   employee_name?: string;
   created_at?: string;
 }

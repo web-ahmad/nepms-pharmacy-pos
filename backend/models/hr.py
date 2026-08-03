@@ -136,6 +136,7 @@ class LeaveRequest(Base):
     status = Column(String, default="Pending") # Pending, Approved, Rejected, Cancelled
     approval_status = Column(String, default="Pending") # Alias/Extended field
     approved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    rejection_reason = Column(String, nullable=True)  # why the request was turned down
     attachment = Column(String, nullable=True)
     leave_balance = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -204,6 +205,7 @@ class AdvanceSalary(Base):
     reason = Column(String, nullable=True)
     status = Column(String, default="Pending") # Pending, Approved, Rejected, Paid
     approved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    rejection_reason = Column(String, nullable=True)  # why the request was turned down
     journal_entry_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

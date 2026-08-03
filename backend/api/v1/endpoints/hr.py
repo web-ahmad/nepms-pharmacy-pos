@@ -143,6 +143,39 @@ def get_employees(db: Session = Depends(get_db), current_user: User = Depends(re
 def get_employee(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
     return HRService(db).get_employee(current_user.tenant_id, id)
 
+
+@router.get("/employees/{id}/payroll")
+def get_employee_payroll(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+    """Payslip history for one employee (admin view of the /me/payroll shape)."""
+    from models.hr import PayrollLine, PayrollRun
+    rows = (db.query(PayrollLine, PayrollRun)
+            .join(PayrollRun, PayrollRun.id == PayrollLine.payroll_run_id)
+            .filter(PayrollLine.employee_id == id,
+                    PayrollRun.tenant_id == current_user.tenant_id)
+            .order_by(PayrollRun.year.desc(), PayrollRun.month.desc()).all())
+    return [{
+        "id": ln.id, "month": run.month, "year": run.year, "status": run.status,
+        "base_salary": ln.base_salary, "allowances": ln.allowances, "overtime": ln.overtime,
+        "bonuses": ln.bonuses, "deductions": ln.deductions, "tax": ln.tax, "net_pay": ln.net_pay,
+    } for ln, run in rows]
+
+
+@router.get("/employees/{id}/training")
+def get_employee_training(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_view)):
+    """Training programs one employee is enrolled in (admin view of /me/training)."""
+    from models.hr import TrainingAttendance, TrainingProgram
+    rows = (db.query(TrainingAttendance, TrainingProgram)
+            .join(TrainingProgram, TrainingProgram.id == TrainingAttendance.program_id)
+            .filter(TrainingAttendance.employee_id == id,
+                    TrainingAttendance.tenant_id == current_user.tenant_id)
+            .order_by(TrainingProgram.start_date.desc()).all())
+    return [{
+        "id": ta.id, "title": prog.title, "trainer": prog.trainer,
+        "start_date": str(prog.start_date) if prog.start_date else None,
+        "end_date": str(prog.end_date) if prog.end_date else None,
+        "program_status": prog.completion_status, "my_status": ta.status,
+    } for ta, prog in rows]
+
 @router.post("/employees", response_model=EmployeeResponse)
 def create_employee(obj_in: EmployeeCreate, db: Session = Depends(get_db), current_user: User = Depends(require_hr_create), scope: PharmacyScope = Depends(get_pharmacy_scope)):
     try:
@@ -346,6 +379,7 @@ def my_leaves(db: Session = Depends(get_db), current_user: User = Depends(get_cu
     return [{
         "id": l.id, "leave_type": l.leave_type, "start_date": str(l.start_date),
         "end_date": str(l.end_date), "reason": l.reason, "status": l.status,
+        "rejection_reason": getattr(l, "rejection_reason", None),
     } for l in rows]
 
 
@@ -380,6 +414,172 @@ def my_training(db: Session = Depends(get_db), current_user: User = Depends(get_
         "program_status": prog.completion_status,
         "my_status": ta.status,
     } for ta, prog in rows]
+
+
+@router.get("/me/shift")
+def my_shift(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """The employee's own assigned shift (read-only)."""
+    from models.hr import Shift
+    emp = _my_employee(db, current_user)
+    if not emp.shift_id:
+        return None
+    sh = db.query(Shift).filter(Shift.id == emp.shift_id).first()
+    if not sh:
+        return None
+    return {
+        "id": sh.id, "name": sh.name,
+        "start_time": sh.start_time, "end_time": sh.end_time,
+        "grace_period": sh.grace_period, "is_active": sh.is_active,
+    }
+
+
+@router.get("/me/advances")
+def my_advances(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.hr import AdvanceSalary
+    emp = _my_employee(db, current_user)
+    rows = (db.query(AdvanceSalary)
+            .filter(AdvanceSalary.employee_id == emp.id)
+            .order_by(AdvanceSalary.created_at.desc()).all())
+    return [{
+        "id": a.id, "amount": a.amount,
+        "request_date": str(a.request_date) if a.request_date else None,
+        "deduction_month": a.deduction_month, "reason": a.reason, "status": a.status,
+        "rejection_reason": getattr(a, "rejection_reason", None),
+    } for a in rows]
+
+
+@router.post("/me/advances")
+def my_request_advance(body: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Employee requests an advance for themselves — always starts as Pending."""
+    from models.hr import AdvanceSalary
+    from datetime import date as _date
+    emp = _my_employee(db, current_user)
+    try:
+        amount = float(body.get("amount") or 0)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Amount must be a number.")
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero.")
+    adv = AdvanceSalary(
+        tenant_id=current_user.tenant_id,
+        employee_id=emp.id,
+        amount=amount,
+        request_date=_date.today(),
+        deduction_month=body.get("deduction_month") or _date.today().strftime("%m-%Y"),
+        reason=body.get("reason") or "",
+        status="Pending",          # staff can never self-approve
+    )
+    db.add(adv)
+    db.commit()
+    db.refresh(adv)
+    return {"id": adv.id, "amount": adv.amount, "status": adv.status}
+
+
+@router.get("/me/performance")
+def my_performance(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.hr import PerformanceReview, Employee
+    emp = _my_employee(db, current_user)
+    rows = (db.query(PerformanceReview)
+            .filter(PerformanceReview.employee_id == emp.id)
+            .order_by(PerformanceReview.created_at.desc()).all())
+    out = []
+    for r in rows:
+        reviewer = db.query(Employee).filter(Employee.id == r.reviewer_id).first() if r.reviewer_id else None
+        out.append({
+            "id": r.id, "review_period": r.review_period, "rating": r.rating,
+            "comments": r.comments, "goals": r.goals, "achievements": r.achievements,
+            "next_review_date": str(r.next_review_date) if r.next_review_date else None,
+            "reviewer": f"{reviewer.first_name} {reviewer.last_name}".strip() if reviewer else None,
+        })
+    return out
+
+
+@router.get("/me/tasks")
+def my_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.hr import EmployeeTask
+    emp = _my_employee(db, current_user)
+    rows = (db.query(EmployeeTask)
+            .filter(EmployeeTask.employee_id == emp.id)
+            .order_by(EmployeeTask.created_at.desc()).all())
+    return [{
+        "id": t.id, "title": t.title, "description": t.description,
+        "status": t.status, "priority": t.priority,
+        "due_date": str(t.due_date) if t.due_date else None,
+    } for t in rows]
+
+
+_MY_TASK_STATUSES = {"Pending", "In Progress", "Completed"}
+
+
+@router.patch("/me/tasks/{task_id}")
+def my_update_task_status(task_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Employee moves their OWN task along. Status only — they can't retitle,
+    reassign or cancel a task that was assigned to them."""
+    from models.hr import EmployeeTask
+    emp = _my_employee(db, current_user)
+    task = (db.query(EmployeeTask)
+            .filter(EmployeeTask.id == task_id, EmployeeTask.employee_id == emp.id)
+            .first())
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    status_val = body.get("status")
+    if status_val not in _MY_TASK_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Status must be one of: {', '.join(sorted(_MY_TASK_STATUSES))}.")
+    task.status = status_val
+    db.commit()
+    db.refresh(task)
+    return {"id": task.id, "status": task.status}
+
+
+@router.get("/me/documents")
+def my_documents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from models.hr import EmployeeDocument
+    emp = _my_employee(db, current_user)
+    rows = (db.query(EmployeeDocument)
+            .filter(EmployeeDocument.employee_id == emp.id)
+            .order_by(EmployeeDocument.created_at.desc()).all())
+    return [{
+        "id": d.id, "document_type": d.document_type, "file_path": d.file_path,
+        "expiry_date": str(d.expiry_date) if d.expiry_date else None,
+        "verification_status": d.verification_status,
+        "created_at": str(d.created_at) if d.created_at else None,
+    } for d in rows]
+
+
+@router.post("/me/documents/upload", summary="Upload own document file → returns its URL")
+def my_upload_document_file(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    ext = (file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "")
+    if ext not in _ALLOWED_DOC_EXT:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type '.{ext}'. Allowed: PDF, images, DOC, XLS.")
+    filename = f"{_uuid.uuid4().hex}.{ext}"
+    with open(os.path.join(_HR_DOC_DIR, filename), "wb") as buf:
+        shutil.copyfileobj(file.file, buf)
+    return {"url": f"/storage/hr_documents/{filename}", "name": file.filename}
+
+
+@router.post("/me/documents")
+def my_add_document(body: dict = Body(...), db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Attach an uploaded file to the employee's OWN record. Always lands as
+    Pending — HR still has to verify it."""
+    from models.hr import EmployeeDocument
+    from datetime import date as _date
+    emp = _my_employee(db, current_user)
+    if not body.get("file_path"):
+        raise HTTPException(status_code=400, detail="Please upload a file first.")
+    expiry = body.get("expiry_date") or None
+    doc = EmployeeDocument(
+        tenant_id=current_user.tenant_id,
+        employee_id=emp.id,
+        document_type=body.get("document_type") or "Other",
+        file_path=body["file_path"],
+        expiry_date=_date.fromisoformat(expiry) if expiry else None,
+        verification_status="Pending",   # staff can never self-verify
+        uploaded_by=current_user.id,
+    )
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return {"id": doc.id, "document_type": doc.document_type, "verification_status": doc.verification_status}
 
 
 @router.get("/attendance/today/{employee_id}", response_model=Optional[AttendanceResponse])
@@ -469,8 +669,12 @@ def approve_leave(id: str, db: Session = Depends(get_db), current_user: User = D
     return HRService(db).approve_leave(current_user.tenant_id, current_user.id, id)
 
 @router.post("/leaves/{id}/reject", response_model=LeaveRequestResponse)
-def reject_leave(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_approve)):
-    return HRService(db).reject_leave(current_user.tenant_id, current_user.id, id)
+def reject_leave(id: str, body: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(require_hr_approve)):
+    """Rejecting always requires a reason so the employee knows why."""
+    return HRService(db).reject_leave(
+        current_user.tenant_id, current_user.id, id,
+        rejection_reason=(body or {}).get("rejection_reason"),
+    )
 
 # Shifts
 @router.get("/shifts", response_model=List[ShiftResponse])
@@ -651,6 +855,14 @@ def create_advance(obj_in: AdvanceSalaryCreate, db: Session = Depends(get_db), c
 @router.post("/advances/{id}/approve", response_model=AdvanceSalaryResponse)
 def approve_advance(id: str, db: Session = Depends(get_db), current_user: User = Depends(require_hr_approve)):
     return HRService(db).approve_advance(current_user.tenant_id, current_user.id, id)
+
+@router.post("/advances/{id}/reject", response_model=AdvanceSalaryResponse)
+def reject_advance(id: str, body: dict = Body(default={}), db: Session = Depends(get_db), current_user: User = Depends(require_hr_approve)):
+    """Rejecting always requires a reason so the employee knows why."""
+    return HRService(db).reject_advance(
+        current_user.tenant_id, current_user.id, id,
+        rejection_reason=(body or {}).get("rejection_reason"),
+    )
 
 # Analytics
 @router.get("/analytics", response_model=HRAnalyticsResponse)

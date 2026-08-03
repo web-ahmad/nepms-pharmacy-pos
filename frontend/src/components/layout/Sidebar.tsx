@@ -137,12 +137,22 @@ export const NAV_ITEMS = [
   // ── HR ────────────────────────────────────────────────────────────────────────
   { label: 'HR & Payroll',    href: '/hr',                        icon: UserCog,         permission: 'hr:view',   anyPermission: ['hr:view', 'hr:self'], moduleKey: 'hr', color: 'teal' as IconColor,
     children: [
-      // Self-service — visible to staff who only have hr:self (e.g. Cashier).
-      // Hidden from anyone who already has hr:view (full HR admin) — those
-      // users (Owner/Franchise Owner/HR) manage the whole module already and
-      // typically have no linked Employee record, so self-service would just
-      // show a confusing "No employee record linked" error for them.
-      { label: 'My HR',         href: '/hr/me',              permission: 'hr:self', hideIfPermission: 'hr:view' },
+      // ── Employee Self-Service ──────────────────────────────────────────────
+      // Visible to staff who only have hr:self (e.g. Cashier). Every page is
+      // scoped to the logged-in employee's OWN records. Hidden from anyone who
+      // already has hr:view (full HR admin) — those users (Owner/Franchise
+      // Owner/HR) manage the whole module already and typically have no linked
+      // Employee record, so self-service would just error for them.
+      { label: 'My HR',          href: '/hr/me',             permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Shift',       href: '/hr/me/shift',       permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Attendance',  href: '/hr/me/attendance',  permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Salary Slips',href: '/hr/me/salary',      permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Leaves',      href: '/hr/me/leaves',      permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Advances',    href: '/hr/me/advances',    permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Performance', href: '/hr/me/performance', permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Training',    href: '/hr/me/training',    permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Tasks',       href: '/hr/me/tasks',       permission: 'hr:self', hideIfPermission: 'hr:view' },
+      { label: 'My Documents',   href: '/hr/me/documents',   permission: 'hr:self', hideIfPermission: 'hr:view' },
       { label: 'Dashboard',     href: '/hr',                 permission: 'hr:view' },
       { label: 'Employees',     href: '/hr/employees',       permission: 'hr:view' },
       { label: 'Departments',   href: '/hr/departments',     permission: 'hr:view' },

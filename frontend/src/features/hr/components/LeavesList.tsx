@@ -6,6 +6,7 @@ import { format, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 
 import { useLeaveRequests, useApproveLeave, useRejectLeave } from '../services/hr.api';
+import { RejectReasonModal } from './RejectReasonModal';
 import AddLeaveModal from './AddLeaveModal';
 
 export default function LeavesList({
@@ -25,6 +26,7 @@ export default function LeavesList({
   const { mutate: rejectLeave, isPending: isRejecting } = useRejectLeave();
 
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<any>(null);
 
   const pendingApprovals = leaves?.filter(l => l.status === 'Pending').length || 0;
 
@@ -54,12 +56,14 @@ export default function LeavesList({
     });
   };
 
-  const handleReject = (id: string) => {
+  const handleReject = (rejection_reason: string) => {
+    const id = rejecting.id;
     setProcessingId(id);
-    rejectLeave(id, {
+    rejectLeave({ id, rejection_reason }, {
       onSuccess: () => {
         toast.success('Leave request rejected');
         setProcessingId(null);
+        setRejecting(null);
       },
       onError: (err: any) => {
         const msg = err?.response?.data?.detail || 'Failed to reject leave request';
@@ -243,7 +247,7 @@ export default function LeavesList({
                               Approve
                             </button>
                             <button
-                              onClick={() => handleReject(leave.id)}
+                              onClick={() => setRejecting(leave)}
                               disabled={isProcessingThis || isApproving || isRejecting}
                               className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-inset ring-red-200 transition-all hover:bg-red-100 disabled:opacity-50 dark:bg-red-900/25 dark:text-red-300 dark:ring-red-800 dark:hover:bg-red-900/40"
                             >
@@ -270,6 +274,16 @@ export default function LeavesList({
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
       />
+
+      {rejecting && (
+        <RejectReasonModal
+          title="Reject leave request"
+          subject={`${rejecting.leave_type || 'Leave'} · ${rejecting.employee_name || 'Employee'}`}
+          isPending={isRejecting}
+          onCancel={() => setRejecting(null)}
+          onConfirm={handleReject}
+        />
+      )}
     </div>
   );
 }
