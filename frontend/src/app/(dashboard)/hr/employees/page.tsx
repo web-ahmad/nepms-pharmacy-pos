@@ -30,14 +30,19 @@ export default function EmployeesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure? This will archive the employee record.")) {
-      try {
-        await deleteMutation.mutateAsync(id);
-        notify.success('Employee archived successfully');
-      } catch (error) {
-        console.error(error);
-        notify.error('Failed to archive employee');
-      }
+    const ok = window.confirm(
+      'Permanently delete this employee?\n\n' +
+      'Their attendance, leaves, documents, tasks and training records will be removed, ' +
+      'and their login (if any) will be deleted from Users & Roles too.\n\n' +
+      'This cannot be undone.'
+    );
+    if (!ok) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      notify.success('Employee permanently deleted');
+    } catch (error: any) {
+      // The API blocks deletion for staff on a finalised payroll run.
+      notify.error(error?.response?.data?.detail || 'Failed to delete employee');
     }
   };
 

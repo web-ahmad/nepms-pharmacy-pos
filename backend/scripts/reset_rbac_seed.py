@@ -748,7 +748,7 @@ def run(pharmacy_id: Optional[str] = None, dry_run: bool = False):
 
         if not dry_run:
             db.commit()
-            print("✅ RBAC reseed committed successfully.")
+            print(" RBAC reseed committed successfully.")
             print("\n⚠  IMPORTANT: All active JWTs are now stale.")
             print("   Ask all users to log out and log back in.\n")
             print("NEXT STEPS:")
@@ -758,7 +758,7 @@ def run(pharmacy_id: Optional[str] = None, dry_run: bool = False):
             print("     POST /api/v1/enterprise/roles/seed-enterprise")
         else:
             db.rollback()
-            print("✅ Dry run complete — no changes written.")
+            print(" Dry run complete — no changes written.")
 
     except Exception as e:
         db.rollback()

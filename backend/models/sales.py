@@ -46,6 +46,7 @@ class Sale(BaseModel):
     items = relationship("SaleItem", back_populates="sale", lazy="selectin")
     returns = relationship("SaleReturn", back_populates="sale", lazy="selectin")
     cashier = relationship("User", foreign_keys=[cashier_id], lazy="selectin")
+    customer = relationship("Customer", foreign_keys=[customer_id], lazy="selectin")
 
 
 class SaleItem(BaseModel):

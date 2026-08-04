@@ -83,6 +83,23 @@ export const usePosConfig = (): PosConfig => {
   return { ...DEFAULT_POS_CONFIG, ...(data || {}) };
 };
 
+/** Who is on this till and which counter it is (allocated per user, server-side). */
+export const useMyTerminal = () => {
+  return useQuery({
+    queryKey: ['pos', 'my-terminal'],
+    queryFn: async () => {
+      const res = await api.get<{
+        user_name: string;
+        counter_no: number | null;
+        counter_label: string | null;
+      }>('/api/v1/sales/my-terminal');
+      return res.data;
+    },
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+};
+
 export const useWorkflowMode = () => {
   return useQuery({
     queryKey: ['sales', 'workflow-mode'],

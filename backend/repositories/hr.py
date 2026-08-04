@@ -169,11 +169,13 @@ class HRRepository:
         self.db.refresh(db_obj)
         return db_obj
 
-    def delete_employee(self, tenant_id: str, employee_id: str):
+    def archive_employee(self, tenant_id: str, employee_id: str):
+        """Soft-deactivate. Used for staff who can't be hard-deleted (e.g. they
+        appear on a finalised payroll run) — see HRService.delete_employee."""
         db_obj = self.get_employee(tenant_id, employee_id)
         if not db_obj:
             return False
-        
+
         db_obj.is_active = False
         self.db.commit()
         return True
@@ -1036,7 +1038,16 @@ class HRRepository:
         if branch_id:
             q = q.filter(EmployeeDocument.employee_id.in_(
                 self.db.query(Employee.id).filter(Employee.tenant_id == tenant_id, Employee.branch_id == branch_id)))
-        return q.all()
+        docs = q.order_by(EmployeeDocument.created_at.desc()).all()
+        # manual join of employee_name (EmployeeDocument has no relationship)
+        emp_ids = {d.employee_id for d in docs if d.employee_id}
+        names = {}
+        if emp_ids:
+            for e in self.db.query(Employee).filter(Employee.id.in_(emp_ids)).all():
+                names[e.id] = f"{e.first_name} {e.last_name}".strip()
+        for d in docs:
+            d.employee_name = names.get(d.employee_id) or "Unknown"
+        return docs
 
     def create_employee_document(self, tenant_id: str, user_id: str, obj_in):
         db_obj = EmployeeDocument(tenant_id=tenant_id, uploaded_by=user_id, **obj_in.model_dump())
@@ -1160,7 +1171,19 @@ class HRRepository:
 
     # Training Attendance
     def get_training_attendances(self, tenant_id: str, program_id: str):
-        return self.db.query(TrainingAttendance).filter(TrainingAttendance.tenant_id == tenant_id, TrainingAttendance.program_id == program_id).all()
+        rows = self.db.query(TrainingAttendance).filter(
+            TrainingAttendance.tenant_id == tenant_id,
+            TrainingAttendance.program_id == program_id,
+        ).all()
+        # manual join of employee_name (TrainingAttendance has no relationship)
+        emp_ids = {r.employee_id for r in rows if r.employee_id}
+        names = {}
+        if emp_ids:
+            for e in self.db.query(Employee).filter(Employee.id.in_(emp_ids)).all():
+                names[e.id] = f"{e.first_name} {e.last_name}".strip()
+        for r in rows:
+            r.employee_name = names.get(r.employee_id) or "Unknown"
+        return rows
 
     def create_training_attendance(self, tenant_id: str, obj_in):
         db_obj = TrainingAttendance(tenant_id=tenant_id, **obj_in.model_dump())

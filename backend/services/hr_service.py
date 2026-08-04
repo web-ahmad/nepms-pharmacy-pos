@@ -151,47 +151,15 @@ class HRService:
         return emp
 
     def create_employee(self, tenant_id: str, user_id: str, obj_in: EmployeeCreate, branch_id: str = None):
-        new_user = None
-        if obj_in.system_access:
-            if not obj_in.email:
-                raise HTTPException(400, "Email is required to create a login account")
-            if not obj_in.password:
-                raise HTTPException(400, "Password is required to create a login account")
-            if not obj_in.role_id:
-                raise HTTPException(400, "Role assignment is required to create a login account")
-            
-            from models.users import User, UserBranch
-            from core.security import get_password_hash
-            
-            if self.db.query(User).filter(User.email == obj_in.email).first():
-                raise HTTPException(400, "Email already registered for a user account")
-                
-            new_user = User(
-                username=obj_in.username or obj_in.email,
-                email=obj_in.email,
-                hashed_password=get_password_hash(obj_in.password),
-                full_name=f"{obj_in.first_name} {obj_in.last_name}",
-                phone=obj_in.phone,
-                tenant_id=tenant_id,
-                role_id=obj_in.role_id,
-                is_active=True
-            )
-            self.db.add(new_user)
-            self.db.flush()
-            
-            # The employee's branch_id is now either explicitly passed from scope or from obj_in
-            user_branch_id = branch_id or getattr(obj_in, 'branch_id', None)
-            if user_branch_id:
-                user_branch = UserBranch(user_id=new_user.id, branch_id=user_branch_id)
-                self.db.add(user_branch)
-                self.db.flush()
+        """Creates the HR record only — never a login.
 
+        Logins are issued from Users & Roles → New User, which picks an existing
+        employee and creates BOTH the core User and the EnterpriseUser (so the
+        account is manageable: roles, permissions, suspend, branches). The old
+        path here made a bare User with no EnterpriseUser, producing accounts
+        that could sign in but never appeared in Users & Roles.
+        """
         emp = self.repo.create_employee(tenant_id, obj_in, branch_id=branch_id)
-        
-        if new_user:
-            emp.user_id = new_user.id
-            self.db.flush()
-
         self.db.commit()
         return emp
 
@@ -205,13 +173,68 @@ class HRService:
         return emp
 
     def delete_employee(self, tenant_id: str, user_id: str, emp_id: str):
-        success = self.repo.delete_employee(tenant_id, emp_id)
-        if not success:
+        """HARD delete — removes the employee, all their HR records, and the
+        login account (core User + EnterpriseUser) if one was issued.
+
+        Refuses when the employee appears on a PAID payroll run: those lines are
+        settled financial history and deleting them would leave the run's totals
+        disagreeing with its lines. Such staff should be archived instead.
+        """
+        from models.hr import (
+            Employee, Attendance, LeaveRequest, AdvanceSalary, PayrollSetting,
+            PayrollLine, PayrollRun, EmployeeDocument, PerformanceReview,
+            EmployeeTask, TrainingAttendance, Department,
+        )
+
+        emp = self.repo.get_employee(tenant_id, emp_id)
+        if not emp:
             raise HTTPException(404, "Employee not found")
 
-        
+        paid_lines = (
+            self.db.query(PayrollLine)
+            .join(PayrollRun, PayrollRun.id == PayrollLine.payroll_run_id)
+            .filter(PayrollLine.employee_id == emp_id, PayrollRun.status != "Draft")
+            .count()
+        )
+        if paid_lines:
+            raise HTTPException(
+                400,
+                "This employee appears on a finalised payroll run, so deleting them "
+                "would break that payroll's records. Mark them inactive instead.",
+            )
+
+        # Detach the login account first (removes EnterpriseUser + core User and
+        # all their sessions/devices/history through the shared cascade).
+        if emp.user_id:
+            from models.enterprise.user import EnterpriseUser
+            from services.enterprise.user_service import user_service
+            eu = self.db.query(EnterpriseUser).filter(
+                EnterpriseUser.user_id == emp.user_id,
+                EnterpriseUser.is_deleted == False,
+            ).first()
+            emp.user_id = None
+            self.db.flush()
+            if eu:
+                user_service.delete_user(self.db, enterprise_user=eu, performed_by_id=user_id)
+
+        # Remaining (draft) payroll lines and every other HR child row.
+        self.db.query(PayrollLine).filter(PayrollLine.employee_id == emp_id).delete(synchronize_session=False)
+        for M in (Attendance, LeaveRequest, AdvanceSalary, PayrollSetting,
+                  EmployeeDocument, EmployeeTask, TrainingAttendance):
+            self.db.query(M).filter(M.employee_id == emp_id).delete(synchronize_session=False)
+
+        # Reviews reference the employee on both sides.
+        self.db.query(PerformanceReview).filter(PerformanceReview.employee_id == emp_id).delete(synchronize_session=False)
+        self.db.query(PerformanceReview).filter(PerformanceReview.reviewer_id == emp_id).delete(synchronize_session=False)
+
+        # Don't leave a department pointing at a head that no longer exists.
+        self.db.query(Department).filter(Department.head_id == emp_id).update(
+            {Department.head_id: None}, synchronize_session=False
+        )
+
+        self.db.query(Employee).filter(Employee.id == emp_id).delete(synchronize_session=False)
         self.db.commit()
-        return {"message": "Employee deleted successfully"}
+        return {"message": "Employee and their login were permanently deleted"}
 
     def get_attendances(self, tenant_id: str):
         return self.repo.get_attendances(tenant_id)

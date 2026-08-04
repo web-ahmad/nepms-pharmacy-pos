@@ -75,6 +75,7 @@ class SaleResponse(BaseModel):
     id: str
     invoice_number: str
     customer_id: Optional[str] = None
+    customer_name: Optional[str] = None
     warehouse_id: Optional[str] = None
     counter_id: Optional[str] = None
     shift_id: Optional[str] = None
@@ -94,6 +95,7 @@ class SaleResponse(BaseModel):
     payment_method: str
     amount_paid: float
     change_due: float
+    profit: float = 0.0
     status: str
     items: List[SaleItemResponse] = []
     model_config = ConfigDict(from_attributes=True)

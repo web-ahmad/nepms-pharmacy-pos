@@ -98,7 +98,7 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
           {(settings?.show_customer_info !== false && settings?.show_customer_name !== false) && invoice.customer_id && (
             <div className="flex justify-between">
               <span>Customer:</span>
-              <span>Registered Account</span>
+              <span>{(invoice as any).customer_name || 'Registered Account'}</span>
             </div>
           )}
           <div className="border-b border-dashed border-zinc-300 my-2"></div>

@@ -8,7 +8,9 @@ import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuthStore, useIsSuperAdmin } from '@/stores/auth-store';
 import { useModules } from '@/lib/modules';
+import { resolveRoleHome } from '@/lib/role-home';
 import { useLowStockAlerts } from '@/features/inventory/services/alerts.api';
+import { CashierShiftBanner, CloseShiftButton } from '@/features/pos/components/CashierShiftPanel';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -100,7 +102,7 @@ export const NAV_ITEMS = [
   { label: 'AI Autopilot',    href: '/autopilot',                 icon: Bot,             permission: 'reports:view',            moduleKey: 'reports',        color: 'violet' as IconColor },
   // ── POS & Sales ──────────────────────────────────────────────────────────────
   { label: 'POS Terminal',    href: '/pos',                       icon: ShoppingCart,    permission: 'pos:create',              moduleKey: 'pos',            color: 'emerald' as IconColor },
-  { label: 'Cashier Portal',  href: '/pos/cashier',               icon: Wallet,          permission: 'cashier:view',            moduleKey: 'cashier',        color: 'teal' as IconColor },
+  { label: 'Cashier Portal',  href: '/cashier',                   icon: Wallet,          permission: 'cashier:view',            moduleKey: 'cashier',        color: 'teal' as IconColor },
   { label: 'Sales History',   href: '/sales',                     icon: FileText,        permission: 'sales:view',              moduleKey: 'sales',          color: 'blue' as IconColor },
   // ── Inventory ─────────────────────────────────────────────────────────────────
   { label: 'Add Medicine',    href: '/inventory/medicines/add',   icon: PlusCircle,      permission: 'medicines:create',        moduleKey: 'add_medicine',   color: 'green' as IconColor },
@@ -197,7 +199,17 @@ export function Sidebar() {
   const hasPermission = useAuthStore((state) => state.hasPermission);
   const { isModuleEnabled } = useModules();
 
+  // Staff with a dedicated home (e.g. a Cashier → Cashier Portal) get the same
+  // short sidebar everywhere, matching the Cashier Portal's own nav.
+  const roleHome = resolveRoleHome(user);
+
   const visibleItems = NAV_ITEMS.filter((item) => {
+    // 0. "/" redirects these users to their role home, so a Dashboard link
+    //    would just bounce them straight back — hide it.
+    //    (POS Terminal needs no special case: roles that shouldn't sell simply
+    //    don't hold pos:create, so the RBAC check below hides it.)
+    if (roleHome && item.href === '/') return false;
+
     // 1. RBAC check. `anyPermission` = show if the user has ANY of the listed
     // permissions (e.g. HR is visible to full HR admins AND self-service staff).
     if (!isSuperAdmin) {
@@ -272,6 +284,13 @@ export function Sidebar() {
           {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
       </div>
+
+      {/* Cashier shift status — keeps the sidebar identical to the Cashier Portal's */}
+      {roleHome === '/cashier' && (
+        <div className="pt-3">
+          <CashierShiftBanner isCollapsed={isCollapsed} />
+        </div>
+      )}
 
       {/* ── Nav ───────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto py-4 [scrollbar-width:thin]">
@@ -416,6 +435,7 @@ export function Sidebar() {
 
       {/* ── User footer ───────────────────────────────────────────────────── */}
       <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
+        {roleHome === '/cashier' && <CloseShiftButton isCollapsed={isCollapsed} />}
         <div className={`flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50 ${isCollapsed ? 'justify-center' : ''}`}>
           <div className="brand-surface-br brand-shadow flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white">
             {user?.username?.[0]?.toUpperCase() ?? 'U'}

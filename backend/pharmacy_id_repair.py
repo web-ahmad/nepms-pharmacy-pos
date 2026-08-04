@@ -49,7 +49,7 @@ now = datetime.utcnow().isoformat()
 
 # ── Step 1: Verify pharmacies table ────────────────────────────────────────
 rows = cur.execute("SELECT * FROM pharmacies").fetchall()
-print(f"\n✅ pharmacies table has {len(rows)} row(s):")
+print(f"\n pharmacies table has {len(rows)} row(s):")
 pharmacy_ids = []
 for r in rows:
     print(f"   id={r['id']}  name={r['name']}  tenant_id={r['tenant_id']}")
@@ -116,7 +116,7 @@ conn.commit()
 
 # ── Step 4: Report ────────────────────────────────────────────────────────
 print(f"\n📊 RESULTS")
-print(f"   ✅ pharmacy_id ADDED  ({len(added)} tables): {added}")
+print(f"    pharmacy_id ADDED  ({len(added)} tables): {added}")
 print(f"   ✓  Already had it    ({len(already_had)} tables): {already_had}")
 if failed:
     print(f"   ❌ Failed           ({len(failed)} tables):")
@@ -138,7 +138,7 @@ if missing:
     for t in missing:
         print(f"   ❌ {t}")
 else:
-    print("   ✅ All tables have pharmacy_id")
+    print("    All tables have pharmacy_id")
 
 # ── Step 6: NULL check ────────────────────────────────────────────────────
 print(f"\n🔍 NULL pharmacy_id counts:")
@@ -153,7 +153,7 @@ for table in sorted(all_tables):
     if null_count > 0:
         print(f"   ⚠️  {table}: {null_count}/{total} NULL")
     else:
-        print(f"   ✅ {table}: {total} rows, all backfilled")
+        print(f"    {table}: {total} rows, all backfilled")
 
 conn.close()
-print("\n✅ Done.")
+print("\n Done.")

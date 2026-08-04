@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { GraduationCap, Plus, Trash2, Loader2, User2, Users } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
+import { GraduationCap, Plus, Trash2, Loader2, User2, Users, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import {
   useTrainingPrograms, useCreateTrainingProgram, useUpdateTrainingProgram, useDeleteTrainingProgram,
 } from '@/features/hr/services/hr.api';
 import { HrModal, Field, inputCls } from '@/features/hr/components/hr-shared';
+import TrainingParticipantsModal from '@/features/hr/components/TrainingParticipantsModal';
 
 const STATUS = ['Upcoming', 'Ongoing', 'Completed', 'Cancelled'];
 const STATUS_MAP: Record<string, string> = {
@@ -34,10 +36,11 @@ export default function TrainingPage() {
   const create = useCreateTrainingProgram();
   const del = useDeleteTrainingProgram();
   const [open, setOpen] = useState(false);
+  const [participantsFor, setParticipantsFor] = useState<any>(null);
   const [form, setForm] = useState<any>({ completion_status: 'Upcoming', capacity: 10 });
 
   const save = () => {
-    if (!form.title) { toast.error('Title zaroori hai.'); return; }
+    if (!form.title) { toast.error('Title is required.'); return; }
     toast.promise(create.mutateAsync(form).then(() => { setOpen(false); setForm({ completion_status: 'Upcoming', capacity: 10 }); }),
       { loading: 'Saving…', success: 'Training program created ✅', error: 'Could not create program.' });
   };
@@ -77,8 +80,22 @@ export default function TrainingPage() {
                 {(p.capacity ?? 0) > 0 && <p className="flex items-center gap-1.5"><Users size={14} /> Capacity: {p.capacity}</p>}
                 {p.start_date && <p>{format(new Date(p.start_date), 'dd MMM')} {p.end_date ? `– ${format(new Date(p.end_date), 'dd MMM yyyy')}` : ''}</p>}
               </div>
-              <button onClick={() => toast.promise(del.mutateAsync(p.id), { loading: 'Deleting…', success: 'Deleted', error: 'Could not delete' })}
-                className="absolute bottom-4 right-4 rounded-lg p-1.5 text-zinc-300 opacity-0 transition group-hover:opacity-100 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"><Trash2 size={16} /></button>
+
+              <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                <button
+                  onClick={() => setParticipantsFor(p)}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:bg-emerald-900/25 dark:text-emerald-300 dark:hover:bg-emerald-900/40"
+                >
+                  <UserPlus size={14} /> Participants
+                </button>
+                <button
+                  onClick={() => toast.promise(del.mutateAsync(p.id), { loading: 'Deleting…', success: 'Deleted', error: 'Could not delete' })}
+                  className="rounded-lg p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                  title="Delete program"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -106,6 +123,15 @@ export default function TrainingPage() {
           </Field>
         </div>
       </HrModal>
+
+      <AnimatePresence>
+        {participantsFor && (
+          <TrainingParticipantsModal
+            program={participantsFor}
+            onClose={() => setParticipantsFor(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

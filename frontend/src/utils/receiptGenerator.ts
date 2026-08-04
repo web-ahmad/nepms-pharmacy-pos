@@ -107,7 +107,7 @@ export const generateReceiptHtml = (saleOrReturn: any, settings: any, type: 'sal
           ${showCustomer && saleOrReturn.customer_id ? `
             <div class="flex-between">
               <span>Customer:</span>
-              <span>Registered Account</span>
+              <span>${(saleOrReturn as any).customer_name || 'Registered Account'}</span>
             </div>
           ` : ''}
           <div class="divider"></div>

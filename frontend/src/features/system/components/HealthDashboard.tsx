@@ -1,6 +1,12 @@
+'use client';
+// Detail view for /system/health. Reports the same measured values as the
+// Control Center — the old CPU%/memory%/connection figures were placeholders
+// and have been replaced by metrics the server can actually observe.
+
 import { SystemHealth } from '../services/system.api';
 import { Badge } from '@/components/ui/badge';
-import { Database, Server, HardDrive, Cpu, Activity, ListOrdered } from 'lucide-react';
+import { Database, HardDrive, Cpu, Clock, ListOrdered, DatabaseBackup } from 'lucide-react';
+import { UsageBar, AnimatedNumber, fmtBytesMb, fmtUptime, fmtAgo } from './system-ui';
 
 interface HealthDashboardProps {
   data?: SystemHealth;
@@ -13,55 +19,81 @@ export default function HealthDashboard({ data, isLoading }: HealthDashboardProp
   }
 
   const isHealthy = data.database_status === 'Healthy';
+  const card = 'p-6 rounded-xl border border-zinc-200 bg-white dark:bg-zinc-950 dark:border-zinc-800 shadow-sm flex flex-col justify-between';
+  const label = 'text-sm font-medium text-zinc-500 flex items-center gap-2';
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div className="p-6 rounded-xl border border-zinc-200 bg-white dark:bg-zinc-950 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-medium text-zinc-500 flex items-center gap-2"><Database className="h-4 w-4" /> Database Status</p>
-          <Badge className={isHealthy ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>{data.database_status}</Badge>
-        </div>
-        <p className="text-2xl font-bold mt-2 text-zinc-900 dark:text-zinc-100">
-          {data.active_connections} <span className="text-sm font-normal text-zinc-500">connections</span>
-        </p>
-      </div>
-
-      <div className="p-6 rounded-xl border border-zinc-200 bg-white dark:bg-zinc-950 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-medium text-zinc-500 flex items-center gap-2"><HardDrive className="h-4 w-4" /> Storage Allocation</p>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className={card}>
+        <div className="mb-4 flex items-center justify-between">
+          <p className={label}><Database className="h-4 w-4" /> Database</p>
+          <Badge className={isHealthy ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+            {data.database_status}
+          </Badge>
         </div>
         <div>
           <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-            {data.storage_used_gb} <span className="text-sm font-normal text-zinc-500">/ {data.storage_total_gb} GB</span>
+            {fmtBytesMb(data.database_size_mb)}
           </p>
-          <div className="w-full bg-zinc-200 rounded-full h-2 mt-3 dark:bg-zinc-800">
-            <div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${(data.storage_used_gb / data.storage_total_gb) * 100}%` }}></div>
-          </div>
+          <p className="mt-1 text-xs text-zinc-500">
+            {data.database_engine} · responds in {data.database_latency_ms} ms
+          </p>
         </div>
       </div>
 
-      <div className="p-6 rounded-xl border border-zinc-200 bg-white dark:bg-zinc-950 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-medium text-zinc-500 flex items-center gap-2"><Cpu className="h-4 w-4" /> Compute Usage</p>
+      <div className={card}>
+        <div className="mb-4 flex items-center justify-between">
+          <p className={label}><HardDrive className="h-4 w-4" /> Disk</p>
         </div>
-        <div className="flex justify-between items-end">
-          <div>
-            <p className="text-xs text-zinc-500 mb-1">CPU</p>
-            <p className="text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100">{data.cpu_usage_percent}%</p>
-          </div>
-          <div>
-            <p className="text-xs text-zinc-500 mb-1">Memory</p>
-            <p className="text-xl font-bold font-mono text-zinc-900 dark:text-zinc-100">{data.memory_usage_percent}%</p>
-          </div>
+        <div>
+          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            {data.disk_used_gb} <span className="text-sm font-normal text-zinc-500">/ {data.disk_total_gb} GB</span>
+          </p>
+          <div className="mt-3"><UsageBar percent={data.disk_used_percent} tone="violet" /></div>
+          <p className="mt-1.5 text-xs text-zinc-500">{data.disk_free_gb} GB free</p>
         </div>
       </div>
 
-      <div className="p-6 rounded-xl border border-zinc-200 bg-white dark:bg-zinc-950 dark:border-zinc-800 shadow-sm flex flex-col justify-between">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-medium text-zinc-500 flex items-center gap-2"><ListOrdered className="h-4 w-4" /> OCR Pending Queues</p>
+      <div className={card}>
+        <div className="mb-4 flex items-center justify-between">
+          <p className={label}><Clock className="h-4 w-4" /> Uptime</p>
         </div>
-        <p className="text-2xl font-bold mt-2 text-orange-600 dark:text-orange-400">
-          {data.queues_pending} <span className="text-sm font-normal text-zinc-500">jobs processing</span>
+        <div>
+          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{fmtUptime(data.uptime_seconds)}</p>
+          <p className="mt-1 text-xs text-zinc-500">Since the API process started</p>
+        </div>
+      </div>
+
+      <div className={card}>
+        <div className="mb-4 flex items-center justify-between">
+          <p className={label}><Cpu className="h-4 w-4" /> Compute</p>
+        </div>
+        <div>
+          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            <AnimatedNumber value={data.cpu_cores} /> <span className="text-sm font-normal text-zinc-500">cores</span>
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">Available to the server process</p>
+        </div>
+      </div>
+
+      <div className={card}>
+        <div className="mb-4 flex items-center justify-between">
+          <p className={label}><DatabaseBackup className="h-4 w-4" /> Backups</p>
+        </div>
+        <div>
+          <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+            <AnimatedNumber value={data.backup_count} /> <span className="text-sm font-normal text-zinc-500">stored</span>
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">Last taken {fmtAgo(data.last_backup_age_hours)}</p>
+        </div>
+      </div>
+
+      <div className={card}>
+        <div className="mb-4 flex items-center justify-between">
+          <p className={label}><ListOrdered className="h-4 w-4" /> OCR queue</p>
+        </div>
+        <p className="mt-2 text-2xl font-bold text-orange-600 dark:text-orange-400">
+          <AnimatedNumber value={data.queues_pending} /> <span className="text-sm font-normal text-zinc-500">jobs pending</span>
         </p>
       </div>
     </div>

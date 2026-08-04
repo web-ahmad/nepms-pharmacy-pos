@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useCreateEmployee, useUpdateEmployee, useDepartments, useDesignations, useShifts } from '../services/hr.api';
-import { useRoles } from '@/features/admin/services/admin.api';
+
 import { notify } from '@/utils/toast';
 import { useAuthStore } from '@/stores/auth-store';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, KeyRound, Info } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Shield } from 'lucide-react';
 
 import { Employee } from '../types/hr';
 
@@ -36,15 +36,9 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
   const [overtimeAllowed, setOvertimeAllowed] = useState(initialData?.overtime_allowed || false);
   const [standardBreakTime, setStandardBreakTime] = useState(initialData?.standard_break_time || 60);
 
-  // System Access
-  const [systemAccess, setSystemAccess] = useState(false);
-  const [password, setPassword] = useState('');
-  const [roleId, setRoleId] = useState('');
-
   const { data: departments } = useDepartments();
   const { data: designations } = useDesignations();
   const { data: shifts } = useShifts();
-  const { data: roles } = useRoles();
 
   const createMutation = useCreateEmployee();
   const updateMutation = useUpdateEmployee(initialData?.id || '');
@@ -93,11 +87,6 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
         overtime_allowed: overtimeAllowed,
         standard_break_time: standardBreakTime,
         is_active: initialData ? initialData.is_active : true,
-        ...(systemAccess && !isEditing ? {
-          system_access: true,
-          password,
-          role_id: roleId,
-        } : {})
       };
 
       if (isEditing && initialData) {
@@ -158,9 +147,9 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Email {systemAccess && <span className="text-red-500">*</span>}
+                Email
               </label>
-              <input type="email" required={systemAccess} value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Date of Birth</label>
@@ -261,90 +250,19 @@ export default function AddEmployeeForm({ onClose, isEditing, initialData }: Add
         </div>
 
         {!isEditing && (
-          <div className="rounded-lg border border-zinc-200 p-5 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20">
-            <div className="flex items-center justify-between">
+          <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-800/50 dark:bg-blue-900/20">
+            <div className="flex items-start gap-3">
+              <Shield className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-500" />
               <div>
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-blue-500" /> Enable System Access (Create Login)
-                </h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                  Automatically create a user account for this employee to access the portal.
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Login account</h3>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+                  Saving here creates the HR record only. To give this person a login,
+                  go to <span className="font-semibold">Users &amp; Roles → New User</span> and pick
+                  them from the employee list — that is where the username, password and
+                  role are set.
                 </p>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={systemAccess}
-                onClick={() => setSystemAccess(!systemAccess)}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 dark:focus:ring-offset-zinc-950 ${
-                  systemAccess ? 'bg-blue-600' : 'bg-zinc-200 dark:bg-zinc-700'
-                }`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    systemAccess ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
             </div>
-
-            <AnimatePresence>
-              {systemAccess && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                  animate={{ height: 'auto', opacity: 1, marginTop: 24 }}
-                  exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="rounded-md bg-blue-50 p-3 flex items-start gap-3 mb-5 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50">
-                    <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-blue-700 dark:text-blue-300 leading-tight">
-                      The employee's email address will be required and used as their login username.
-                    </p>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        Password <span className="text-red-500">*</span>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <KeyRound className="h-4 w-4 text-zinc-400" />
-                        </div>
-                        <input
-                          type="text"
-                          required={systemAccess}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="Set a strong password"
-                          className="w-full rounded-md border border-zinc-300 pl-10 pr-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                        Assign Role <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        required={systemAccess}
-                        value={roleId}
-                        onChange={(e) => setRoleId(e.target.value)}
-                        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                      >
-                        <option value="">Select a Role</option>
-                        {roles?.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
         )}
 

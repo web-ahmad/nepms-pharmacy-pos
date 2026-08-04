@@ -112,6 +112,27 @@ export const useInvoiceTemplate = (): InvoiceTemplateConfig => {
   return { ...DEFAULT_INVOICE_TEMPLATE, ...((data?.invoice_settings as Partial<InvoiceTemplateConfig>) || {}) };
 };
 
+/** Company letterhead details for document headers (payslips, vouchers…).
+ *  Unlike `useSettings`, this is readable by ANY logged-in user — an employee
+ *  printing their own payslip doesn't have settings:view. */
+export interface CompanyIdentity {
+  name?: string | null; logo_url?: string | null; address?: string | null;
+  city?: string | null; country?: string | null; phone?: string | null;
+  email?: string | null; website?: string | null;
+  tax_number?: string | null; registration_number?: string | null;
+}
+export const useCompanyIdentity = () => {
+  return useQuery({
+    queryKey: ['settings', 'company-identity'],
+    queryFn: async () => {
+      const res = await api.get('/api/v1/settings/company-identity');
+      return res.data as CompanyIdentity;
+    },
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+};
+
 // Resolve a stored logo path (e.g. "/storage/logos/x.png") to an absolute URL.
 export const BACKEND_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace('/api/v1', '');
 export const resolveAssetUrl = (url?: string | null): string => {

@@ -61,6 +61,24 @@ def get_settings(db: Session = Depends(get_db), current_user: dict = Depends(req
 def update_settings(obj_in: TenantSettingsUpdate, db: Session = Depends(get_db), current_user: dict = Depends(require_settings_update)):
     return SettingsService(db).update_settings(current_user.get("tenant_id"), obj_in)
 
+@router.get("/company-identity")
+def get_company_identity(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Just the company's letterhead details (name, logo, address, contact).
+
+    Every authenticated user needs this to print a document they're entitled to
+    — e.g. an employee printing their own payslip — so it isn't gated behind
+    settings:view like the full settings blob. Deliberately returns ONLY these
+    identity fields, never POS/tax/HR configuration.
+    """
+    settings_obj = SettingsService(db).get_settings(current_user.tenant_id)
+    company = (getattr(settings_obj, "company_settings", None) or {}) if settings_obj else {}
+    allowed = (
+        "name", "logo_url", "address", "city", "country",
+        "phone", "email", "website", "tax_number", "registration_number",
+    )
+    return {k: company.get(k) for k in allowed}
+
+
 @router.get("/invoice", response_model=InvoiceSettingsResponse)
 def get_invoice_settings(db: Session = Depends(get_db), current_user: dict = Depends(require_settings_view)):
     return SettingsService(db).get_invoice_settings(current_user.get("tenant_id"))

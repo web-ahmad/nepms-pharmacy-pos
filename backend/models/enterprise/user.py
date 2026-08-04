@@ -173,6 +173,12 @@ class EnterpriseUser(BaseModel):
     max_concurrent_sessions = Column(Integer, default=3)
     geo_restriction_enabled = Column(Boolean, default=False)
 
+    # ── POS ─────────────────────────────────────────────────────────────────────
+    # Till number shown in the POS header/footer. Allocated once, on this user's
+    # first visit to the POS, as (highest in their branch + 1) — so every
+    # salesman gets their own counter and it never shifts afterwards.
+    pos_counter_no      = Column(Integer, nullable=True)
+
     # ── Tracking ────────────────────────────────────────────────────────────────
     last_login_at       = Column(DateTime, nullable=True)
     last_login_ip       = Column(String(45), nullable=True)

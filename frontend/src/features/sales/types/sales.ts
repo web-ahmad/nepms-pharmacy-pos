@@ -14,6 +14,7 @@ export interface Sale {
   id: string;
   invoice_number: string;
   customer_id?: string;
+  customer_name?: string;
   cashier_id: string;
   cashier_name?: string;
   sale_date: string;

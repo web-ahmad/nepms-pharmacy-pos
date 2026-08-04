@@ -251,18 +251,26 @@ export const useMyTodayAttendance = () => useQuery({
   retry: false,
   refetchInterval: 60000,
 });
+// Clocking in/out must refresh BOTH the admin attendance lists (['hr','attendance'])
+// and the employee's own list on My Attendance (['hr','me','attendance']) — the
+// two key prefixes don't overlap, so each has to be invalidated explicitly.
+const invalidateAttendance = (qc: ReturnType<typeof useQueryClient>) => {
+  qc.invalidateQueries({ queryKey: ['hr', 'attendance'] });
+  qc.invalidateQueries({ queryKey: ['hr', 'me', 'attendance'] });
+};
+
 export const useMyClockIn = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => (await api.post('/api/v1/hr/attendance/my/clock-in')).data as Attendance,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'attendance'] }),
+    onSuccess: () => invalidateAttendance(qc),
   });
 };
 export const useMyClockOut = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => (await api.post('/api/v1/hr/attendance/my/clock-out')).data as Attendance,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['hr', 'attendance'] }),
+    onSuccess: () => invalidateAttendance(qc),
   });
 };
 

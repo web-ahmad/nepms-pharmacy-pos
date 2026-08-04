@@ -30,6 +30,7 @@ def map_sale_to_response(sale: Sale) -> dict:
         "id": sale.id,
         "invoice_number": sale.invoice_number,
         "customer_id": sale.customer_id,
+        "customer_name": sale.customer.full_name if sale.customer else None,
         "cashier_id": sale.cashier_id,
         "cashier_name": (sale.cashier.full_name or sale.cashier.username) if sale.cashier else "Unknown",
         "sale_date": sale.sale_date,
@@ -41,6 +42,8 @@ def map_sale_to_response(sale: Sale) -> dict:
         "payment_method": sale.payment_method,
         "amount_paid": sale.amount_paid,
         "change_due": getattr(sale, "change_due", 0.0),
+        # Gross profit, summed from each line's (total − cost × qty) at checkout.
+        "profit": getattr(sale, "profit", 0.0) or 0.0,
         "status": sale.status,
         "items": [
             {
@@ -97,6 +100,49 @@ def checkout(
     """
     sale = SalesService.checkout(db, checkout_in, scope.tenant_id, scope.branch_id, current_user.id)
     return map_sale_to_response(sale)
+
+@router.get("/my-terminal")
+def get_my_terminal(
+    db: Session = Depends(get_db),
+    scope: PharmacyScope = Depends(get_pharmacy_scope),
+    current_user: User = Depends(get_current_user),
+):
+    """Who is on this till, and which till is it.
+
+    The counter number is allocated once per user (highest in their branch + 1)
+    and then stored, so each salesman keeps the same counter and two people are
+    never both shown as "Counter 01".
+    """
+    from models.enterprise.user import EnterpriseUser
+    from sqlalchemy import func
+
+    name = current_user.full_name or current_user.username
+    eu = db.query(EnterpriseUser).filter(
+        EnterpriseUser.user_id == current_user.id,
+        EnterpriseUser.is_deleted == False,
+    ).first()
+
+    if not eu:
+        return {"user_name": name, "counter_no": None, "counter_label": None}
+
+    if not eu.pos_counter_no:
+        # Number within the pharmacy this user belongs to.
+        highest = (
+            db.query(func.max(EnterpriseUser.pos_counter_no))
+            .filter(EnterpriseUser.pharmacy_id == eu.pharmacy_id)
+            .scalar()
+        ) or 0
+        eu.pos_counter_no = highest + 1
+        db.add(eu)
+        db.commit()
+        db.refresh(eu)
+
+    return {
+        "user_name": name,
+        "counter_no": eu.pos_counter_no,
+        "counter_label": f"Counter {eu.pos_counter_no:02d}",
+    }
+
 
 @router.get("/workflow-mode")
 def get_workflow_mode(

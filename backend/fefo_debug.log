@@ -2105,3 +2105,33 @@ Found active batches count: 3
   Batch 1: EV-001 (qty: 100, reserved: 0, status: Active, expiry: 2029-07-28)
   Batch 2: EV-DFKL015 (qty: 50, reserved: 0, status: Active, expiry: 2031-02-02)
   Batch 3: B1-qty55 (qty: 10, reserved: 0, status: Active, expiry: 2031-06-05)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '54efc666-8ed0-4913-bfaa-d824ac0473e0'
+branch_id: '407bf0ba-8ea3-4357-a71f-2fe73b786c47'
+medicine_id: '8fac808b-226a-4f3b-8096-ee465dadedef'
+quantity_required: 10
+user_id: 'e2b424e7-1818-4aa4-a3e7-005b40ddb486'
+reference_id: '5122cd96-7459-4816-b103-37c4f9caea32'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 3
+  Batch 1: EV-001 (qty: 100, reserved: 0, status: Active, expiry: 2029-07-28)
+  Batch 2: EV-DFKL015 (qty: 50, reserved: 0, status: Active, expiry: 2031-02-02)
+  Batch 3: B1-qty55 (qty: 10, reserved: 0, status: Active, expiry: 2031-06-05)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '54efc666-8ed0-4913-bfaa-d824ac0473e0'
+branch_id: '407bf0ba-8ea3-4357-a71f-2fe73b786c47'
+medicine_id: '8fac808b-226a-4f3b-8096-ee465dadedef'
+quantity_required: 10
+user_id: 'eb944719-93ad-4bfe-8f52-8c5659925b44'
+reference_id: '8bd16ae5-db83-4da6-bf7b-18f26e8a8113'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 3
+  Batch 1: EV-001 (qty: 90, reserved: 0, status: Active, expiry: 2029-07-28)
+  Batch 2: EV-DFKL015 (qty: 50, reserved: 0, status: Active, expiry: 2031-02-02)
+  Batch 3: B1-qty55 (qty: 10, reserved: 0, status: Active, expiry: 2031-06-05)

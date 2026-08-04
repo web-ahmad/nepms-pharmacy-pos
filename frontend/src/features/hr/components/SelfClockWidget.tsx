@@ -94,19 +94,40 @@ export default function SelfClockWidget() {
         {/* Clock in / out buttons */}
         <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[190px]">
           {isDone ? (
-            <div className="flex items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-3 text-sm font-semibold ring-1 ring-white/20">
-              <CheckCircle2 size={18} /> Shift complete for today
-            </div>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 240, damping: 18 }}
+              className="flex items-center justify-center gap-2 rounded-xl bg-white/15 px-4 py-3 text-sm font-semibold ring-1 ring-white/20"
+            >
+              <motion.span
+                initial={{ scale: 0, rotate: -90 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ delay: 0.1, type: 'spring', stiffness: 300, damping: 14 }}
+              >
+                <CheckCircle2 size={18} />
+              </motion.span>
+              Shift complete for today
+            </motion.div>
           ) : !isClockedIn ? (
-            <button onClick={doClockIn} disabled={clockIn.isPending || isLoading}
-              className="flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-emerald-700 shadow-lg transition-all hover:brightness-105 active:scale-95 disabled:opacity-60">
-              {clockIn.isPending ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />} Clock In
-            </button>
+            <ClockButton
+              onClick={doClockIn}
+              disabled={clockIn.isPending || isLoading}
+              pending={clockIn.isPending}
+              icon={LogIn}
+              label="Clock In"
+              tone="emerald"
+              pulse
+            />
           ) : (
-            <button onClick={doClockOut} disabled={clockOut.isPending}
-              className="flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-rose-600 shadow-lg transition-all hover:brightness-105 active:scale-95 disabled:opacity-60">
-              {clockOut.isPending ? <Loader2 size={18} className="animate-spin" /> : <LogOut size={18} />} Clock Out
-            </button>
+            <ClockButton
+              onClick={doClockOut}
+              disabled={clockOut.isPending}
+              pending={clockOut.isPending}
+              icon={LogOut}
+              label="Clock Out"
+              tone="rose"
+            />
           )}
           {rec?.clock_in && (
             <p className="text-center text-[11px] text-white/70">
@@ -117,5 +138,79 @@ export default function SelfClockWidget() {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+/* ── Clock In / Out button ────────────────────────────────────────────────────
+   White pill on the coloured card: a shine sweeps across on hover, the icon
+   nudges in the direction of travel, and (when the shift hasn't started) a soft
+   halo pulses to draw the eye to Clock In.                                    */
+const TONES = {
+  emerald: {
+    text: 'text-emerald-700',
+    halo: 'bg-emerald-300/50',
+    iconBg: 'bg-emerald-100',
+    nudge: -3,          // arrow points inward
+  },
+  rose: {
+    text: 'text-rose-600',
+    halo: 'bg-rose-300/50',
+    iconBg: 'bg-rose-100',
+    nudge: 3,           // arrow points outward
+  },
+} as const;
+
+function ClockButton({
+  onClick, disabled, pending, icon: Icon, label, tone, pulse = false,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  pending?: boolean;
+  icon: typeof LogIn;
+  label: string;
+  tone: keyof typeof TONES;
+  pulse?: boolean;
+}) {
+  const t = TONES[tone];
+
+  return (
+    <div className="relative">
+      {/* pulsing halo — only while waiting to be pressed */}
+      {pulse && !disabled && (
+        <motion.span
+          aria-hidden
+          className={`absolute inset-0 rounded-xl ${t.halo}`}
+          animate={{ scale: [1, 1.08, 1], opacity: [0.55, 0, 0.55] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+
+      <motion.button
+        onClick={onClick}
+        disabled={disabled}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={disabled ? undefined : { scale: 1.04, y: -2 }}
+        whileTap={disabled ? undefined : { scale: 0.96, y: 0 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+        className={`group relative flex w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-white px-5 py-3 text-sm font-bold ${t.text} shadow-lg transition-shadow hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        {/* shine sweep */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-black/5 to-transparent transition-transform duration-700 group-hover:translate-x-full"
+        />
+
+        <motion.span
+          className={`relative flex h-7 w-7 items-center justify-center rounded-lg ${t.iconBg}`}
+          animate={pending ? {} : { x: [0, t.nudge, 0] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          {pending ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
+        </motion.span>
+
+        <span className="relative">{pending ? 'Please wait…' : label}</span>
+      </motion.button>
+    </div>
   );
 }

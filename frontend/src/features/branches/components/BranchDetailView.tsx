@@ -27,15 +27,31 @@ import {
 import { useBranchSales, useBranchInventory, useBranchCustomers, useBranchActivity } from '../services/branch.api';
 
 // ── Currency formatter ────────────────────────────────────────────────────────
+// NOTE: pass BOTH fraction-digit bounds. providers.tsx patches
+// Intl.NumberFormat and defaults minimumFractionDigits to 2 for currency, so
+// giving only a maximum of 0 makes min(2) > max(0) and throws a RangeError.
 const fmt = (v: number) =>
   new Intl.NumberFormat('en-PK', {
-    style: 'currency', currency: 'PKR', maximumFractionDigits: 0,
+    style: 'currency', currency: 'PKR',
+    minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(v || 0);
 
 const fmtShort = (v: number) =>
   v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` :
   v >= 1_000     ? `${(v / 1_000).toFixed(1)}K`     :
   v.toLocaleString();
+
+/** Sale timestamps come back as naive UTC (no trailing Z) — tag them so the
+ *  browser doesn't read them as local time. Never renders "Invalid Date". */
+const fmtDateTime = (v?: string | null) => {
+  if (!v) return '—';
+  const iso = /[Z+]|\d{2}:\d{2}$/.test(v.slice(10)) ? v : `${v}Z`;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleString('en-PK', {
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+};
 
 // ── Generate fake 7-day sparkline based on monthly total ─────────────────────
 function generateSparkline(total: number) {
@@ -412,7 +428,7 @@ function OverviewTab({ branch, stats, statsLoading }: { branch: Branch; stats?: 
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{act.action}</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">{new Date(act.time).toLocaleString()}</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">{fmtDateTime(act.time)}</p>
                   </div>
                 </div>
               ))}
@@ -522,9 +538,12 @@ function SalesTab({ branchId, stats, isLoading }: { branchId: string; stats?: Br
                 salesData.items.map((sale: any) => (
                   <tr key={sale.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                     <td className="px-5 py-3 font-medium text-zinc-900 dark:text-zinc-100">{sale.invoice_number}</td>
-                    <td className="px-5 py-3 text-zinc-500">{new Date(sale.created_at).toLocaleString()}</td>
-                    <td className="px-5 py-3 font-semibold text-emerald-600">Rs {sale.total_amount?.toLocaleString()}</td>
-                    <td className="px-5 py-3 font-semibold text-violet-600">Rs {sale.profit?.toLocaleString() ?? 0}</td>
+                    {/* API returns `sale_date` (see map_sale_to_response) — not created_at */}
+                    <td className="px-5 py-3 text-zinc-500">{fmtDateTime(sale.sale_date ?? sale.created_at)}</td>
+                    <td className="px-5 py-3 font-semibold text-emerald-600">{fmt(sale.total_amount ?? 0)}</td>
+                    <td className={`px-5 py-3 font-semibold ${(sale.profit ?? 0) < 0 ? 'text-rose-600' : 'text-violet-600'}`}>
+                      {fmt(sale.profit ?? 0)}
+                    </td>
                   </tr>
                 ))
               ) : (
@@ -847,7 +866,7 @@ function ActivityTab({ branchId, branch }: { branchId: string; branch: Branch })
                   <div>
                     <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{log.action}</p>
                     <p className="text-xs text-zinc-500 mt-1">
-                      Resource: {log.resource_type} | Date: {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
+                      Resource: {log.resource_type} | Date: {fmtDateTime(log.timestamp)}
                     </p>
                     {log.details && (
                       <p className="text-xs font-mono text-zinc-400 mt-2 bg-zinc-50 dark:bg-zinc-800 p-2 rounded">

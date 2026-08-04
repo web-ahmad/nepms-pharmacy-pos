@@ -7,6 +7,7 @@ import { LayoutDashboard, Boxes, TrendingUp, Receipt, BellRing, Sparkles } from 
 import { useAuthStore, useIsSuperAdmin } from '@/stores/auth-store';
 import { NAV_ITEMS } from '@/components/layout/Sidebar';
 import { useModules } from '@/lib/modules';
+import { resolveRoleHome } from '@/lib/role-home';
 import { DateRange } from '@/features/dashboard/services/dashboard.api';
 import DashboardFilter from '@/features/dashboard/components/DashboardFilter';
 import SalesOverview from '@/features/dashboard/components/SalesOverview';
@@ -36,14 +37,26 @@ export default function DashboardPage() {
   const { isModuleEnabled } = useModules();
   const hasFullAccess      = (user?.hierarchy_level ?? 4) <= 3;
 
+  const canOpen = (it: (typeof NAV_ITEMS)[number]) =>
+    (isSuperAdmin || !it.permission || hasPermission(it.permission)) &&
+    (!it.moduleKey || isModuleEnabled(it.moduleKey));
+
+  // Branch staff belong in their own module, not the pharmacy-wide dashboard —
+  // a Cashier opening "/" (persisted session, bookmark, logo click) gets the
+  // Cashier Portal, exactly as they do straight after login. Only redirect if
+  // that module is actually enabled + permitted, so we never strand them on a
+  // "module turned off" screen.
+  const roleHomeHref = resolveRoleHome(user);
+  const roleHomeItem = roleHomeHref ? NAV_ITEMS.find((it) => it.href === roleHomeHref) : undefined;
+  const roleHome = roleHomeHref && (!roleHomeItem || canOpen(roleHomeItem)) ? roleHomeHref : undefined;
+
   // Staff who can't see the main dashboard shouldn't land on an empty page —
   // send them to their first accessible module (e.g. an HR user → HR & Payroll).
   const canSeeDashboard = hasFullAccess || hasPermission('dashboard:view');
-  const landing = !canSeeDashboard
-    ? NAV_ITEMS.find((it) => it.href !== '/' &&
-        (isSuperAdmin || !it.permission || hasPermission(it.permission)) &&
-        (!it.moduleKey || isModuleEnabled(it.moduleKey)))?.href
+  const fallbackLanding = !canSeeDashboard
+    ? NAV_ITEMS.find((it) => it.href !== '/' && canOpen(it))?.href
     : undefined;
+  const landing = roleHome ?? fallbackLanding;
   useEffect(() => {
     if (user && landing) router.replace(landing);
   }, [user, landing, router]);

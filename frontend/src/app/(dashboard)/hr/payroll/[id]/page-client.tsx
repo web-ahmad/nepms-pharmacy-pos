@@ -16,8 +16,9 @@ import { api } from '@/services/api';
 import { toast } from 'sonner';
 import { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth-store';
-import { GlobalPrintTemplate } from '@/components/shared/GlobalPrintTemplate';
 import { useReactToPrint } from 'react-to-print';
+import { numberToWords } from '@/features/hr/utils/numberToWords';
+import { HrPrintTemplate } from '@/features/hr/components/HrPrintTemplate';
 
 const fmt = (v: number) => new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR' }).format(v);
 
@@ -44,26 +45,6 @@ export default function PayrollDetailsPage() {
   const isLoading = isRunLoading || isEmpLoading;
 
   // Helper function to convert numbers to words
-  const numberToWords = (num: number): string => {
-    const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
-    const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    
-    if (num === 0) return 'Zero';
-    
-    const intNum = Math.floor(num);
-    if (intNum > 999999999) return intNum.toString();
-
-    const convert = (n: number): string => {
-      if (n < 20) return a[n];
-      if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : ' ');
-      if (n < 1000) return a[Math.floor(n / 100)] + 'Hundred ' + (n % 100 !== 0 ? convert(n % 100) : '');
-      if (n < 100000) return convert(Math.floor(n / 1000)) + 'Thousand ' + (n % 1000 !== 0 ? convert(n % 1000) : '');
-      return convert(Math.floor(n / 100000)) + 'Lakh ' + (n % 100000 !== 0 ? convert(n % 100000) : '');
-    };
-    
-    return 'Rupees ' + convert(intNum).trim() + ' Only';
-  };
-
   const masterPrintRef = useRef<HTMLDivElement>(null);
   const [isMasterPrinting, setIsMasterPrinting] = useState(false);
 
@@ -320,9 +301,10 @@ export default function PayrollDetailsPage() {
 
       {/* Hidden Print Template */}
       {printData && (
-        <GlobalPrintTemplate
+        <HrPrintTemplate
           ref={printRef}
-          title="SALARY SLIP"
+          title="Payslip"
+          periodLabel={`${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][(run?.month || 1) - 1]}, ${run?.year}`}
         >
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
             <div className="grid grid-cols-4 gap-4">
@@ -429,14 +411,16 @@ export default function PayrollDetailsPage() {
             </div>
             <div className="text-3xl font-black text-emerald-600 font-mono">PKR {(printData.line.net_pay || 0).toLocaleString()}</div>
           </div>
-        </GlobalPrintTemplate>
+        </HrPrintTemplate>
       )}
 
       {/* Hidden Master Print Template */}
       {isMasterPrinting && run && (
-        <GlobalPrintTemplate
+        <HrPrintTemplate
           ref={masterPrintRef}
-          title={`PAYROLL MASTER SHEET - ${run.month}/${run.year}`}
+          title="Payroll Master Sheet"
+          periodLabel={`${["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][(run.month || 1) - 1]}, ${run.year}`}
+          showSignatures={false}
         >
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6 shadow-sm">
             <div className="grid grid-cols-5 gap-4">
@@ -503,7 +487,7 @@ export default function PayrollDetailsPage() {
               <p className="text-xs font-bold text-gray-800 uppercase">Approved By (Finance/CEO)</p>
             </div>
           </div>
-        </GlobalPrintTemplate>
+        </HrPrintTemplate>
       )}
     </div>
   );

@@ -11,7 +11,8 @@ import InvoicePreview from '@/features/pos/components/InvoicePreview';
 import HeldSalesDrawer from '@/features/pos/components/HeldSalesDrawer';
 import VerificationQueueDrawer from '@/features/pos/components/VerificationQueueDrawer';
 import CashierVerificationModal from '@/features/pos/components/CashierVerificationModal';
-import { useCheckout, useWorkflowMode } from '@/features/pos/services/pos.api';
+import { useCheckout, useWorkflowMode, useMyTerminal } from '@/features/pos/services/pos.api';
+import { QuickActionsMenu } from '@/features/pos/components/QuickActionsMenu';
 import { Clock, Calendar, Building2, Store, MonitorSmartphone, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -79,6 +80,11 @@ export default function POSFullScreen() {
   const { data: workflowData } = useWorkflowMode();
   const isDualCounter = workflowData?.mode === 'DUAL_COUNTER';
 
+  // Each salesman gets their own counter number, allocated server-side.
+  const { data: terminal } = useMyTerminal();
+  const counterLabel = terminal?.counter_label ?? 'Counter —';
+  const operatorName = terminal?.user_name || user?.full_name || user?.username || 'Operator';
+
   const flashShortcut = (key: string) => {
     setActiveShortcut(key);
     setTimeout(() => setActiveShortcut(null), 300);
@@ -90,7 +96,7 @@ export default function POSFullScreen() {
     if (!isAuthenticated) {
       router.push('/login');
     } else if (user?.role === 'Cashier') {
-      router.push('/pos/cashier');
+      router.push('/cashier');
     }
   }, [isAuthenticated, user, router]);
 
@@ -211,13 +217,10 @@ export default function POSFullScreen() {
                <Building2 size={16} className="text-primary/70" />
                <span className="text-sm font-semibold">{currentBranchName}</span>
              </div>
-             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-outline-variant/50 shadow-sm transition-all hover:border-primary/30 hover:shadow-md cursor-pointer">
-               <Store size={16} className="text-primary/70" />
-               <span className="text-sm font-semibold">Retail WH</span>
-             </div>
+             <QuickActionsMenu />
              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-outline-variant/50 shadow-sm transition-all hover:border-primary/30 hover:shadow-md cursor-pointer">
                <MonitorSmartphone size={16} className="text-primary/70" />
-               <span className="text-sm font-semibold">Counter 01</span>
+               <span className="text-sm font-semibold">{counterLabel}</span>
              </div>
           </div>
         </div>
@@ -315,9 +318,10 @@ export default function POSFullScreen() {
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-            <span>System Online: 127.0.0.1</span>
+            <span className="font-semibold text-on-surface">{operatorName}</span>
+            <span className="text-outline">·</span>
+            <span>{counterLabel}</span>
           </div>
-
         </div>
         <div className="flex items-center gap-4">
           <span className="text-outline uppercase font-bold mr-2">Shortcuts:</span>

@@ -130,8 +130,13 @@ async def startup_event():
         # AI Autopilot — rozana raat 1 baje expiry auto-discount lagana
         scheduler.add_job(run_expiry_auto_discounts, 'cron', hour=1, minute=0)
 
+        # System module automation — hourly tick that performs each tenant's
+        # scheduled backup / retention prune / log cleanup when its hour lands.
+        from services.system_ops_service import run_system_automation
+        scheduler.add_job(run_system_automation, 'cron', minute=5)
+
         scheduler.start()
-        print("Background cron scheduler started (Risk Scores, Inventory Audit, Scheduled Reports, AI Briefing, Expiry Discounts).")
+        print("Background cron scheduler started (Risk Scores, Inventory Audit, Scheduled Reports, AI Briefing, Expiry Discounts, System Automation).")
     except ImportError:
         print("Warning: APScheduler is not installed. Background jobs will not run automatically. Run `pip install apscheduler` to enable.")
 

@@ -51,12 +51,20 @@ class OCRQueueResponse(OCRQueueBase):
     class Config:
         from_attributes = True
         
-# System Stats
+# System Stats — every field is measured, none simulated.
 class SystemHealthResponse(BaseModel):
     database_status: str
-    active_connections: int
-    storage_used_gb: float
-    storage_total_gb: float
-    cpu_usage_percent: float
-    memory_usage_percent: float
+    database_engine: str
+    database_latency_ms: float
+    database_size_mb: float
+    disk_total_gb: float
+    disk_used_gb: float
+    disk_free_gb: float
+    disk_used_percent: float
+    cpu_cores: int
+    uptime_seconds: int
     queues_pending: int
+    last_backup_at: Optional[datetime] = None
+    last_backup_age_hours: Optional[float] = None
+    backup_count: int = 0
+    scheduler_active: bool = False

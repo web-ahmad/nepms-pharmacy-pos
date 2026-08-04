@@ -169,7 +169,7 @@ class AuditReportGenerator:
             f"📊 *{period_label} Cash Reconciliation Report*\n\n"
             f"📉 *Shortages*: {len(shortages)} shifts — Total: Rs {shortage_total:.2f}\n"
             f"📈 *Overages*:  {len(overages)} shifts — Total: Rs {overage_total:.2f}\n"
-            f"✅ *Balanced*:  {len(balanced)} shifts"
+            f" *Balanced*:  {len(balanced)} shifts"
         )
 
         rows = []

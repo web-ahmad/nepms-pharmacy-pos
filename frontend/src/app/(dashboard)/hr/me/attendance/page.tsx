@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import { useMyAttendanceSummary } from '@/features/hr/services/hr.api';
+import SelfClockWidget from '@/features/hr/components/SelfClockWidget';
 import {
   EssHeader, StatCards, TableShell, LoadingRow, EmptyRow, StatusPill,
   MONTHS, inputCls, rowCls, cellCls,
@@ -40,6 +41,9 @@ export default function MyAttendancePage() {
           </div>
         }
       />
+
+      {/* Clock in / out — every employee marks their own attendance from here */}
+      <SelfClockWidget />
 
       <StatCards
         items={[

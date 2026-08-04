@@ -300,11 +300,14 @@ DEFAULT_ROLES: Dict[str, Dict] = {
         "icon":         "CreditCard",
         "sort_order":   6,
         "is_system_role": False,
+        # A Cashier does NOT ring up sales — the Salesman takes the order on the
+        # POS Terminal and sends it over. The Cashier only verifies the incoming
+        # receipts, collects payment and runs the till, so no pos:* here.
+        # (Verify / void / session / expense endpoints need no pos permission.)
         "permissions":  _perm(
             "dashboard:view",
-            "pos:view", "pos:create", "pos:return", "pos:hold", "pos:discount", "pos:print",
-            "cashier:view", "cashier:manage",
-            "sales:view", "sales:create", "sales:print",
+            "cashier:view", "cashier:manage", "cashier:print",
+            "sales:view", "sales:print",
             "customers:view", "customers:create",
             "hr:self",   # Employee self-service (own attendance/payslip/leave)
         ),
