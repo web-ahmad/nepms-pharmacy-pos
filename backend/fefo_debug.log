@@ -2135,3 +2135,16 @@ Found active batches count: 3
   Batch 1: EV-001 (qty: 90, reserved: 0, status: Active, expiry: 2029-07-28)
   Batch 2: EV-DFKL015 (qty: 50, reserved: 0, status: Active, expiry: 2031-02-02)
   Batch 3: B1-qty55 (qty: 10, reserved: 0, status: Active, expiry: 2031-06-05)
+
+--- FEFO ALLOCATION START ---
+tenant_id: '54efc666-8ed0-4913-bfaa-d824ac0473e0'
+branch_id: '2a667f9f-fdbc-47f4-93b1-fa9b43e01f82'
+medicine_id: 'a54e93ed-2b42-46a9-b572-7b9c2a8d4b9a'
+quantity_required: 1
+user_id: '14841877-2699-48b4-b348-88397d26650d'
+reference_id: 'fc05f512-8d1c-4ab0-9956-dfefa993ae31'
+movement_type: 'Sale'
+preferred_batch_id: None
+warehouse_id: None
+Found active batches count: 1
+  Batch 1: PAN-001 (qty: 100, reserved: 0, status: Active, expiry: 2029-07-28)

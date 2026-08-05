@@ -3,15 +3,14 @@ import { useCustomerPurchases } from '../services/crm.api';
 import { useSaleDetail } from '../../sales/services/sales.api';
 import { format } from 'date-fns';
 import { Eye, Printer, X, Receipt } from 'lucide-react';
-import { useInvoiceSettings } from '@/features/settings/services/settings.api';
-import { generateReceiptHtml } from '@/utils/receiptGenerator';
+import { useReceiptPrinter } from '@/features/settings/hooks/useReceiptPrinter';
 
 export default function CustomerPurchaseHistory({ customerId }: { customerId: string }) {
   const { data: purchases, isLoading, isError } = useCustomerPurchases(customerId);
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
   
   const { data: saleDetail, isLoading: isLoadingDetail } = useSaleDetail(selectedSaleId || undefined);
-  const { data: invoiceSettings } = useInvoiceSettings();
+  const { printReceipt } = useReceiptPrinter();
 
   if (isLoading) {
     return (
@@ -25,12 +24,7 @@ export default function CustomerPurchaseHistory({ customerId }: { customerId: st
   }
 
   const handlePrint = (sale: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-
-    const html = generateReceiptHtml(sale, invoiceSettings, 'sale');
-    printWindow.document.write(html);
-    printWindow.document.close();
+    printReceipt(sale, 'sale');
   };
 
   const getInvoiceStatus = (status: string, total: number, paid: number) => {

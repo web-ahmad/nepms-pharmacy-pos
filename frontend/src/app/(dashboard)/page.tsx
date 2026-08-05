@@ -111,7 +111,7 @@ export default function DashboardPage() {
                 {today}
               </div>
               <h2 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-                Welcome back, {user?.username} 👋
+                Welcome back, {user?.username}
               </h2>
               <p className="mt-1 text-sm text-white/85">
                 Here's your pharmacy's live pulse. Click any receipt or alert to drill in.

@@ -20,6 +20,8 @@ const CHART_CONFIG: Record<string, { type: 'line' | 'bar' | 'pie'; xKey: string;
   sales_trend: { type: 'line', xKey: 'date', yKey: 'sales', label: '30-Day Revenue Trend' },
   sales_category: { type: 'bar', xKey: 'category', yKey: 'revenue', label: 'Revenue by Category' },
   sales_cashier: { type: 'bar', xKey: 'cashier_name', yKey: 'total_revenue', label: 'Revenue by Cashier' },
+  sales_salesperson: { type: 'bar', xKey: 'salesperson', yKey: 'total_revenue', label: 'Revenue by Salesman' },
+  sales_counter: { type: 'bar', xKey: 'counter', yKey: 'total_revenue', label: 'Revenue by Counter' },
   sales_best_sellers: { type: 'bar', xKey: 'medicine_name', yKey: 'qty_sold', label: 'Top Medicines by Qty Sold' },
   sales_by_medicine: { type: 'bar', xKey: 'medicine_name', yKey: 'revenue', label: 'Revenue by Medicine' },
   staff_sales: { type: 'bar', xKey: 'staff_name', yKey: 'total_revenue', label: 'Revenue by Staff' },

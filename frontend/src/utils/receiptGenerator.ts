@@ -78,10 +78,10 @@ export const generateReceiptHtml = (saleOrReturn: any, settings: any, type: 'sal
       </head>
       <body onload="window.print(); window.close();">
         <div class="text-center" style="margin-bottom: 12px;">
-          ${isReturn ? '<p style="margin: 0 0 6px 0; font-size: 11px; font-weight: bold; letter-spacing: 2px; border: 1px solid #000; padding: 2px 8px; display: inline-block;">⟵ RETURN INVOICE ⟶</p><br>' : ''}
-          ${showLogo ? (settings?.logo_url
+          ${showLogo && settings?.logo_url
             ? `<img src="${settings.logo_url}" alt="Logo" style="display:block; margin:0 auto 6px; max-height:52px; max-width:75%; object-fit:contain;" />`
-            : `<h3 style="margin: 0 0 4px 0; font-size: 14px; letter-spacing: 1px; text-transform: uppercase;">${businessName}</h3>`) : ''}
+            : `<h3 style="margin: 0 0 4px 0; font-size: 14px; letter-spacing: 1px; text-transform: uppercase;">${businessName}</h3>`}
+          <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: bold; letter-spacing: 2px; border: 1px solid #000; padding: 2px 8px; display: inline-block;">⟵ ${isReturn ? 'RETURN INVOICE' : 'SALE INVOICE'} ⟶</p><br>
           <p style="margin: 0; font-size: 10px;">${businessAddress}</p>
           <p style="margin: 0; font-size: 10px;">Ph: ${businessPhone}</p>
           ${showDrugLicense && settings?.drug_license_number ? `<p style="margin: 0; font-size: 10px;">Drug Lic #: ${settings.drug_license_number}</p>` : ''}
@@ -162,13 +162,13 @@ export const generateReceiptHtml = (saleOrReturn: any, settings: any, type: 'sal
         <div style="font-size: 10px; margin-bottom: 16px;">
           ${showPaymentMethod ? `
             <div class="flex-between">
-              <span>Payment Method:</span>
+              <span>${isReturn ? 'Refund Method:' : 'Payment Method:'}</span>
               <span>${paymentMethod}</span>
             </div>
           ` : ''}
-          ${showReceived && !isReturn ? `
+          ${showReceived ? `
             <div class="flex-between">
-              <span>Amount Received:</span>
+              <span>${isReturn ? 'Refund Amount:' : 'Amount Received:'}</span>
               <span>${currencyPrefix}${amountPaid.toFixed(2)}</span>
             </div>
           ` : ''}

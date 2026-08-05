@@ -13,6 +13,8 @@ import VerificationQueueDrawer from '@/features/pos/components/VerificationQueue
 import CashierVerificationModal from '@/features/pos/components/CashierVerificationModal';
 import { useCheckout, useWorkflowMode, useMyTerminal } from '@/features/pos/services/pos.api';
 import { QuickActionsMenu } from '@/features/pos/components/QuickActionsMenu';
+import { useApplyTaxSettings } from '@/features/pos/hooks/useApplyTaxSettings';
+import { useCustomers } from '@/features/crm/services/crm.api';
 import { Clock, Calendar, Building2, Store, MonitorSmartphone, LayoutGrid } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -79,6 +81,13 @@ export default function POSFullScreen() {
 
   const { data: workflowData } = useWorkflowMode();
   const isDualCounter = workflowData?.mode === 'DUAL_COUNTER';
+
+  // FBR tax: Further Tax is dropped when the buyer is sales-tax registered,
+  // i.e. their customer record carries an STRN.
+  const { data: posCustomers } = useCustomers('');
+  const selectedCustomerId = usePOSStore((s) => s.selectedCustomer);
+  const buyerRegistered = !!posCustomers?.find((c) => c.id === selectedCustomerId)?.strn?.trim();
+  useApplyTaxSettings(buyerRegistered);
 
   // Each salesman gets their own counter number, allocated server-side.
   const { data: terminal } = useMyTerminal();

@@ -74,14 +74,22 @@ def get_company_identity(db: Session = Depends(get_db), current_user: User = Dep
     company = (getattr(settings_obj, "company_settings", None) or {}) if settings_obj else {}
     allowed = (
         "name", "logo_url", "address", "city", "country",
-        "phone", "email", "website", "tax_number", "registration_number",
+        "phone", "whatsapp", "whatsapp_number", "email", "website",
+        "tax_number", "registration_number",
     )
     return {k: company.get(k) for k in allowed}
 
 
 @router.get("/invoice", response_model=InvoiceSettingsResponse)
-def get_invoice_settings(db: Session = Depends(get_db), current_user: dict = Depends(require_settings_view)):
-    return SettingsService(db).get_invoice_settings(current_user.get("tenant_id"))
+def get_invoice_settings(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Receipt/invoice layout config — read-open to every authenticated user.
+
+    These are print-formatting toggles (show logo, show tax, footer text), not
+    sensitive configuration, and a cashier printing a sale or return receipt
+    needs them. Gating the read behind settings:view meant cashiers silently
+    got hardcoded defaults on every receipt. Writing still needs settings:update.
+    """
+    return SettingsService(db).get_invoice_settings(current_user.tenant_id)
 
 @router.put("/invoice", response_model=InvoiceSettingsResponse)
 def update_invoice_settings(obj_in: InvoiceSettingsUpdate, db: Session = Depends(get_db), current_user: dict = Depends(require_settings_update)):

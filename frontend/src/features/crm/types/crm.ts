@@ -3,6 +3,8 @@ export interface Customer {
   full_name: string;
   phone?: string;
   cnic?: string;
+  /** FBR Sales Tax Registration Number — present means Further Tax doesn't apply. */
+  strn?: string;
   whatsapp?: string;
   email?: string;
   dob?: string;

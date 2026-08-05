@@ -118,6 +118,7 @@ export const useInvoiceTemplate = (): InvoiceTemplateConfig => {
 export interface CompanyIdentity {
   name?: string | null; logo_url?: string | null; address?: string | null;
   city?: string | null; country?: string | null; phone?: string | null;
+  whatsapp?: string | null; whatsapp_number?: string | null;
   email?: string | null; website?: string | null;
   tax_number?: string | null; registration_number?: string | null;
 }

@@ -30,6 +30,9 @@ class Sale(BaseModel):
     # Enterprise fields
     warehouse_id = Column(String(36), ForeignKey("branch_warehouses.id"), nullable=True)
     counter_id = Column(String(36), ForeignKey("branch_counters.id"), nullable=True)
+    # Till number of the operator who rang the sale (EnterpriseUser.pos_counter_no).
+    # Recorded directly because branch_counters isn't used in this deployment.
+    counter_no = Column(Integer, nullable=True, index=True)
     shift_id = Column(String(36), ForeignKey("cash_sessions.id"), nullable=True)
     salesperson_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     delivery_type = Column(String(50), nullable=True)

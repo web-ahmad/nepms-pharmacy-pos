@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, case, desc, Date, cast, String, extract, select, and_
 from datetime import datetime, timedelta, date
 from typing import Dict, Any, List, Optional
@@ -32,6 +32,8 @@ class DynamicReportEngine:
             "sales_daily": self._strategy_sales_daily,
             "sales_category": self._strategy_sales_category,
             "sales_cashier": self._strategy_sales_cashier,
+            "sales_salesperson": self._strategy_sales_salesperson,
+            "sales_counter": self._strategy_sales_counter,
             "sales_discounts": self._strategy_sales_discounts,
             "sales_voided": self._strategy_sales_voided,
             "sales_by_medicine": self._strategy_sales_by_medicine,
@@ -608,6 +610,76 @@ class DynamicReportEngine:
                 ]
             },
             "rows": [dict(r._mapping) for r in query]
+        }
+
+    def _strategy_sales_salesperson(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
+        """Salesman Wise Sales — who actually made the sale."""
+        seller = aliased(User)
+        query = self.db.query(
+            func.coalesce(seller.full_name, seller.username, 'Unassigned').label('salesperson'),
+            func.count(Sale.id).label('total_invoices'),
+            func.sum(Sale.total_amount).label('total_revenue'),
+            func.sum(Sale.discount_amount).label('total_discount'),
+            func.sum(Sale.profit).label('total_profit'),
+        ).outerjoin(seller, Sale.salesperson_id == seller.id)\
+         .filter(*self._sale_filters(tenant_id, params))\
+         .group_by('salesperson').order_by(desc('total_revenue')).all()
+
+        rows = [dict(r._mapping) for r in query]
+        for r in rows:
+            inv = r.get('total_invoices') or 0
+            r['avg_bill'] = round((r.get('total_revenue') or 0) / inv, 2) if inv else 0
+
+        return {
+            "metadata": {
+                "report_id": "sales_salesperson",
+                "title": "Salesman Wise Sales",
+                "columns": [
+                    {"key": "salesperson", "label": "Salesman", "type": "string"},
+                    {"key": "total_invoices", "label": "Invoices", "type": "number"},
+                    {"key": "total_revenue", "label": "Revenue", "type": "currency"},
+                    {"key": "avg_bill", "label": "Avg Bill", "type": "currency"},
+                    {"key": "total_discount", "label": "Discount Given", "type": "currency"},
+                    {"key": "total_profit", "label": "Profit", "type": "currency"},
+                ]
+            },
+            "rows": rows
+        }
+
+    def _strategy_sales_counter(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
+        """Counter Wise Sales — grouped by the till the sale was rung on."""
+        query = self.db.query(
+            Sale.counter_no.label('counter_no'),
+            func.count(Sale.id).label('total_invoices'),
+            func.sum(Sale.total_amount).label('total_revenue'),
+            func.sum(Sale.discount_amount).label('total_discount'),
+            func.sum(Sale.profit).label('total_profit'),
+        ).filter(*self._sale_filters(tenant_id, params))\
+         .group_by(Sale.counter_no).order_by(desc('total_revenue')).all()
+
+        rows = []
+        for r in query:
+            d = dict(r._mapping)
+            no = d.pop('counter_no', None)
+            d['counter'] = f"Counter {int(no):02d}" if no else "Unassigned"
+            inv = d.get('total_invoices') or 0
+            d['avg_bill'] = round((d.get('total_revenue') or 0) / inv, 2) if inv else 0
+            rows.append(d)
+
+        return {
+            "metadata": {
+                "report_id": "sales_counter",
+                "title": "Counter Wise Sales",
+                "columns": [
+                    {"key": "counter", "label": "Counter", "type": "string"},
+                    {"key": "total_invoices", "label": "Invoices", "type": "number"},
+                    {"key": "total_revenue", "label": "Revenue", "type": "currency"},
+                    {"key": "avg_bill", "label": "Avg Bill", "type": "currency"},
+                    {"key": "total_discount", "label": "Discount Given", "type": "currency"},
+                    {"key": "total_profit", "label": "Profit", "type": "currency"},
+                ]
+            },
+            "rows": rows
         }
 
     def _strategy_sales_discounts(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:

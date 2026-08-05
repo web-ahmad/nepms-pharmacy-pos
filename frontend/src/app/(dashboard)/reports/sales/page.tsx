@@ -1,13 +1,15 @@
 "use client";
 import ReportPageShell from '@/features/reports/components/ReportPageShell';
-import { TrendingUp, BarChart3, Users, Tag, Ban, RotateCcw, Star, Clock, CalendarDays, CreditCard, FlaskConical, Crown, Percent, Pill } from 'lucide-react';
+import { TrendingUp, BarChart3, Users, UserCheck, MonitorSmartphone, Tag, Ban, RotateCcw, Star, Clock, CalendarDays, CreditCard, FlaskConical, Crown, Percent, Pill } from 'lucide-react';
 
 const TABS = [
   { id: 'sales_daily',           label: 'Daily Sales',        icon: CalendarDays,  description: 'Day-wise revenue, cash vs credit breakdown' },
   { id: 'sales_monthly',         label: 'Monthly',            icon: BarChart3,     description: 'Month-over-month revenue summary' },
   { id: 'sales_hourly',          label: 'Hourly Analysis',    icon: Clock,         description: 'Identify peak selling hours' },
   { id: 'sales_category',        label: 'By Category',        icon: Tag,           description: 'Revenue grouped by medicine category' },
-  { id: 'sales_cashier',         label: 'By Cashier',         icon: Users,         description: 'Salesperson performance breakdown' },
+  { id: 'sales_cashier',         label: 'By Cashier',         icon: Users,         description: 'Billing performance by cashier login' },
+  { id: 'sales_salesperson',     label: 'By Salesman',        icon: UserCheck,     description: 'Revenue, avg bill & profit per salesman' },
+  { id: 'sales_counter',         label: 'By Counter',         icon: MonitorSmartphone, description: 'Counter-wise / till-wise sales performance' },
   { id: 'sales_by_medicine',     label: 'By Medicine',        icon: TrendingUp,    description: 'Per-medicine revenue, qty, profit' },
   { id: 'sales_best_sellers',    label: 'Best Sellers',       icon: Star,          description: 'Top 50 medicines by quantity sold' },
   { id: 'sales_payment_methods', label: 'Payment Methods',    icon: CreditCard,    description: 'Revenue split by Cash, Card, Credit, etc.' },

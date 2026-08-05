@@ -12,9 +12,8 @@ import {
   Filter, Receipt, Ban, CheckCircle2, Clock, AlertCircle,
   ArrowDownLeft, Minus
 } from 'lucide-react';
-import { useInvoiceSettings, useSettings, resolveAssetUrl } from '@/features/settings/services/settings.api';
-import { generateReceiptHtml } from '@/utils/receiptGenerator';
-import JsBarcode from 'jsbarcode';
+import { useInvoiceSettings } from '@/features/settings/services/settings.api';
+import { useReceiptPrinter } from '@/features/settings/hooks/useReceiptPrinter';
 import PrintableReceipt from '@/components/invoice/PrintableReceipt';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/stores/auth-store';
@@ -74,7 +73,7 @@ export default function SalesHistory() {
 
   const { data, isLoading, isFetching, refetch } = useSalesHistory(filters);
   const { data: invoiceSettings } = useInvoiceSettings();
-  const { data: companySettings } = useSettings();
+  const { printReceipt } = useReceiptPrinter();
   const searchParams = useSearchParams();
   const viewId = searchParams.get('view_id');
 
@@ -135,32 +134,8 @@ export default function SalesHistory() {
     setFilters(p => ({ ...p, [key]: value, page: 1 }));
   };
 
-  const handlePrint = async (sale: any) => {
-    // Open the window synchronously (inside the click) to avoid popup blocking.
-    const w = window.open('', '_blank');
-    if (!w) return;
-    const co: any = (companySettings as any)?.company_settings || {};
-    const logo_url = resolveAssetUrl(co.logo_url);
-
-    // Footer WhatsApp barcode (Code128) — encodes the direct chat link.
-    const rawWa = String(co.whatsapp || co.whatsapp_number || '03000040305').trim();
-    const digits = rawWa.replace(/\D/g, '');
-    const intl = digits.startsWith('92') ? digits : digits.startsWith('0') ? '92' + digits.slice(1) : '92' + digits;
-    let barcode_data_url = '';
-    try {
-      const canvas = document.createElement('canvas');
-      JsBarcode(canvas, `https://wa.me/${intl}`, {
-        format: 'CODE128', width: 1.4, height: 46, displayValue: false, margin: 4, background: '#ffffff', lineColor: '#000000',
-      });
-      barcode_data_url = canvas.toDataURL('image/png');
-    } catch { /* ignore */ }
-
-    w.document.write(generateReceiptHtml(
-      sale,
-      { ...invoiceSettings, logo_url, barcode_data_url, barcode_caption: `WhatsApp: ${rawWa}` },
-      'sale',
-    ));
-    w.document.close();
+  const handlePrint = (sale: any) => {
+    printReceipt(sale, 'sale');
   };
 
   const totalPages = data ? Math.ceil(data.total / filters.limit) : 1;

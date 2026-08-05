@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePOSStore } from '../store/pos-store';
 import { useCheckout, useWorkflowMode, usePosConfig } from '../services/pos.api';
 import { CheckoutPayload } from '../types/pos';
-import { CreditCard, Banknote, Landmark, Loader2, AlertCircle, Search, ClipboardList, X, Split, Gift } from 'lucide-react';
+import { CreditCard, Banknote, Landmark, Loader2, AlertCircle, Search, ClipboardList, X } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 import { useCustomers } from '@/features/crm/services/crm.api';
 import { Customer } from '@/features/crm/types/crm';
@@ -60,7 +60,7 @@ export default function PaymentPanel({
   }, [posConfig?.default_payment_mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Payment methods honour "Allow Credit Sale".
-  const paymentMethods = ['Cash', 'Card', ...(posConfig.allow_credit_sale ? ['Credit'] : []), 'Bank Transfer', 'Split', 'Gift Voucher'];
+  const paymentMethods = ['Cash', 'Card', ...(posConfig.allow_credit_sale ? ['Credit'] : []), 'Bank Transfer'];
 
   const handleCheckout = async (holdSale = false) => {
     setErrorMsg('');
@@ -178,14 +178,16 @@ export default function PaymentPanel({
             </button>
           </div>
             
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <div className="bg-surface-container-lowest border border-outline-variant rounded p-2">
-                <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Loyalty Points</p>
-                <p className="font-title-sm text-body-md font-bold text-primary">{selectedCustomerData.loyalty_points || 0}</p>
+            {/* Compact single row — keeps the payment options below in view. */}
+            <div className="mt-1.5 flex items-center gap-2 rounded border border-outline-variant bg-surface-container-lowest px-2 py-1.5">
+              <div className="flex flex-1 items-baseline gap-1.5 min-w-0">
+                <span className="text-[9px] uppercase font-bold tracking-wider text-on-surface-variant shrink-0">Points</span>
+                <span className="text-xs font-bold text-primary">{selectedCustomerData.loyalty_points || 0}</span>
               </div>
-              <div className="bg-surface-container-lowest border border-outline-variant rounded p-2">
-                <p className="text-[10px] text-on-surface-variant uppercase font-bold tracking-wider">Balance</p>
-                <p className="font-title-sm text-body-md font-bold text-error">Rs {selectedCustomerData.current_balance?.toFixed(2) || '0.00'}</p>
+              <span className="w-px self-stretch bg-outline-variant" />
+              <div className="flex flex-1 items-baseline gap-1.5 min-w-0 justify-end">
+                <span className="text-[9px] uppercase font-bold tracking-wider text-on-surface-variant shrink-0">Balance</span>
+                <span className="text-xs font-bold text-error truncate">Rs {selectedCustomerData.current_balance?.toFixed(2) || '0.00'}</span>
               </div>
             </div>
 
@@ -231,7 +233,7 @@ export default function PaymentPanel({
       {/* Global Discount — gated by permission AND the "Enable Discounts" setting */}
       {hasDiscountPermission && posConfig.enable_discounts && (
         <div className="mt-4">
-          <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-1 block">
+          <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-1 block pl-1">
             Cart Discount {globalDiscount.type === 'PERCENTAGE' && <span className="text-outline normal-case">(max {posConfig.max_discount_percent}%)</span>}
           </label>
           <div className="flex items-center gap-2">
@@ -261,7 +263,7 @@ export default function PaymentPanel({
       )}
 
       <div className="mt-2">
-        <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-1 block">Adjustment Amount</label>
+        <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-1 block pl-1">Adjustment Amount</label>
         <input 
           type="number" 
           className="w-full rounded-md border border-outline-variant bg-white p-2 text-body-md focus:border-primary focus:outline-none"
@@ -274,7 +276,7 @@ export default function PaymentPanel({
       {/* Amount Received */}
       {!isDualCounter && (
         <div className="mt-4">
-            <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-1 block">
+            <label className="text-label-md text-on-surface-variant uppercase tracking-wide mb-1 block pl-1">
               {paymentMethod === 'Credit' ? 'Initial Amount Paid (Optional)' : 'Amount Received'}
             </label>
             <input 
@@ -291,31 +293,33 @@ export default function PaymentPanel({
       {/* Payment Methods */}
       {!isDualCounter && (
         <div className="mt-4">
-            <label className="text-xs text-on-surface-variant font-bold tracking-widest uppercase mb-3 block">Payment Method</label>
-            <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-on-surface-variant font-bold tracking-widest uppercase mb-3 block pl-1">Payment Method</label>
+            {/* All methods on one row — compact so they fit without wrapping. */}
+            <div className="flex gap-1.5">
               {paymentMethods.map((method) => {
                 let Icon = Banknote;
                 if (method === 'Card') Icon = CreditCard;
                 if (method === 'Bank Transfer') Icon = Landmark;
-                if (method === 'Split') Icon = Split;
-                if (method === 'Gift Voucher') Icon = Gift;
 
                 const isSelected = paymentMethod === method;
+                // "Bank Transfer" is too long for a narrow tile.
+                const shortLabel = method === 'Bank Transfer' ? 'Bank' : method;
 
                 return (
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                     key={method}
                     onClick={() => setPaymentMethod(method as any)}
-                    className={`flex items-center gap-2 p-3 rounded-xl border transition-all shadow-sm ${
+                    title={method}
+                    className={`flex flex-1 flex-col items-center justify-center gap-1 rounded-lg border px-1 py-2 shadow-sm transition-all ${
                       isSelected
                         ? 'border-primary bg-gradient-to-br from-primary to-primary/80 text-white shadow-primary/20'
                         : 'border-outline-variant/50 bg-surface text-on-surface-variant hover:border-primary/30 hover:bg-surface-container-low'
                     }`}
                   >
-                    <Icon size={18} className={isSelected ? 'text-white' : 'text-primary/70'} />
-                    <span className="font-semibold text-sm">{method}</span>
+                    <Icon size={15} className={isSelected ? 'text-white' : 'text-primary/70'} />
+                    <span className="text-[11px] font-semibold leading-none">{shortLabel}</span>
                   </motion.button>
                 )
               })}

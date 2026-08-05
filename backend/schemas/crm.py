@@ -6,6 +6,9 @@ class CustomerBase(BaseModel):
     full_name: str
     phone: Optional[str] = None
     cnic: Optional[str] = None
+    # FBR Sales Tax Registration Number. Present = registered buyer, so Further
+    # Tax (s.3(1A)) is not charged on their sales.
+    strn: Optional[str] = None
     whatsapp: Optional[str] = None
     email: Optional[str] = None
     dob: Optional[date] = None

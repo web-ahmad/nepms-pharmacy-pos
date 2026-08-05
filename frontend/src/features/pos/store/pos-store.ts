@@ -28,6 +28,13 @@ interface POSState {
   setAmountPaid: (amount: number) => void;
   setGlobalDiscount: (type: 'PERCENTAGE' | 'FIXED', value: number) => void;
   setAdjustmentAmount: (amount: number) => void;
+  /** Applied from Settings → Tax (FBR policy). */
+  setTaxRate: (rate: number) => void;
+  taxLabel: string;
+  setTaxLabel: (label: string) => void;
+  /** True when printed prices already include tax (pharmacy MRP). */
+  taxInclusive: boolean;
+  setTaxInclusive: (v: boolean) => void;
   clearCart: () => void;
   loadCart: (items: any[], customerId: string | null) => void;
 }
@@ -70,13 +77,21 @@ const calculateTotals = (state: Partial<POSState>) => {
   
   const totalDiscount = totalItemDiscount + globalDiscountAmt;
   
-  // Tax
+  // Tax (FBR). Inclusive = printed MRP already contains the tax, so it is
+  // extracted from the price rather than added on top; the customer pays the
+  // same total either way, but the tax portion must be reported correctly.
   const taxRate = state.taxRate || 0;
   const subtotalAfterAllDiscounts = Math.max(0, rawSubtotal - totalDiscount);
-  const taxAmount = subtotalAfterAllDiscounts * (taxRate / 100);
-  
+  const taxAmount = taxRate > 0
+    ? (state.taxInclusive
+        ? subtotalAfterAllDiscounts * taxRate / (100 + taxRate)
+        : subtotalAfterAllDiscounts * taxRate / 100)
+    : 0;
+
   const adjustmentAmount = state.adjustmentAmount || 0;
-  const finalTotal = subtotalAfterAllDiscounts + taxAmount + adjustmentAmount;
+  const finalTotal = state.taxInclusive
+    ? subtotalAfterAllDiscounts + adjustmentAmount        // tax already inside
+    : subtotalAfterAllDiscounts + taxAmount + adjustmentAmount;
   
   // Change
   const paid = state.amountPaid || 0;
@@ -98,7 +113,10 @@ export const usePOSStore = create<POSState>((set) => ({
   paymentMethod: 'Cash',
   amountPaid: 0,
   globalDiscount: { type: 'FIXED', value: 0 },
-  taxRate: 0, // Assume 0 for now, can be configured
+  // Loaded from Settings → Tax when the POS mounts (see useApplyTaxSettings).
+  taxRate: 0,
+  taxLabel: 'Sales Tax',
+  taxInclusive: true,
   adjustmentAmount: 0,
   
   subtotal: 0,
@@ -213,6 +231,19 @@ export const usePOSStore = create<POSState>((set) => ({
 
   setAdjustmentAmount: (amount) => set((state) => {
     return { adjustmentAmount: amount, ...calculateTotals({ ...state, adjustmentAmount: amount }) };
+  }),
+
+  // Recalculates immediately so a rate change is reflected in an open cart.
+  setTaxRate: (rate) => set((state) => {
+    const taxRate = Math.max(0, Number(rate) || 0);
+    return { taxRate, ...calculateTotals({ ...state, taxRate }) };
+  }),
+
+  setTaxLabel: (label) => set({ taxLabel: label || 'Sales Tax' }),
+
+  setTaxInclusive: (v) => set((state) => {
+    const taxInclusive = !!v;
+    return { taxInclusive, ...calculateTotals({ ...state, taxInclusive }) };
   }),
   
   clearCart: () => set({

@@ -15,6 +15,9 @@ class Customer(BaseModel):
     full_name = Column(String(255), nullable=False)
     phone = Column(String(50), index=True)
     cnic = Column(String(50), index=True)
+    # FBR Sales Tax Registration Number. A buyer WITH an STRN is "registered";
+    # supplies to unregistered buyers attract Further Tax (Sales Tax Act s.3(1A)).
+    strn = Column(String(50), nullable=True, index=True)
     # Owning branch — set from the active X-Branch-Id at creation time.
     branch_id = Column(String(36), ForeignKey("branches.id"), index=True, nullable=True)
     whatsapp = Column(String(50))

@@ -4,8 +4,7 @@ import {
   RotateCcw, X, FileText, Package, ArrowRightLeft, Printer, AlertCircle
 } from 'lucide-react';
 import { useReturnLogs } from '../services/sales.api';
-import { useInvoiceSettings } from '@/features/settings/services/settings.api';
-import { generateReceiptHtml } from '@/utils/receiptGenerator';
+import { useReceiptPrinter } from '@/features/settings/hooks/useReceiptPrinter';
 
 export const PaymentBadge = ({ mode }: { mode: string }) => {
   const isCredit = mode === 'Store Credit';
@@ -39,7 +38,7 @@ interface Props {
 export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }: Props) {
   // If returnLog is not provided, we fetch logs and find it by returnNumber
   const { data: logs, isLoading } = useReturnLogs({});
-  const { data: invoiceSettings } = useInvoiceSettings();
+  const { printReceipt } = useReceiptPrinter();
 
   const selectedReturn = useMemo(() => {
     if (returnLog) return returnLog;
@@ -48,13 +47,7 @@ export default function ReturnDetailsModal({ returnLog, returnNumber, onClose }:
   }, [returnLog, returnNumber, logs]);
 
   const handlePrint = (log: ReturnLog) => {
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(generateReceiptHtml(
-      { ...log, subtotal: log.total_amount, amount_paid: log.total_amount },
-      invoiceSettings, 'return'
-    ));
-    w.document.close();
+    printReceipt({ ...log, subtotal: log.total_amount, amount_paid: log.total_amount }, 'return');
   };
 
   const isVisible = !!returnLog || !!returnNumber;

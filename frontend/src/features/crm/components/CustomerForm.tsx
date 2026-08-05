@@ -12,6 +12,7 @@ const customerSchema = z.object({
   full_name: z.string().min(1, 'Full name is required'),
   phone: z.string().optional(),
   cnic: z.string().optional(),
+  strn: z.string().optional(),
   whatsapp: z.string().optional(),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   dob: z.string().optional(),
@@ -54,6 +55,7 @@ export default function CustomerForm({ initialData, onSuccess, onCancel, initial
       full_name: '',
       phone: '',
       cnic: '',
+      strn: '',
       whatsapp: '',
       email: '',
       dob: '',
@@ -73,6 +75,7 @@ export default function CustomerForm({ initialData, onSuccess, onCancel, initial
         full_name: initialData.full_name,
         phone: initialData.phone || '',
         cnic: initialData.cnic || '',
+        strn: initialData.strn || '',
         whatsapp: initialData.whatsapp || '',
         email: initialData.email || '',
         dob: initialData.dob || '',
@@ -239,6 +242,27 @@ export default function CustomerForm({ initialData, onSuccess, onCancel, initial
                 />
               </div>
             )}
+            {/* FBR STRN — a buyer with one is sales-tax registered, so POS
+                drops Further Tax on their sales. */}
+            {!isEditMode ? (
+              renderField('STRN (Sales Tax Reg.)', watch('strn'))
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  STRN <span className="font-normal text-zinc-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="00-00-0000-000-00"
+                  {...register('strn')}
+                  className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                />
+                <p className="mt-1 text-xs text-zinc-400">Registered buyers are exempt from Further Tax.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             {!isEditMode ? (
               renderField('Email', watch('email'))
             ) : (
@@ -379,6 +403,7 @@ export default function CustomerForm({ initialData, onSuccess, onCancel, initial
                   full_name: initialData.full_name,
                   phone: initialData.phone || '',
                   cnic: initialData.cnic || '',
+                  strn: initialData.strn || '',
                   whatsapp: initialData.whatsapp || '',
                   email: initialData.email || '',
                   dob: initialData.dob || '',

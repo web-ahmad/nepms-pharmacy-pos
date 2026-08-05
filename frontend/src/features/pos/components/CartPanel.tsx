@@ -3,7 +3,7 @@ import { usePosConfig } from '../services/pos.api';
 import { Trash2, Plus, Minus, ChevronUp, ChevronDown } from 'lucide-react';
 
 export default function CartPanel({ onHoldSale }: { onHoldSale?: () => void }) {
-  const { cartItems, updateItemQuantity, updateItemDiscount, removeItem, subtotal, totalDiscount, taxAmount, finalTotal, clearCart } = usePOSStore();
+  const { cartItems, updateItemQuantity, updateItemDiscount, removeItem, subtotal, totalDiscount, taxAmount, finalTotal, clearCart, taxRate, taxLabel, taxInclusive } = usePOSStore();
   const posConfig = usePosConfig();
 
   return (
@@ -204,10 +204,14 @@ export default function CartPanel({ onHoldSale }: { onHoldSale?: () => void }) {
             <span>Discount</span>
             <span className="font-medium">-Rs {totalDiscount.toFixed(2)}</span>
           </div>
-          <div className="flex justify-between text-on-surface-variant">
-            <span>Tax (0%)</span>
-            <span className="font-medium">Rs {taxAmount.toFixed(2)}</span>
-          </div>
+          {/* FBR policy from Settings → Tax. On MRP (inclusive) pricing the tax
+              is already inside the price, so it's shown as "incl." not added. */}
+          {taxRate > 0 && (
+            <div className="flex justify-between text-on-surface-variant">
+              <span>{taxLabel} ({taxRate}%){taxInclusive ? ' incl.' : ''}</span>
+              <span className="font-medium">Rs {taxAmount.toFixed(2)}</span>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           {posConfig.allow_hold_sale && (

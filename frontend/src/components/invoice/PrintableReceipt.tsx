@@ -1,6 +1,6 @@
 import React from 'react';
 import JsBarcode from 'jsbarcode';
-import { useSettings, resolveAssetUrl } from '@/features/settings/services/settings.api';
+import { useCompanyIdentity, resolveAssetUrl } from '@/features/settings/services/settings.api';
 
 export interface PrintableReceiptProps {
   invoice: any;
@@ -10,14 +10,14 @@ export interface PrintableReceiptProps {
 }
 
 export default function PrintableReceipt({ invoice, settings, type = 'sale' }: PrintableReceiptProps) {
-  // Company logo lives in company_settings; pull it here so every receipt
-  // consumer shows it automatically once uploaded in Settings → Company.
-  const { data: companySettings } = useSettings();
-  const logoUrl = resolveAssetUrl(companySettings?.company_settings?.logo_url);
+  // Company logo lives in the company profile; read it through the identity
+  // endpoint (open to every authenticated user) so cashiers see it too.
+  const { data: company } = useCompanyIdentity();
+  const co: any = company || {};
+  const logoUrl = resolveAssetUrl(co.logo_url);
 
   // Footer WhatsApp barcode (Code128) — encodes the direct chat link.
-  const co: any = companySettings?.company_settings || {};
-  const rawWa = String(co.whatsapp || co.whatsapp_number || '03000040305').trim();
+  const rawWa = String(co.whatsapp || co.whatsapp_number || co.phone || '03000040305').trim();
   const barcodeUrl = React.useMemo(() => {
     if (typeof document === 'undefined') return '';
     try {
@@ -44,9 +44,9 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
   const currencySymbol = settings?.show_currency_symbol !== false ? 'Rs ' : '';
 
   // ── Business identity from settings ───────────────────────────────────
-  const businessName    = settings?.business_name    || 'NEPMS Pharmacy';
-  const businessAddress = settings?.business_address || 'Plot 12-C, Commercial Area, Sector G-10';
-  const businessPhone   = settings?.business_phone   || '+92-51-1234567';
+  const businessName    = settings?.business_name    || co.name || 'NEPMS Pharmacy';
+  const businessAddress = settings?.business_address || [co.address, co.city, co.country].filter(Boolean).join(', ') || 'Plot 12-C, Commercial Area, Sector G-10';
+  const businessPhone   = settings?.business_phone   || co.phone || '+92-51-1234567';
 
   return (
     <div className="receipt-print-wrapper w-full flex items-center justify-center">
@@ -54,12 +54,6 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
         
         {/* Header */}
         <div className="text-center space-y-1 mb-4">
-          {/* Return Invoice label — only structural difference */}
-          {isReturn && (
-            <p className="text-[11px] font-bold tracking-widest border border-black px-2 py-0.5 inline-block mb-1">
-              ⟵ RETURN INVOICE ⟶
-            </p>
-          )}
           {/* Header mode: "With Logo" (show_logo) prints the company logo and
               hides the name; "Without Logo" prints the business name. Falls back
               to the name if logo mode is on but no logo was uploaded. */}
@@ -68,6 +62,10 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
           ) : (
             <h3 className="text-sm font-bold tracking-wide uppercase">{businessName}</h3>
           )}
+          {/* Document type band — sits under the logo, same badge for both types */}
+          <p className="text-[11px] font-bold tracking-widest border border-black px-2 py-0.5 inline-block my-1">
+            ⟵ {isReturn ? 'RETURN INVOICE' : 'SALE INVOICE'} ⟶
+          </p>
           <p className="text-[10px] text-zinc-600">{businessAddress}</p>
           <p className="text-[10px] text-zinc-600">Ph: {businessPhone}</p>
           {settings?.show_drug_license !== false && settings?.drug_license_number && (

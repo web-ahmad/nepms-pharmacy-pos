@@ -7,6 +7,7 @@ import { usePOSStore } from '../store/pos-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { POSMedicine } from '../types/pos';
 import { Search, Package, Plus, Loader2 } from 'lucide-react';
+import { BarcodeScannerModal } from '@/features/inventory/components/MedicineMasterWizard/BarcodeScannerModal';
 
 export default function MedicineSearch({ searchInputRef }: { searchInputRef: React.RefObject<HTMLInputElement | null> }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,6 +46,39 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
     }, 300);
     return () => clearTimeout(handler);
   }, [searchTerm]);
+
+  // ── Barcode handling ──────────────────────────────────────────────────────
+  // A scan (camera or USB scanner) should land straight in the cart rather than
+  // leaving the operator to click the result. `pendingBarcode` marks a lookup as
+  // scan-driven; when the results arrive with exactly one hit we add it.
+  const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pendingBarcode || isLoading) return;
+    if (debouncedSearch !== pendingBarcode) return;   // results not for this scan yet
+
+    const hit = medicines?.length === 1
+      ? medicines[0]
+      : medicines?.find((m: any) => m.barcode && m.barcode === pendingBarcode);
+
+    if (hit) {
+      handleAdd(hit as POSMedicine);
+    } else if (medicines) {
+      toast.error(`No medicine found for barcode ${pendingBarcode}`);
+    }
+    setPendingBarcode(null);
+    // handleAdd is stable enough for this effect's purpose.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingBarcode, medicines, isLoading, debouncedSearch]);
+
+  /** Camera scan, or Enter pressed after a USB scanner typed the code. */
+  const handleBarcode = (code: string) => {
+    const value = (code || '').trim();
+    if (!value) return;
+    setSearchTerm(value);
+    setDebouncedSearch(value);   // skip the debounce so the scan resolves at once
+    setPendingBarcode(value);
+  };
 
   // Helper function to extract correct stock value
   const getStock = (med: any) => {
@@ -105,13 +139,29 @@ export default function MedicineSearch({ searchInputRef }: { searchInputRef: Rea
             id="medicine-search"
             ref={searchInputRef}
             type="text"
-            className="w-full pl-10 pr-12 py-2.5 bg-white border border-outline-variant rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none text-body-md shadow-sm"
-            placeholder="Search Medicine (F2)..."
+            className="w-full pl-10 pr-24 py-2.5 bg-white border border-outline-variant rounded-md focus:ring-2 focus:ring-primary focus:border-primary transition-all outline-none text-body-md shadow-sm"
+            placeholder="Scan barcode or search (F2)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            // USB/HID scanners type the code then send Enter — treat that as a scan.
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchTerm.trim()) {
+                e.preventDefault();
+                handleBarcode(searchTerm);
+              }
+            }}
             autoComplete="off"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded text-outline font-bold">F2</span>
+          <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+            <span className="text-[10px] bg-surface-container-high px-1.5 py-0.5 rounded text-outline font-bold">F2</span>
+            <div className="h-6 w-px bg-outline-variant" />
+            {/* Camera scan — for phones/tablets without a hardware scanner */}
+            <BarcodeScannerModal
+              onScan={handleBarcode}
+              triggerTitle="Scan barcode with camera"
+              triggerClassName="inline-flex h-7 w-7 items-center justify-center rounded-md text-primary transition-colors hover:bg-primary/10"
+            />
+          </div>
         </div>
         
         {activeGenericFilter && (

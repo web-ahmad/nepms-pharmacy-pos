@@ -82,6 +82,21 @@ class SalesService:
             else:
                 status = "Completed"
             
+            # Attribute the sale to whoever rang it, and to their till. The POS
+            # doesn't send these, so default from the signed-in user — otherwise
+            # the salesperson / counter reports have nothing to group by.
+            salesperson_id = checkout_in.salesperson_id or user_id
+            counter_no = None
+            try:
+                from models.enterprise.user import EnterpriseUser
+                eu = db.query(EnterpriseUser).filter(
+                    EnterpriseUser.user_id == user_id,
+                    EnterpriseUser.is_deleted == False,
+                ).first()
+                counter_no = eu.pos_counter_no if eu else None
+            except Exception:
+                counter_no = None
+
             # 1. Create Sale Header
             sale = Sale(
                 invoice_number=invoice_num,
@@ -91,8 +106,9 @@ class SalesService:
                 cashier_id=user_id,
                 warehouse_id=checkout_in.warehouse_id,
                 counter_id=checkout_in.counter_id,
+                counter_no=counter_no,
                 shift_id=checkout_in.shift_id,
-                salesperson_id=checkout_in.salesperson_id,
+                salesperson_id=salesperson_id,
                 delivery_type=checkout_in.delivery_type,
                 order_source=checkout_in.order_source,
                 loyalty_points_used=checkout_in.loyalty_points_used,

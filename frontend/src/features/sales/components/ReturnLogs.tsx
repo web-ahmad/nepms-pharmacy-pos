@@ -9,8 +9,7 @@ import {
   Package, RotateCcw, CreditCard, Banknote, AlertCircle
 } from 'lucide-react';
 import ReturnDetailsModal, { PaymentBadge, StockBadge } from './ReturnDetailsModal';
-import { useInvoiceSettings } from '@/features/settings/services/settings.api';
-import { generateReceiptHtml } from '@/utils/receiptGenerator';
+import { useReceiptPrinter } from '@/features/settings/hooks/useReceiptPrinter';
 
 
 export default function ReturnLogs() {
@@ -21,16 +20,10 @@ export default function ReturnLogs() {
   const handleFilterChange = (key: string, value: any) =>
     setFilters(prev => ({ ...prev, [key]: value }));
 
-  const { data: invoiceSettings } = useInvoiceSettings();
+  const { printReceipt } = useReceiptPrinter();
 
   const handlePrint = (log: ReturnLog) => {
-    const w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(generateReceiptHtml(
-      { ...log, subtotal: log.total_amount, amount_paid: log.total_amount } as any,
-      invoiceSettings, 'return'
-    ));
-    w.document.close();
+    printReceipt({ ...log, subtotal: log.total_amount, amount_paid: log.total_amount }, 'return');
   };
 
   const HEADERS = [

@@ -7,9 +7,15 @@ import { ScanLine, Loader2, Camera, CheckCircle2, XCircle } from 'lucide-react';
 
 interface BarcodeScannerModalProps {
   onScan: (barcode: string) => void;
+  /** Override the trigger styling when embedding somewhere tighter (e.g. POS). */
+  triggerClassName?: string;
+  triggerTitle?: string;
 }
 
-export function BarcodeScannerModal({ onScan }: BarcodeScannerModalProps) {
+const DEFAULT_TRIGGER =
+  'inline-flex items-center justify-center h-full w-10 hover:bg-slate-100 transition-colors rounded-r-custom text-blue-600 hover:text-blue-700';
+
+export function BarcodeScannerModal({ onScan, triggerClassName, triggerTitle }: BarcodeScannerModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<'loading' | 'scanning' | 'success' | 'error'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
@@ -103,8 +109,8 @@ export function BarcodeScannerModal({ onScan }: BarcodeScannerModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger
-        className="inline-flex items-center justify-center h-full w-10 hover:bg-slate-100 transition-colors rounded-r-custom text-blue-600 hover:text-blue-700"
-        title="Scan Barcode"
+        className={triggerClassName ?? DEFAULT_TRIGGER}
+        title={triggerTitle ?? 'Scan Barcode'}
       >
         <ScanLine className="w-[18px] h-[18px]" />
       </DialogTrigger>
