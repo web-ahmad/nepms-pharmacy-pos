@@ -642,6 +642,24 @@ def delete_monthly_batch(
         print(f"CRITICAL ERROR IN RESET: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
+# Registered AFTER /attendance/monthly-batch so that literal path never gets
+# swallowed by the {id} placeholder.
+@router.delete("/attendance/{id}")
+def delete_attendance(
+    id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_hr_delete)
+):
+    """Remove a single attendance record (HR correction of a wrong entry)."""
+    try:
+        return HRService(db).delete_attendance(current_user.tenant_id, id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"delete_attendance failed: {str(e)}")
+
 @router.get("/attendance/weekly-summary", response_model=AttendanceWeeklySummaryResponse)
 def get_weekly_summary(
     db: Session = Depends(get_db),

@@ -280,6 +280,11 @@ class HRService:
         res = self.repo.bulk_create_attendance(tenant_id, rows)
         return res
 
+    def delete_attendance(self, tenant_id: str, attendance_id: str):
+        if not self.repo.delete_attendance(tenant_id, attendance_id):
+            raise HTTPException(status_code=404, detail="Attendance record not found")
+        return {"success": True, "message": "Attendance record deleted"}
+
     def delete_monthly_attendance_batch(self, tenant_id: str, employee_id: str, month: int, year: int):
         return self.repo.delete_monthly_attendance_batch(tenant_id, employee_id, month, year)
 

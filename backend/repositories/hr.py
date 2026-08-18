@@ -516,6 +516,19 @@ class HRRepository:
         self.db.commit()
         return {"created": created, "skipped": skipped, "errors": errors}
 
+    def delete_attendance(self, tenant_id: str, attendance_id: str) -> bool:
+        """Delete a single attendance record. Returns False if it doesn't exist."""
+        rec = (
+            self.db.query(Attendance)
+            .filter(Attendance.tenant_id == tenant_id, Attendance.id == attendance_id)
+            .first()
+        )
+        if not rec:
+            return False
+        self.db.delete(rec)
+        self.db.commit()
+        return True
+
     def delete_monthly_attendance_batch(self, tenant_id: str, employee_id: str, month: int, year: int):
         import calendar
         from datetime import date

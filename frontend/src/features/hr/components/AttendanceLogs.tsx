@@ -1,7 +1,14 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect, Fragment } from 'react';
-import { useAttendance, useEmployees, useBulkAttendance, useDepartments } from '../services/hr.api';
+import {
+  useAttendance,
+  useEmployees,
+  useBulkAttendance,
+  useDepartments,
+  useUpdateAttendance,
+  useDeleteAttendance,
+} from '../services/hr.api';
 import { Attendance, BulkAttendanceRow } from '../types/hr';
 import {
   CalendarDays,
@@ -19,6 +26,7 @@ import {
   Loader2,
   Upload,
   Eye,
+  Trash2,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { toast } from 'sonner';
@@ -73,6 +81,10 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   'Half Day': <Clock size={12} />,
 };
 
+// Same set the edit modal accepts, so the quick dropdown can't produce a
+// status that a subsequent full edit would reject.
+const STATUS_OPTIONS = ['Present', 'Late', 'Half Day', 'Absent', 'Leave', 'Holiday', 'Weekend'] as const;
+
 // ─── Component ───────────────────────────────────────────────────────
 export default function AttendanceLogs({ 
   employeeId, 
@@ -85,6 +97,8 @@ export default function AttendanceLogs({
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [editingRecord, setEditingRecord] = useState<Attendance | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<Attendance | null>(null);
+  const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
   const [viewingEmployee, setViewingEmployee] = useState<any | null>(null);
   const [isMarkMonthlyOpen, setIsMarkMonthlyOpen] = useState(false);
   const [isMarkCustomOpen, setIsMarkCustomOpen] = useState(false);
@@ -97,7 +111,33 @@ export default function AttendanceLogs({
   const { data: employees } = useEmployees();
   const { data: departments } = useDepartments();
   const { mutateAsync: bulkUpload, isPending: isUploading } = useBulkAttendance();
+  const { mutateAsync: updateAttendance } = useUpdateAttendance();
+  const { mutateAsync: deleteAttendance, isPending: isDeleting } = useDeleteAttendance();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStatusChange = async (rec: Attendance, status: string) => {
+    if (status === rec.status) return;
+    setPendingStatusId(rec.id);
+    try {
+      await updateAttendance({ id: rec.id, data: { status } as any });
+      toast.success(`${rec.employee_name ?? 'Record'} marked ${status}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? 'Could not update status');
+    } finally {
+      setPendingStatusId(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingRecord) return;
+    try {
+      await deleteAttendance(deletingRecord.id);
+      toast.success('Attendance record deleted');
+      setDeletingRecord(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail ?? 'Could not delete record');
+    }
+  };
 
   // Client-side search by employee name or shift, and filter by department
   const filtered = (logs ?? []).filter((rec) => {
@@ -441,9 +481,32 @@ export default function AttendanceLogs({
                             {formatHours(rec.break_time)}
                           </td>
                           <td className="whitespace-nowrap px-6 py-3 text-center">
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle}`}>
-                              {rec.status}
-                            </span>
+                            {/* Quick status override — the full edit modal is
+                                still there for changing times as well. */}
+                            <div className="relative inline-flex items-center">
+                              <select
+                                value={rec.status}
+                                disabled={pendingStatusId === rec.id}
+                                onChange={(e) => handleStatusChange(rec, e.target.value)}
+                                title="Change status"
+                                className={`cursor-pointer appearance-none rounded-full border-0 py-0.5 pl-2.5 pr-6 text-[10px] font-bold uppercase tracking-wider focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:opacity-50 ${statusStyle}`}
+                              >
+                                {STATUS_OPTIONS.map((s) => (
+                                  <option key={s} value={s} className="bg-white font-medium normal-case text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">
+                                    {s}
+                                  </option>
+                                ))}
+                                {/* Keep an unrecognised legacy status selectable rather than silently rewriting it. */}
+                                {!STATUS_OPTIONS.includes(rec.status as any) && (
+                                  <option value={rec.status}>{rec.status}</option>
+                                )}
+                              </select>
+                              {pendingStatusId === rec.id ? (
+                                <Loader2 size={11} className="pointer-events-none absolute right-1.5 animate-spin" />
+                              ) : (
+                                <ChevronDown size={11} className="pointer-events-none absolute right-1.5 opacity-60" />
+                              )}
+                            </div>
                           </td>
                           <td className="whitespace-nowrap px-6 py-3 font-mono text-xs text-zinc-700 dark:text-zinc-300">
                             {rec.late_minutes ? `${rec.late_minutes}m` : 'N/A'}
@@ -467,9 +530,14 @@ export default function AttendanceLogs({
                             {rec.gps_location || 'N/A'}
                           </td>
                           <td className="whitespace-nowrap px-6 py-3 text-right">
-                            <button title="Edit attendance" onClick={() => setEditingRecord(rec)} className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300">
-                              <Pencil size={15} />
-                            </button>
+                            <div className="flex items-center justify-end gap-1">
+                              <button title="Edit attendance" onClick={() => setEditingRecord(rec)} className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300">
+                                <Pencil size={15} />
+                              </button>
+                              <button title="Delete attendance" onClick={() => setDeletingRecord(rec)} className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400">
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -516,6 +584,43 @@ export default function AttendanceLogs({
         onClose={() => setEditingRecord(null)} 
         record={editingRecord} 
       />
+
+      {deletingRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => !isDeleting && setDeletingRecord(null)}>
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl dark:bg-zinc-900" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                <Trash2 size={16} className="text-red-600 dark:text-red-400" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Delete attendance record?</h3>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  {deletingRecord.employee_name ?? 'This employee'} —{' '}
+                  {new Date(deletingRecord.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {' '}({deletingRecord.status}). This cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setDeletingRecord(null)}
+                disabled={isDeleting}
+                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {isDeleting && <Loader2 size={14} className="animate-spin" />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <MarkMonthlyModal
         isOpen={isMarkMonthlyOpen}

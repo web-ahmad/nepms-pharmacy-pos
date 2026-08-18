@@ -503,6 +503,21 @@ export const useUpdateAttendance = () => {
   });
 };
 
+export const useDeleteAttendance = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(`/api/v1/hr/attendance/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['hr', 'attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'me', 'attendance'] });
+      queryClient.invalidateQueries({ queryKey: ['hr', 'analytics'] });
+    }
+  });
+};
+
 export const useBulkAttendance = () => {
   const queryClient = useQueryClient();
   return useMutation({
