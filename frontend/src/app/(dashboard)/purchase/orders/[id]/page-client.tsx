@@ -45,8 +45,8 @@ export default function PurchaseOrderDetailPage() {
 
   const company = settings?.company_settings || {};
   const accent = template.header_color || '#2563eb';
-  const companyName = company.name || 'NEPMS Pharmacy';
-  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || 'National Electronic Pharmacy Management System';
+  const companyName = company.name || 'Pharvix Pharmacy';
+  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || 'Pharvix Pharmacy Management System';
   const companyLogo = template.show_logo ? resolveAssetUrl(company.logo_url) : '';
   const cPhone = (company as any).phone;
   const cEmail = (company as any).email;
@@ -175,7 +175,7 @@ export default function PurchaseOrderDetailPage() {
 
           <div class="foot">
             <span>Generated on ${format(new Date(), 'MMMM dd, yyyy HH:mm')}</span>
-            <span style="font-style:italic;">${companyName} — Powered by NEPMS</span>
+            <span style="font-style:italic;">${companyName} — Powered by Pharvix</span>
           </div>
         </div>
       </body></html>

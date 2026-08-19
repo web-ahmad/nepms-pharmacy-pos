@@ -7,7 +7,7 @@ from main import app
 
 client = TestClient(app)
 
-response = client.post("/api/v1/auth/login", data={"username": "superadmin@nepms.com", "password": "password123"})
+response = client.post("/api/v1/auth/login", data={"username": "superadmin@pharvix.com", "password": "password123"})
 if response.status_code == 200:
     token = response.json().get("access_token")
     headers = {"Authorization": f"Bearer {token}"}

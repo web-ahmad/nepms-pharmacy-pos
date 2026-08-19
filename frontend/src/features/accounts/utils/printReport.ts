@@ -48,13 +48,13 @@ export function printReport(elementId: string, title: string) {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>${title} — NEPMS</title>
+      <title>${title} — Pharvix</title>
       <style>${styles}</style>
     </head>
     <body>
       <div class="print-header">
         <h1>${title}</h1>
-        <p>Generated on ${new Date().toLocaleString('en-PK')} &nbsp;|&nbsp; NEPMS Pharmacy Management System</p>
+        <p>Generated on ${new Date().toLocaleString('en-PK')} &nbsp;|&nbsp; Pharvix Pharmacy Management System</p>
       </div>
       ${el.innerHTML}
     </body>

@@ -49,7 +49,7 @@ export default function WhatsAppIntegrationCard() {
             <div className="text-center">
               <p className="font-bold text-zinc-900 dark:text-white">Scan this QR Code</p>
               <p className="text-sm text-zinc-500 mt-1 max-w-sm">
-                Open WhatsApp on your phone, go to Linked Devices, and scan this code to link the NEPMS bot.
+                Open WhatsApp on your phone, go to Linked Devices, and scan this code to link the Pharvix bot.
               </p>
             </div>
           </div>

@@ -29,7 +29,7 @@ export default function InvoiceSettingsForm() {
     footer_text: '',
     urdu_policy_text: '',
     drug_license_number: '368-/NT/9/2015',
-    business_name: 'NEPMS Pharmacy',
+    business_name: 'Pharvix Pharmacy',
     business_address: 'Plot 12-C, Commercial Area, Sector G-10',
     business_phone: '+92-51-1234567',
     business_ntn: '',
@@ -60,7 +60,7 @@ export default function InvoiceSettingsForm() {
         footer_text: data.footer_text || '',
         urdu_policy_text: data.urdu_policy_text || '',
         drug_license_number: data.drug_license_number || '368-/NT/9/2015',
-        business_name: data.business_name || 'NEPMS Pharmacy',
+        business_name: data.business_name || 'Pharvix Pharmacy',
         business_address: data.business_address || 'Plot 12-C, Commercial Area, Sector G-10',
         business_phone: data.business_phone || '+92-51-1234567',
         business_ntn: data.business_ntn || '',
@@ -304,7 +304,7 @@ export default function InvoiceSettingsForm() {
                       name="business_name"
                       value={formData.business_name || ''}
                       onChange={handleChange}
-                      placeholder="e.g. NEPMS Pharmacy"
+                      placeholder="e.g. Pharvix Pharmacy"
                       className="w-full rounded-xl border border-zinc-300 bg-white px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                     />
                   </div>
@@ -474,7 +474,7 @@ function LiveReceiptPreview({ formData, logoUrl }: { formData: any; logoUrl?: st
           )
         ) : (
           <h3 className="text-sm font-bold tracking-wide uppercase">
-            {formData.business_name || 'NEPMS Pharmacy'}
+            {formData.business_name || 'Pharvix Pharmacy'}
           </h3>
         )}
         <p className="text-[10px] text-zinc-600">{formData.business_address || 'Plot 12-C, Commercial Area, Sector G-10'}</p>
@@ -611,7 +611,7 @@ function LiveReceiptPreview({ formData, logoUrl }: { formData: any; logoUrl?: st
       {formData.show_footer_text !== false && (
         <div className="text-center space-y-1 text-[9px] text-zinc-600 border-t border-dashed border-zinc-200 pt-3 animate-in fade-in">
           <p className="font-semibold">{formData.footer_text || 'Thank you for your visit!'}</p>
-          <p>Software Powered by NEPMS</p>
+          <p>Software Powered by Pharvix</p>
         </div>
       )}
     </div>

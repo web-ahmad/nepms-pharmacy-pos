@@ -61,7 +61,7 @@ export const useUserStore = create<UserStoreState>()(
       clearSelected: () => set({ selectedIds: [] }),
     }),
     {
-      name: 'nepms-user-store',
+      name: 'pharvix-user-store',
       partialize: (state) => ({
         viewMode: state.viewMode,
         params:   state.params,

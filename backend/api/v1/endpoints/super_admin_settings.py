@@ -21,7 +21,7 @@ router = APIRouter()
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 class PlatformSettingsRequest(BaseModel):
-    platform_name: str = "NEPMS"
+    platform_name: str = "Pharvix"
     support_email: Optional[EmailStr] = None
     support_phone: Optional[str] = None
     default_currency_code: Optional[str] = None
@@ -46,7 +46,7 @@ def _settings_dict(s: PlatformSettings) -> dict:
 def _get_or_create_settings(db: Session) -> PlatformSettings:
     settings = db.query(PlatformSettings).filter(PlatformSettings.is_deleted == False).first()
     if not settings:
-        settings = PlatformSettings(platform_name="NEPMS")
+        settings = PlatformSettings(platform_name="Pharvix")
         db.add(settings)
         db.commit()
         db.refresh(settings)

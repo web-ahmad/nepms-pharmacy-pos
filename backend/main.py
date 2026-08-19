@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+import os
 import traceback
 
 class ExceptionMiddleware(BaseHTTPMiddleware):
@@ -28,7 +29,7 @@ tags_metadata = [
 ]
 
 app = FastAPI(
-    title="NEPMS Backend",
+    title="Pharvix Backend",
     description="Next-Generation Enterprise Pharmacy Management System API\n\nThis API powers the POS terminal, Inventory Manager, and overall CRM of the Pharmacy system.",
     version="1.0.0",
     openapi_tags=tags_metadata
@@ -37,12 +38,15 @@ app = FastAPI(
 app.add_middleware(ExceptionMiddleware)
 
 # Configure CORS
+# Extra browser origins allowed to call the API, comma-separated, e.g.
+# CORS_ORIGINS=https://pharvix.devjix.com
+# In the docker-compose deployment nginx serves the app and the API from one
+# origin, so requests are same-origin and this list stays empty. It only matters
+# if the frontend is ever hosted somewhere else.
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://devjix.com",
-    "https://www.devjix.com",
-]
+] + [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -142,4 +146,30 @@ async def startup_event():
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "NEPMS API is running."}
+    return {"status": "ok", "message": "Pharvix API is running."}
+
+
+@app.get("/health")
+def health():
+    """Liveness + database reachability, for the container healthcheck and nginx.
+
+    Deliberately cheap: `SELECT 1` proves the pool can still hand out a working
+    connection, which is the failure that actually takes the app down (Supabase
+    drops idle connections, and its session pooler caps the whole project at 15
+    clients). A process that is up but cannot reach Postgres should read as
+    unhealthy, not healthy.
+    """
+    from sqlalchemy import text
+    from database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "up"}
+    except Exception as exc:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": "down", "detail": str(exc)[:200]},
+        )
+    finally:
+        db.close()

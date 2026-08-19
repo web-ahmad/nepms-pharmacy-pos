@@ -40,7 +40,7 @@ class InvoiceSettings(Base):
     show_drug_license = Column(Boolean, default=True)
     show_ntn = Column(Boolean, default=False)
     
-    business_name = Column(String, default="NEPMS Pharmacy")
+    business_name = Column(String, default="Pharvix Pharmacy")
     business_address = Column(String, default="Plot 12-C, Commercial Area, Sector G-10")
     business_phone = Column(String, default="+92-51-1234567")
     footer_text = Column(String, default="Thank you for your business!")

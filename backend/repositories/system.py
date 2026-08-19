@@ -61,7 +61,7 @@ class SystemRepository:
         categories = ['System', 'Inventory', 'Pharmacy', 'Billing', 'Payroll']
         messages = [
             ("Low Stock Alert", "Panadol 500mg stock is critically low. Only 5 units left.", "Inventory"),
-            ("System Update", "NEPMS has been updated to v2.1. Please refresh your browser.", "System"),
+            ("System Update", "Pharvix has been updated to v2.1. Please refresh your browser.", "System"),
             ("Payroll Processed", "Salary for the month of July has been processed successfully.", "Payroll"),
             ("New Prescription", "A new prescription has been submitted by Dr. Ali.", "Pharmacy"),
             ("Payment Received", "Payment of Rs 1500 received for Invoice #1024.", "Billing"),

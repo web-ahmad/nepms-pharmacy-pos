@@ -1,5 +1,5 @@
 """
-NEPMS Enterprise Module
+Pharvix Enterprise Module
 
 Bounded Contexts:
   - ai : Enterprise AI Analytics Engine (Phase 6.1)

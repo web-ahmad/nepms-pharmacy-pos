@@ -1,0 +1,91 @@
+# Pharvix — single-host deployment.
+#
+#   docker compose --env-file .env.production up -d --build
+#
+# The database is Supabase, not a container here. Nginx terminates TLS and is
+# the only thing published to the internet; the three app containers talk to
+# each other on the private compose network.
+
+services:
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: [.env.production]
+    environment:
+      # Same origin via nginx, so no cross-origin requests to allow.
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+    volumes:
+      # Uploaded logos and generated documents — must outlive the container.
+      - backend_storage:/app/storage
+    expose: ["8000"]
+    networks: [pharvix]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Empty: the browser calls /api/v1 on the same origin nginx serves.
+        NEXT_PUBLIC_API_URL: ""
+        # Baked into the standalone build — see frontend/Dockerfile.
+        BACKEND_ORIGIN: http://backend:8000
+    restart: unless-stopped
+    environment:
+      BACKEND_ORIGIN: http://backend:8000
+    expose: ["3000"]
+    depends_on:
+      backend: {condition: service_healthy}
+    networks: [pharvix]
+
+  whatsapp:
+    build:
+      context: ./whatsapp_service
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+      PORT: "3001"
+    volumes:
+      # Baileys pairing credentials. Lose this and the QR must be rescanned.
+      - whatsapp_auth:/app/auth_info_baileys
+    expose: ["3001"]
+    networks: [pharvix]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/nginx/pharvix.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot_conf:/etc/letsencrypt:ro
+      - certbot_www:/var/www/certbot:ro
+    depends_on: [frontend, backend]
+    networks: [pharvix]
+
+  # Renews the certificate twice a day; exits immediately when nothing is due.
+  #
+  # NOTE: this entrypoint is a forever-loop, so it SWALLOWS any command given to
+  # `docker compose run certbot ...` — the container just starts renewing and
+  # never returns. To issue a certificate by hand, override the entrypoint:
+  #
+  #   docker compose run --rm --entrypoint certbot certbot certonly \
+  #     --webroot -w /var/www/certbot -d pharvix.devjix.com \
+  #     --agree-tos --no-eff-email -m you@example.com --non-interactive
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: >
+      sh -c "trap exit TERM;
+             while :; do certbot renew --webroot -w /var/www/certbot --quiet;
+             sleep 12h & wait $${!}; done"
+
+volumes:
+  backend_storage:
+  whatsapp_auth:
+  certbot_conf:
+  certbot_www:
+
+networks:
+  pharvix:

@@ -147,7 +147,7 @@ export default function SecurityBackupTab({ branchId, data, refetch }: Props) {
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <label className="flex items-center gap-2"><input type="checkbox" {...backupForm.register('local_backup_enabled')} className="rounded border-gray-300 text-primary" /><span className="text-sm font-medium">Local Storage</span></label>
-                  {backupForm.watch('local_backup_enabled') && <div className="space-y-1.5 pl-6"><label className="text-sm font-medium">Local Path</label><input {...backupForm.register('local_backup_path')} className={inputClass} placeholder="e.g. /var/backups/nepms" /></div>}
+                  {backupForm.watch('local_backup_enabled') && <div className="space-y-1.5 pl-6"><label className="text-sm font-medium">Local Path</label><input {...backupForm.register('local_backup_path')} className={inputClass} placeholder="e.g. /var/backups/pharvix" /></div>}
                 </div>
                 
                 <div className="space-y-3 pt-3 border-t border-border">

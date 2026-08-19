@@ -114,7 +114,7 @@ export default function LoginPage() {
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-2xl font-black ring-1 ring-white/25 backdrop-blur-sm">N</div>
           <div className="leading-none">
-            <p className="text-xl font-extrabold tracking-tight">NEPMS</p>
+            <p className="text-xl font-extrabold tracking-tight">Pharvix</p>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100/80">Pharmacy ERP</p>
           </div>
         </motion.div>
@@ -159,7 +159,7 @@ export default function LoginPage() {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
           className="relative text-xs text-emerald-100/70"
         >
-          © {new Date().getFullYear()} NEPMS — National Electronic Pharmacy Management System
+          © {new Date().getFullYear()} Pharvix — Pharmacy Management System
         </motion.p>
       </div>
 
@@ -174,7 +174,7 @@ export default function LoginPage() {
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-xl font-black text-white shadow-lg shadow-emerald-500/30">N</div>
             <div className="leading-none">
-              <p className="text-lg font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">NEPMS</p>
+              <p className="text-lg font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50">Pharvix</p>
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">Pharmacy ERP</p>
             </div>
           </div>

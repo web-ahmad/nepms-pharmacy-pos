@@ -201,6 +201,15 @@ class EnterprisePermission(BaseModel):
     __tablename__ = "enterprise_permissions"
     __table_args__ = (UniqueConstraint("pharmacy_id", "code", name="uq_ent_perm_pharm_code"),)
 
+    # `pharmacy_id` here is a generic RBAC scope key, not a pharmacies.id.
+    # api/v1/endpoints/enterprise/roles.py::_resolve_pid() fills it with the
+    # pharmacy id, else the tenant id, else the literal "system", so the
+    # foreign key BaseModel adds has to be dropped or Postgres rejects every
+    # seeded row. SQLite never enforced it, which is why this only shows up
+    # on a real database.
+    pharmacy_id     = Column(String(36), index=True, nullable=True)
+
+
     module          = Column(String(100), nullable=False, index=True)
     action          = Column(String(100), nullable=False)
     code            = Column(String(200), nullable=False, index=True)  # e.g. "inventory:view"
@@ -224,6 +233,14 @@ class EnterpriseRole(BaseModel):
         4 = Branch Staff                  (permission-driven, own branch)
     """
     __tablename__ = "enterprise_roles"
+
+    # `pharmacy_id` here is a generic RBAC scope key, not a pharmacies.id.
+    # api/v1/endpoints/enterprise/roles.py::_resolve_pid() fills it with the
+    # pharmacy id, else the tenant id, else the literal "system", so the
+    # foreign key BaseModel adds has to be dropped or Postgres rejects every
+    # seeded row. SQLite never enforced it, which is why this only shows up
+    # on a real database.
+    pharmacy_id     = Column(String(36), index=True, nullable=True)
 
     name                = Column(String(100), nullable=False, index=True)
     description         = Column(Text,        nullable=True)

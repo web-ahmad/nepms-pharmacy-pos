@@ -1,3 +1,38 @@
-node_modules
+# --- Secrets -----------------------------------------------------------------
+# Anything .env except the committed templates. backend/.env was committed in
+# two early commits before it was ignored, so treat every credential that ever
+# lived in it as exposed and rotate it rather than assuming history is clean.
+.env
+.env.*
+!.env.example
+!.env.production.example
 
-backend/.env
+# --- Dependencies ------------------------------------------------------------
+node_modules/
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# --- Build output ------------------------------------------------------------
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# --- Local database / uploads ------------------------------------------------
+*.db
+*.db.backup
+*.sqlite
+*.sqlite3
+backend/storage/
+whatsapp_service/auth_info_baileys/
+whatsapp_service/.wwebjs_auth/
+whatsapp_service/.wwebjs_cache/
+
+# --- Logs / scratch ----------------------------------------------------------
+*.log
+backend_error.log
+out.txt
+.pytest_cache/

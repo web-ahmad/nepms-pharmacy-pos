@@ -44,7 +44,7 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
   const currencySymbol = settings?.show_currency_symbol !== false ? 'Rs ' : '';
 
   // ── Business identity from settings ───────────────────────────────────
-  const businessName    = settings?.business_name    || co.name || 'NEPMS Pharmacy';
+  const businessName    = settings?.business_name    || co.name || 'Pharvix Pharmacy';
   const businessAddress = settings?.business_address || [co.address, co.city, co.country].filter(Boolean).join(', ') || 'Plot 12-C, Commercial Area, Sector G-10';
   const businessPhone   = settings?.business_phone   || co.phone || '+92-51-1234567';
 
@@ -202,7 +202,7 @@ export default function PrintableReceipt({ invoice, settings, type = 'sale' }: P
         {settings?.show_footer_text !== false && (
           <div className="text-center space-y-1 text-[9px] text-zinc-600 border-t border-dashed border-zinc-200 pt-3">
             <p className="font-semibold">{settings?.footer_text || 'Thank you for your visit!'}</p>
-            <p>Software Powered by NEPMS</p>
+            <p>Software Powered by Pharvix</p>
           </div>
         )}
 

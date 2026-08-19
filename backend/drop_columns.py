@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('C:/Users/DEVJiX/Desktop/NEPMS/backend/nepms.db')
+conn = sqlite3.connect('C:/Users/DEVJiX/Desktop/Pharvix/backend/pharvix.db')
 cursor = conn.cursor()
 
 cols_po = [

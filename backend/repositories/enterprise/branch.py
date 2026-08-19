@@ -3,7 +3,7 @@ repositories/enterprise/branch.py
 ───────────────────────────────────
 Repository (data-access layer) for the PharmacyBranch entity.
 
-Follows the CRUDBase pattern already used across NEPMS, extended with:
+Follows the CRUDBase pattern already used across Pharvix, extended with:
 • Multi-column filtered listing with server-side pagination
 • Unique code validation scoped to a single pharmacy
 • Staff-count aggregation

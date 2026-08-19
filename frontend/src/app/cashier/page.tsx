@@ -719,7 +719,7 @@ export default function CashierPortalPage() {
       <aside className="flex w-[280px] shrink-0 flex-col border-r border-outline-variant bg-surface-container-lowest">
         <div className="p-5 flex items-center gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold">N</div>
-          <h1 className="font-bold text-on-surface tracking-tight text-lg">NEPMS</h1>
+          <h1 className="font-bold text-on-surface tracking-tight text-lg">Pharvix</h1>
         </div>
 
         {/* Shift Widget */}

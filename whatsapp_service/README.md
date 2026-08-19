@@ -1,4 +1,4 @@
-# NEPMS WhatsApp Baileys Service
+# Pharvix WhatsApp Baileys Service
 
 This is a standalone microservice that provides an unofficial WhatsApp connection using Baileys. It replaces the Meta WhatsApp Business Cloud API.
 

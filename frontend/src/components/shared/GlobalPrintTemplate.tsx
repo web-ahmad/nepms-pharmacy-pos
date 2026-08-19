@@ -52,11 +52,11 @@ export const GlobalPrintTemplate = forwardRef<HTMLDivElement, GlobalPrintTemplat
             )}
           </div>
           <div className="text-right">
-            <h2 className="text-2xl font-black tracking-tighter" style={{ color: '#059669' }}>NEPMS<span style={{ color: '#18181b' }}>.</span></h2>
+            <h2 className="text-2xl font-black tracking-tighter" style={{ color: '#059669' }}>Pharvix<span style={{ color: '#18181b' }}>.</span></h2>
             <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mt-1">Pharmacy</p>
             <div className="mt-2 text-right">
               <p className="text-[10px] text-zinc-500 font-medium">45-A, Commercial Zone, Phase 5, DHA, Lahore</p>
-              <p className="text-[10px] text-zinc-500 font-medium">Tel: +92 300 1234567 | Email: info@nepms.com</p>
+              <p className="text-[10px] text-zinc-500 font-medium">Tel: +92 300 1234567 | Email: info@pharvix.com</p>
               <p className="text-[10px] text-zinc-500 font-medium">NTN: 1234567-8</p>
             </div>
           </div>

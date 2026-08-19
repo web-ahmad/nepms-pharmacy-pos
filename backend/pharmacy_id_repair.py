@@ -19,7 +19,7 @@ import io
 # Force UTF-8 output on Windows
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-DB_PATH = "nepms.db"  # adjust if your DB file has a different name
+DB_PATH = "pharvix.db"  # adjust if your DB file has a different name
 
 # ── Find actual DB file ─────────────────────────────────────────────────────
 import os

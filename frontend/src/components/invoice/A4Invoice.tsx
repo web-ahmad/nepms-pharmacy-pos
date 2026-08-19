@@ -149,7 +149,7 @@ export default function A4Invoice({ invoice, template, type = 'sale' }: A4Invoic
       {/* Footer */}
       <div className="mt-10 border-t border-zinc-200 pt-4 text-center text-[10px] text-zinc-400">
         {taxLine && tpl.template === 'modern' && <p>{taxLine}</p>}
-        <p>Thank you for your business · Powered by NEPMS</p>
+        <p>Thank you for your business · Powered by Pharvix</p>
       </div>
     </div>
   );

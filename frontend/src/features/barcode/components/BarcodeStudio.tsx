@@ -73,7 +73,7 @@ export default function BarcodeStudio() {
   const set = (patch: Partial<BarcodeOptions>) => setOptions((o) => ({ ...o, ...patch }));
 
   // Single
-  const [value, setValue] = useState('NEPMS-000123');
+  const [value, setValue] = useState('Pharvix-000123');
   const [name, setName] = useState('Evion 400mg');
   const [price, setPrice] = useState('250');
   const [showName, setShowName] = useState(true);
@@ -120,7 +120,7 @@ export default function BarcodeStudio() {
     const canvases = mode === 'single' ? await buildSingle() : await buildBulk();
     if (!canvases.length) return;
     if (kind === 'print') printLabels(canvases, sheet);
-    else downloadPDF(canvases, sheet, 'nepms-barcodes.pdf');
+    else downloadPDF(canvases, sheet, 'pharvix-barcodes.pdf');
   };
   const doPNG = async () => {
     const c = await composeLabelCanvas(singleData, options);
@@ -375,7 +375,7 @@ function BulkPanel({ items, setItems, pasteOpen, setPasteOpen, pasteText, setPas
               <div className="mb-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50">
                 <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">One per line: <span className="font-mono">value, name, price</span></p>
                 <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={4}
-                  placeholder={"5901234123457, Panadol, 30\nNEPMS-000123, Evion, 250"}
+                  placeholder={"5901234123457, Panadol, 30\nPharvix-000123, Evion, 250"}
                   className="w-full rounded-lg border border-zinc-200 p-2 font-mono text-xs outline-none focus:ring-2 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-900" />
                 <div className="mt-2 flex justify-end"><button onClick={parsePaste} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">Add items</button></div>
               </div>

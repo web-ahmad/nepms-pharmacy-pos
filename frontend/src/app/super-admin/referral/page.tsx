@@ -140,7 +140,7 @@ export default function ReferralPage() {
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto">
       <div className="mb-6 sa-fade-up">
         <h1 className="text-xl font-bold" style={{ color: 'var(--sa-text)' }}>Referral Program</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--sa-text-muted)' }}>Reward pharmacies for referring new pharmacies to NEPMS.</p>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--sa-text-muted)' }}>Reward pharmacies for referring new pharmacies to Pharvix.</p>
       </div>
 
       {settingsLoading || !settings ? (

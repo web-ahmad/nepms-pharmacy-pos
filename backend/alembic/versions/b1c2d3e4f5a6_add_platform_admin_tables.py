@@ -99,7 +99,7 @@ def upgrade() -> None:
     op.create_table(
         'platform_settings',
         *_base_columns(),
-        sa.Column('platform_name', sa.String(length=150), nullable=False, server_default='NEPMS'),
+        sa.Column('platform_name', sa.String(length=150), nullable=False, server_default='Pharvix'),
         sa.Column('support_email', sa.String(length=150), nullable=True),
         sa.Column('support_phone', sa.String(length=50), nullable=True),
         sa.Column('default_currency_code', sa.String(length=3), nullable=True),

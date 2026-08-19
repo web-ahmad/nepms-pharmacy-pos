@@ -51,7 +51,7 @@ export const useSidebarStore = create<SidebarState>()(
       isCollapsed: false,
       toggleSidebar: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
     }),
-    { name: 'nepms-sidebar-state' }
+    { name: 'pharvix-sidebar-state' }
   )
 );
 
@@ -270,7 +270,7 @@ export function Sidebar() {
         {!isCollapsed && (
           <div className="flex flex-col leading-none">
             <span className="brand-gradient-text text-lg font-extrabold tracking-tight">
-              NEPMS
+              Pharvix
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
               Pharmacy ERP

@@ -48,7 +48,7 @@ export default function UniversalDataTable({ data, isLoading, rowsPerPage = 10, 
   // Company identity from Settings → Company (falls back to the tenant name).
   const { data: companySettings } = useSettings();
   const company = companySettings?.company_settings || {};
-  const pharmacyName = company.name || user?.pharmacy_name || 'NEPMS Pharmacy';
+  const pharmacyName = company.name || user?.pharmacy_name || 'Pharvix Pharmacy';
   // Invoice-template config drives the printed header colour + logo visibility.
   const template = useInvoiceTemplate();
   const accent = template.header_color || '#1e293b';
@@ -397,7 +397,7 @@ export default function UniversalDataTable({ data, isLoading, rowsPerPage = 10, 
 
   <!-- Footer -->
   <div class="page-footer">
-    <span>NEPMS Pharmacy Management System &mdash; ${pharmacyName} &mdash; ${branchLabel}</span>
+    <span>Pharvix Pharmacy Management System &mdash; ${pharmacyName} &mdash; ${branchLabel}</span>
     <span>${data.metadata.title} &mdash; Generated on ${dateStr} at ${timeStr}</span>
   </div>
 

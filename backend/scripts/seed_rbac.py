@@ -482,12 +482,20 @@ def seed_system_roles(db, tenant_id: str, perm_map: dict):
             EnterpriseRolePermission.role_id == role.id
         ).delete()
 
-        for code in role_def.get("permissions", []):
-            if code == "*":
-                continue  # Pharmacy Owner: handled by hierarchy_level == 2 check
-            perm = perm_map.get(code)
-            if perm:
+        codes = role_def.get("permissions", [])
+        if "*" in codes:
+            # Expand the wildcard into every permission rather than leaving the
+            # role empty. auth_service reads an L2 Owner's rights through
+            # compute_effective_permissions() whenever they have an
+            # EnterpriseUser profile, and that returns exactly what is attached
+            # here -- so a bare "*" would seed an Owner who can do nothing.
+            for perm in perm_map.values():
                 db.add(EnterpriseRolePermission(role_id=role.id, permission_id=perm.id))
+        else:
+            for code in codes:
+                perm = perm_map.get(code)
+                if perm:
+                    db.add(EnterpriseRolePermission(role_id=role.id, permission_id=perm.id))
 
     db.commit()
     print(f"[seed_rbac] Done for tenant {tenant_id}.")

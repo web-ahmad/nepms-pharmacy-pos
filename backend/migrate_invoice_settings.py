@@ -5,7 +5,7 @@ conn = sqlite3.connect('nepms_local.db')
 migrations = [
     "ALTER TABLE invoice_settings ADD COLUMN show_payment_method BOOLEAN DEFAULT 1",
     "ALTER TABLE invoice_settings ADD COLUMN show_ntn BOOLEAN DEFAULT 0",
-    "ALTER TABLE invoice_settings ADD COLUMN business_name VARCHAR DEFAULT 'NEPMS Pharmacy'",
+    "ALTER TABLE invoice_settings ADD COLUMN business_name VARCHAR DEFAULT 'Pharvix Pharmacy'",
     "ALTER TABLE invoice_settings ADD COLUMN business_address VARCHAR DEFAULT 'Plot 12-C, Commercial Area, Sector G-10'",
     "ALTER TABLE invoice_settings ADD COLUMN business_phone VARCHAR DEFAULT '+92-51-1234567'",
     "ALTER TABLE invoice_settings ADD COLUMN business_ntn VARCHAR",

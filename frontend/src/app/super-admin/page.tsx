@@ -155,7 +155,7 @@ export default function SuperAdminDashboard() {
         <span>{pharmacies.length} pharmacies registered</span>
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--sa-success)' }} />
-          <span>NEPMS Platform v2 — Super Admin Portal</span>
+          <span>Pharvix Platform v2 — Super Admin Portal</span>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import sys
 
 # We will try to login to the local API using the default admin credentials (from seed_admin.py)
 login_data = {
-    "username": "admin",  # or email, let's try admin@nepms.com
+    "username": "admin",  # or email, let's try admin@pharvix.com
     "password": "password123"
 }
 # Let's try to figure out what the user logs in with.

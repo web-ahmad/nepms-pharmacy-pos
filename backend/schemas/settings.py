@@ -50,7 +50,7 @@ class InvoiceSettingsBase(BaseModel):
     show_drug_license: bool = True
     show_ntn: bool = False
     
-    business_name: str = "NEPMS Pharmacy"
+    business_name: str = "Pharvix Pharmacy"
     business_address: str = "Plot 12-C, Commercial Area, Sector G-10"
     business_phone: str = "+92-51-1234567"
     footer_text: str = "Thank you for your business!"

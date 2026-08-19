@@ -27,8 +27,8 @@ export default function InvoiceDetailPage() {
   const template = useInvoiceTemplate();
   const company = settings?.company_settings || {};
   const accent = template.header_color || '#2563eb';
-  const companyName = company.name || 'NEPMS Pharmacy';
-  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || 'National Electronic Pharmacy Management System';
+  const companyName = company.name || 'Pharvix Pharmacy';
+  const companyAddress = [company.address, company.city, company.country].filter(Boolean).join(', ') || 'Pharvix Pharmacy Management System';
   const companyLogo = template.show_logo ? resolveAssetUrl(company.logo_url) : '';
   const onAccent = (() => {
     const h = accent.replace('#', '');
@@ -239,7 +239,7 @@ export default function InvoiceDetailPage() {
 
         <div class="footer">
           <div class="footer-text">Generated on ${format(new Date(), 'MMMM dd, yyyy HH:mm')}</div>
-          <div class="watermark">${companyName} — Powered by NEPMS</div>
+          <div class="watermark">${companyName} — Powered by Pharvix</div>
         </div>
       </div>
       </body>
@@ -339,8 +339,8 @@ export default function InvoiceDetailPage() {
         <div className="border-b border-zinc-200 dark:border-zinc-800 p-6">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">NEPMS Pharmacy</h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">National Electronic Pharmacy Management System</p>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Pharvix Pharmacy</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Pharvix Pharmacy Management System</p>
             </div>
             <div className="text-right">
               <h3 className="text-2xl font-extrabold text-blue-600 dark:text-blue-400">INVOICE</h3>
@@ -453,7 +453,7 @@ export default function InvoiceDetailPage() {
         {/* Footer */}
         <div className="border-t border-zinc-200 dark:border-zinc-800 p-4 flex justify-between items-center text-xs text-zinc-400 dark:text-zinc-500">
           <span>Generated on {format(new Date(), 'MMMM dd, yyyy')}</span>
-          <span className="italic">NEPMS — Pharmacy Management System</span>
+          <span className="italic">Pharvix — Pharmacy Management System</span>
         </div>
       </div>
 

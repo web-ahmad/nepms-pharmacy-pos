@@ -19,7 +19,7 @@ export interface SymbologyMeta {
 const digits = (v: string) => /^\d+$/.test(v);
 
 export const SYMBOLOGIES: SymbologyMeta[] = [
-  { id: 'CODE128', label: 'Code 128', hint: 'Any text/number — best all-round', sample: 'NEPMS-000123',
+  { id: 'CODE128', label: 'Code 128', hint: 'Any text/number — best all-round', sample: 'Pharvix-000123',
     validate: (v) => (v.length ? null : 'Value required') },
   { id: 'CODE39', label: 'Code 39', hint: 'A–Z, 0–9, - . $ / + %', sample: 'ITEM-001',
     validate: (v) => (/^[0-9A-Z\-. $/+%]*$/.test(v) && v.length ? null : 'Use A–Z, 0–9, - . $ / + %') },
@@ -37,7 +37,7 @@ export const SYMBOLOGIES: SymbologyMeta[] = [
     validate: (v) => { const n = Number(v); return digits(v) && n >= 3 && n <= 131070 ? null : 'Number 3–131070'; } },
   { id: 'codabar', label: 'Codabar', hint: 'Digits and - $ : / . +', sample: 'A40156B',
     validate: (v) => (v.length ? null : 'Value required') },
-  { id: 'QR', label: 'QR Code', hint: 'Any text, URL, or data', sample: 'https://nepms.app',
+  { id: 'QR', label: 'QR Code', hint: 'Any text, URL, or data', sample: 'https://pharvix.app',
     validate: (v) => (v.length ? null : 'Value required') },
 ];
 

@@ -66,7 +66,7 @@ class MediaAsset(BaseModel):
 class PlatformSettings(BaseModel):
     __tablename__ = "platform_settings"
 
-    platform_name = Column(String(150), nullable=False, default="NEPMS")
+    platform_name = Column(String(150), nullable=False, default="Pharvix")
     support_email = Column(String(150), nullable=True)
     support_phone = Column(String(50), nullable=True)
     default_currency_code = Column(String(3), nullable=True)

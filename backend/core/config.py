@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "NEPMS Backend"
+    PROJECT_NAME: str = "Pharvix Backend"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     

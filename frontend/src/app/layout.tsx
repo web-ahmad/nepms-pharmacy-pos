@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NEPMS",
+  title: "Pharvix",
   description: "Next-Generation Enterprise Pharmacy Management System",
 };
 

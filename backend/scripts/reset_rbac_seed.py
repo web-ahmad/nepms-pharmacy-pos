@@ -1,7 +1,7 @@
 """
 backend/scripts/reset_rbac_seed.py
 ────────────────────────────────────────────────────────────────────────────────
-NEPMS RBAC 4.0 — Wipe & Reseed Script  (v2 — Strict SaaS/Tenant Split)
+Pharvix RBAC 4.0 — Wipe & Reseed Script  (v2 — Strict SaaS/Tenant Split)
 
 PERMISSION MODEL
 ────────────────
@@ -704,7 +704,7 @@ def run(pharmacy_id: Optional[str] = None, dry_run: bool = False):
         tenant_count = len(_TENANT_CODES)
         l1_total     = len(CANONICAL_ROLES[0]["permission_codes"])
 
-        print(f"\n{'[DRY RUN] ' if dry_run else ''}NEPMS RBAC 4.0 Reseed  (v2 — Strict SaaS/Tenant Split)")
+        print(f"\n{'[DRY RUN] ' if dry_run else ''}Pharvix RBAC 4.0 Reseed  (v2 — Strict SaaS/Tenant Split)")
         print(f"{'─' * 60}")
         print(f"  Permission catalog:")
         print(f"    SaaS   (L1 only):         {saas_count:>4} codes")
@@ -772,7 +772,7 @@ def run(pharmacy_id: Optional[str] = None, dry_run: bool = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="NEPMS RBAC 4.0 — Wipe & Reseed (v2 Strict SaaS/Tenant Split)"
+        description="Pharvix RBAC 4.0 — Wipe & Reseed (v2 Strict SaaS/Tenant Split)"
     )
     parser.add_argument(
         "--pharmacy-id",

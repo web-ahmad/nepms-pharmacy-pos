@@ -132,7 +132,7 @@ export default function PettyCashPage() {
         <div class="sign"><div class="line"></div><div class="lbl">Prepared By</div></div>
         <div class="sign"><div class="line"></div><div class="lbl">Manager Signature</div></div>
       </div>
-      <div class="foot">NEPMS · ${format(new Date(), 'dd MMM yyyy, hh:mm a')}</div>
+      <div class="foot">Pharvix · ${format(new Date(), 'dd MMM yyyy, hh:mm a')}</div>
       <script>window.onload=()=>{setTimeout(()=>{window.print();},250);};<\/script>
       </body></html>`);
     w.document.close();

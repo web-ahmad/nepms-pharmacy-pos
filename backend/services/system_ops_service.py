@@ -136,7 +136,7 @@ class SystemOpsService:
             raise RuntimeError("Backups are only supported on the SQLite database in this deployment.")
 
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        file_name = f"nepms_{stamp}.db"
+        file_name = f"pharvix_{stamp}.db"
         dest = os.path.join(BACKUP_DIR, file_name)
 
         # sqlite3's backup API produces a consistent copy even while the app

@@ -1,8 +1,8 @@
 import sys
-sys.path.append('C:/Users/DEVJiX/Desktop/NEPMS/backend')
+sys.path.append('C:/Users/DEVJiX/Desktop/Pharvix/backend')
 from sqlalchemy import create_engine, text
 
-engine = create_engine('sqlite:///C:/Users/DEVJiX/Desktop/NEPMS/backend/nepms_local.db')
+engine = create_engine('sqlite:///C:/Users/DEVJiX/Desktop/Pharvix/backend/nepms_local.db')
 with engine.connect() as conn:
     print('Recent medicines:')
     res = conn.execute(text('SELECT id, name FROM medicines ORDER BY created_at DESC LIMIT 5')).fetchall()

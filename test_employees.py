@@ -12,7 +12,7 @@ def test_fetch():
     db = SessionLocal()
     try:
         repo = HRRepository(db)
-        # assuming tenant_id is "nepms-pharmacy-pos"
+        # assuming tenant_id is "pharvix-pharmacy-pos"
         employees = repo.get_employees("test-tenant") 
         print("Fetched", len(employees), "employees")
         # Try to serialize with Pydantic

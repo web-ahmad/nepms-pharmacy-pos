@@ -1,5 +1,5 @@
 import sys, traceback
-sys.path.append('C:/Users/DEVJiX/Desktop/NEPMS/backend')
+sys.path.append('C:/Users/DEVJiX/Desktop/Pharvix/backend')
 from database import SessionLocal
 from core.pharmacy_scope import PharmacyScope
 from services.enterprise.branch_service import branch_service

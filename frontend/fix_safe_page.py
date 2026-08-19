@@ -1,6 +1,6 @@
 import re
 
-file_path = "c:/Users/DEVJiX/Desktop/NEPMS/frontend/src/app/super-admin/page.tsx"
+file_path = "c:/Users/DEVJiX/Desktop/Pharvix/frontend/src/app/super-admin/page.tsx"
 with open(file_path, 'r', encoding='utf-8') as f:
     content = f.read()
 

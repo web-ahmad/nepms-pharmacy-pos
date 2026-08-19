@@ -208,7 +208,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'nepms-auth-storage',
+      name: 'pharvix-auth-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         accessToken: state.accessToken,

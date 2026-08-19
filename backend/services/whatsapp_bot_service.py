@@ -32,7 +32,7 @@ def _load_whitelist() -> set:
 
 # ── Menu definition ───────────────────────────────────────────────────────────
 MENU_TEXT = (
-    "📋 *NEPMS Report Bot*\n"
+    "📋 *Pharvix Report Bot*\n"
     "━━━━━━━━━━━━━━━━━━━━\n"
     "Reply with a number:\n\n"
     "1️⃣  Today's Sales Summary\n"

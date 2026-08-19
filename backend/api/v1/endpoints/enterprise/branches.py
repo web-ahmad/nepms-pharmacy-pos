@@ -50,8 +50,17 @@ from services.enterprise.branch_service import branch_service
 
 router = APIRouter()
 
-# Permission guard — reusable dependency
-def _require_branch_access(token: dict = Depends(requires_permission("settings:manage"))):
+# Permission guard — reusable dependency.
+#
+# This used to require "settings:manage", which does not exist: the RBAC
+# catalogue in scripts/seed_rbac.py only seeds settings:view / :edit / :modules,
+# so no role could ever hold it and every branch route returned 403 — including
+# for a Pharmacy Owner holding the full branches:* set. (It appeared to work on
+# the old dev database only because that one had been seeded from the separate,
+# divergent catalogue in repositories/enterprise/role.py, which does list it.)
+# "branches:view" is both real and the permission that actually describes these
+# routes; the write routes keep their own additional hierarchy guards.
+def _require_branch_access(token: dict = Depends(requires_permission("branches:view"))):
     return token
 
 

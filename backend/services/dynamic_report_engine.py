@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session, aliased
+from core.sql_compat import year_month
 from sqlalchemy import func, case, desc, Date, cast, String, extract, select, and_
 from datetime import datetime, timedelta, date
 from typing import Dict, Any, List, Optional
@@ -1208,14 +1209,14 @@ class DynamicReportEngine:
     def _strategy_sales_monthly(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """Month-wise Sales Summary"""
         query = self.db.query(
-            func.strftime('%Y-%m', Sale.created_at).label('month'),
+            year_month(Sale.created_at).label('month'),
             func.count(Sale.id).label('total_bills'),
             func.sum(Sale.total_amount).label('revenue'),
             func.sum(Sale.discount_amount).label('discounts'),
             func.sum(Sale.tax_amount).label('tax_collected'),
         ).filter(
             *self._sale_filters(tenant_id, params)
-        ).group_by(func.strftime('%Y-%m', Sale.created_at))\
+        ).group_by(year_month(Sale.created_at))\
          .order_by(desc('month')).all()
 
         return {
@@ -2086,7 +2087,7 @@ class DynamicReportEngine:
     def _strategy_medicine_expiry_calendar(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """Expiry Calendar - Medicines expiring grouped by month"""
         query = self.db.query(
-            func.strftime('%Y-%m', Batch.expiry_date).label('expiry_month'),
+            year_month(Batch.expiry_date).label('expiry_month'),
             func.count(Batch.id).label('batch_count'),
             func.sum(Batch.current_quantity).label('total_qty'),
             func.sum(Batch.current_quantity * Batch.purchase_price).label('at_risk_value'),
@@ -2096,7 +2097,7 @@ class DynamicReportEngine:
             Batch.current_quantity > 0,
             Batch.expiry_date != None,
             *([Batch.branch_id == params.branch_id] if params and params.branch_id else [])
-         ).group_by(func.strftime('%Y-%m', Batch.expiry_date))\
+         ).group_by(year_month(Batch.expiry_date))\
           .order_by('expiry_month').all()
 
         return {
@@ -2216,20 +2217,20 @@ class DynamicReportEngine:
     def _strategy_customer_new_vs_returning(self, tenant_id: str, params: DateRangeParams) -> Dict[str, Any]:
         """New vs Returning Customers per Month"""
         new_q = self.db.query(
-            func.strftime('%Y-%m', Customer.created_at).label('month'),
+            year_month(Customer.created_at).label('month'),
             func.count(Customer.id).label('new_customers'),
         ).filter(Customer.tenant_id == tenant_id)\
-         .group_by(func.strftime('%Y-%m', Customer.created_at))\
+         .group_by(year_month(Customer.created_at))\
          .order_by(desc('month')).all()
 
         return_q = self.db.query(
-            func.strftime('%Y-%m', Sale.created_at).label('month'),
+            year_month(Sale.created_at).label('month'),
             func.count(func.distinct(Sale.customer_id)).label('active_buyers'),
         ).filter(
             Sale.tenant_id == tenant_id,
             Sale.customer_id != None,
             Sale.status == 'Completed',
-        ).group_by(func.strftime('%Y-%m', Sale.created_at))\
+        ).group_by(year_month(Sale.created_at))\
          .order_by(desc('month')).all()
 
         new_map = {r.month: r.new_customers for r in new_q}

@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
+from core.sql_compat import year as sql_year
 
 from models.enterprise.branch_configuration import (
     BranchConfiguration,
@@ -143,7 +144,7 @@ class BranchConfigurationRepository:
             _active(BranchHoliday, branch_id, pharmacy_id)
         )
         if year:
-            q = q.filter(func.strftime("%Y", BranchHoliday.holiday_date) == str(year))
+            q = q.filter(sql_year(BranchHoliday.holiday_date) == str(year))
         return q.order_by(BranchHoliday.holiday_date).all()
 
     def create_holiday(

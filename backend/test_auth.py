@@ -1,6 +1,6 @@
 import sys
 import traceback
-sys.path.append('c:/Users/DEVJiX/Desktop/NEPMS/backend')
+sys.path.append('c:/Users/DEVJiX/Desktop/Pharvix/backend')
 from core.database import SessionLocal
 from services.auth_service import AuthService
 from schemas.auth import UserLogin

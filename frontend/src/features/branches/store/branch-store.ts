@@ -99,7 +99,7 @@ export const useBranchStore = create<BranchState>()(
       resetWizard: () => set({ wizardStep: 0, wizardData: {} }),
     }),
     {
-      name: 'nepms-branch-ui',
+      name: 'pharvix-branch-ui',
       partialize: (state) => ({
         viewMode: state.viewMode,
         filters:  state.filters,

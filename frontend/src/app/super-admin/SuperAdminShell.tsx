@@ -149,7 +149,7 @@ function Sidebar({
             {!collapsed && (
               <div className="overflow-hidden">
                 <p className="text-sm font-bold leading-tight truncate" style={{ color: 'var(--sa-text)' }}>
-                  NEPMS
+                  Pharvix
                 </p>
                 <p className="text-[10px] leading-tight font-medium truncate" style={{ color: 'var(--sa-accent)' }}>
                   Super Admin
@@ -378,7 +378,7 @@ function TopBar({
             {pageTitle}
           </h1>
           <p className="text-[10px] hidden sm:block" style={{ color: 'var(--sa-text-faint)' }}>
-            NEPMS Platform Control
+            Pharvix Platform Control
           </p>
         </div>
       </div>

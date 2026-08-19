@@ -50,7 +50,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     try {
       await updateSettings.mutateAsync({
-        platform_name: platformName.trim() || 'NEPMS',
+        platform_name: platformName.trim() || 'Pharvix',
         support_email: supportEmail.trim() || null,
         support_phone: supportPhone.trim() || null,
         default_currency_code: defaultCurrency || null,
@@ -80,7 +80,7 @@ export default function SettingsPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--sa-text)' }}>Platform Settings</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--sa-text-muted)' }}>Global configuration for the NEPMS platform.</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--sa-text-muted)' }}>Global configuration for the Pharvix platform.</p>
         </div>
       </div>
 

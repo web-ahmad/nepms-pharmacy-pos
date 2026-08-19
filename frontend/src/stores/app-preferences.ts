@@ -86,7 +86,7 @@ export const useAppPreferences = create<AppPreferencesState>()(
       setReduceMotion: (reduceMotion) => set({ reduceMotion }),
       setCompact: (compact) => set({ compact }),
     }),
-    { name: 'nepms-app-preferences' }
+    { name: 'pharvix-app-preferences' }
   )
 );
 

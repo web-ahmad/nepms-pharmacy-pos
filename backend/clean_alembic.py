@@ -1,5 +1,5 @@
 import re
-path = "C:/Users/DEVJiX/Desktop/NEPMS/backend/alembic/versions/2fbec8a65272_enterprise_purchase_upgrade.py"
+path = "C:/Users/DEVJiX/Desktop/Pharvix/backend/alembic/versions/2fbec8a65272_enterprise_purchase_upgrade.py"
 with open(path, "r") as f:
     lines = f.readlines()
 

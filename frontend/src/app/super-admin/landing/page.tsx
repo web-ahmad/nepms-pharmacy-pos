@@ -7,7 +7,7 @@ export default function LandingPage() {
     <PlaceholderPage
       icon={Globe}
       title="Landing Page"
-      description="Edit the NEPMS public landing page content, hero sections, feature highlights, and call-to-action elements."
+      description="Edit the Pharvix public landing page content, hero sections, feature highlights, and call-to-action elements."
       accent="#0ea5e9"
     />
   );

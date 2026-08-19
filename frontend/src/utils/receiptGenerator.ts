@@ -2,7 +2,7 @@ export const generateReceiptHtml = (saleOrReturn: any, settings: any, type: 'sal
   const isReturn = type === 'return';
   
   // ── Business identity (dynamic from settings) ──────────────────────────
-  const businessName    = settings?.business_name    || 'NEPMS Pharmacy';
+  const businessName    = settings?.business_name    || 'Pharvix Pharmacy';
   const businessAddress = settings?.business_address || 'Plot 12-C, Commercial Area, Sector G-10';
   const businessPhone   = settings?.business_phone   || '+92-51-1234567';
 
@@ -20,7 +20,7 @@ export const generateReceiptHtml = (saleOrReturn: any, settings: any, type: 'sal
   const showDrugLicense   = settings?.show_drug_license    !== false;
   const showNtn           = settings?.show_ntn             === true;
   const footerMessage     = settings?.footer_text          || 'Thank you for your business!';
-  const returnPolicy      = settings?.urdu_policy_text     || 'Software Powered by NEPMS';
+  const returnPolicy      = settings?.urdu_policy_text     || 'Software Powered by Pharvix';
   
   const currencyPrefix = showCurrency ? 'Rs ' : '';
   

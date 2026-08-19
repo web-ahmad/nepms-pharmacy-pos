@@ -1,7 +1,7 @@
 """
 core/pharmacy_scope.py
 ───────────────────────
-Application-layer Row-Level Security (RLS) for the NEPMS multi-tenant SaaS platform.
+Application-layer Row-Level Security (RLS) for the Pharvix multi-tenant SaaS platform.
 
 Every endpoint injects `PharmacyScope` via `Depends(get_pharmacy_scope)`.
 Calling `scope.apply(query, Model)` automatically narrows the query to the

@@ -30,7 +30,7 @@ api.interceptors.request.use(
     // Fallback: localStorage (covers hard-reloads & initial-render races)
     if (!token && typeof window !== 'undefined') {
       try {
-        const stored = localStorage.getItem('nepms-auth-storage');
+        const stored = localStorage.getItem('pharvix-auth-storage');
         if (stored) {
           const parsed = JSON.parse(stored);
           // Zustand persist wraps state under a `state` key

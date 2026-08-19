@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, case
+from core.sql_compat import year_month, year as sql_year
 from models.sales import Sale, SaleItem, CustomerLedger
 from models.inventory import Medicine, Category, Batch
 from models.purchase import PurchaseOrder, POItem, Supplier
@@ -34,9 +35,9 @@ class ReportsRepository:
         if group_by_period == 'day':
             date_expr = func.date(Sale.created_at)
         elif group_by_period == 'month':
-            date_expr = func.strftime('%Y-%m', Sale.created_at) if dialect == 'sqlite' else func.to_char(Sale.created_at, 'YYYY-MM')
+            date_expr = year_month(Sale.created_at)
         else: # year
-            date_expr = func.strftime('%Y', Sale.created_at) if dialect == 'sqlite' else func.to_char(Sale.created_at, 'YYYY')
+            date_expr = sql_year(Sale.created_at)
 
         query = self.db.query(
             date_expr.label('period'),

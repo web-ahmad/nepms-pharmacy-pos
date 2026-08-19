@@ -39,7 +39,7 @@ export function printHRReport(elementId: string, title: string) {
   if (!win) return;
   win.document.write(`
     <!DOCTYPE html><html><head>
-      <title>${title} — NEPMS HR</title>
+      <title>${title} — Pharvix HR</title>
       <style>${styles}</style>
     </head><body>
       <div class="print-header">
@@ -47,7 +47,7 @@ export function printHRReport(elementId: string, title: string) {
           <h1>${title}</h1>
           <p>Generated: ${new Date().toLocaleString('en-PK')}</p>
         </div>
-        <div class="company">NEPMS Pharmacy · HR &amp; Payroll Centre</div>
+        <div class="company">Pharvix Pharmacy · HR &amp; Payroll Centre</div>
       </div>
       ${el.innerHTML}
     </body></html>

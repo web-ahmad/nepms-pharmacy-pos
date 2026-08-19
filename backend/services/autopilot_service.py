@@ -610,7 +610,7 @@ def build_daily_briefing(db, tenant_id, branch_id, pharmacy_name: str = "") -> s
         else "Expiry wala stock clear karein." if exp["predicted_waste_value"] > 0
         else "Sab control me hai — top-sellers ka stock poora rakhein."))
     lines.append("")
-    lines.append("_NEPMS AI Autopilot_")
+    lines.append("_Pharvix AI Autopilot_")
     return "\n".join(lines)
 
 
